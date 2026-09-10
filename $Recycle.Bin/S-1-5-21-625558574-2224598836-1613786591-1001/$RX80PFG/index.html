@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nimbus — Beaconhouse AI</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><img class="logo-nimbus" src="/assets/nimbus-logo.png" alt="Nimbus AI"><div><b>NIMBUS</b><small>Education AI</small></div></div>
+    <button class="new" id="newChat">＋ New chat</button>
+    <div class="label">MODELS</div>
+    <div id="models"></div>
+    <button class="add" id="addModel">＋ Add model</button>
+    <div class="grow"></div>
+    <div class="school"><img class="logo-beacon" src="/assets/beaconhouse-logo.png" alt="Beaconhouse"><div><b>BEACONHOUSE</b><small>Student workspace</small></div></div>
+    <button class="side-link" data-panel="knowledge">Beaconhouse knowledge</button>
+    <button class="side-link" data-panel="privacy">Privacy & access</button>
+    <button class="side-link" id="adminBtn">Owner workspace</button>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <button class="picker" id="picker"><span class="dot"></span><span id="activeName">Nimbus</span><span>⌄</span></button>
+      <div class="topright"><button id="clear">Clear</button><div id="avatar">B</div></div>
+      <div class="menu hidden" id="menu"></div>
+    </header>
+
+    <section class="workspace">
+      <section class="chat">
+        <div id="welcome" class="welcome">
+          <div class="orb">N</div>
+          <h1>What can Nimbus help you learn?</h1>
+          <p>Ask questions, revise concepts, explore ideas, or attach school work for guided help.</p>
+          <div class="quick">
+            <button data-prompt="Explain this topic to me simply."><b>✦ Explain a topic</b><span>Clear learning help</span></button>
+            <button data-prompt="Help me make a revision plan for my next test."><b>◈ Plan revision</b><span>Focused study plan</span></button>
+            <button data-prompt="Quiz me one question at a time on my school subject."><b>◉ Start a quiz</b><span>Active practice</span></button>
+            <button data-prompt="Summarise the file I attach and make five study questions."><b>⌁ Study a file</b><span>Summarise + practise</span></button>
+          </div>
+        </div>
+        <div id="messages" class="messages"></div>
+        <div class="composer-area">
+          <div id="fileBox" class="filebox hidden"></div>
+          <form id="composer" class="composer">
+            <button type="button" id="attach" class="attach">＋</button>
+            <input id="file" type="file" hidden accept=".pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.png,.jpg,.jpeg">
+            <textarea id="input" rows="1" placeholder="Message Nimbus…"></textarea>
+            <button class="send">➤</button>
+          </form>
+          <div class="note">Nimbus can make mistakes. Check important school information with a teacher or official Beaconhouse source.</div>
+        </div>
+      </section>
+
+      <aside class="agent">
+        <div class="agent-head"><div><span class="live">● LIVE AGENT</span><h2 id="stageTitle">Nimbus workspace</h2></div><button id="pause">Pause</button></div>
+        <div class="stage">
+          <div class="floor"></div>
+          <div class="rings"></div>
+          <div class="bot"><div class="eye"></div><div class="eye"></div><div class="mouth"></div></div>
+          <span class="node a">READ</span><span class="node b">THINK</span><span class="node c">HELP</span>
+          <div id="status">Ready for your question</div>
+        </div>
+        <div class="meta"><div><span>Model</span><b id="stageModel">Nimbus</b></div><div><span>Mode</span><b>Education</b></div><div><span>Files</span><b>Local upload</b></div></div>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="login">
+  <div class="card">
+    <div class="loginbrand"><img class="logo-login-nimbus" src="/assets/nimbus-logo.png" alt="Nimbus AI"><div><b>Nimbus</b><small>Beaconhouse student AI</small></div></div>
+    <h2>Sign in to Nimbus</h2>
+    <p>Use your Beaconhouse educational/Beaconite ID. This starter does not collect passwords.</p>
+    <label>Beaconhouse Educational ID</label>
+    <input id="eduId" placeholder="Your educational ID">
+    <button id="signIn">Continue securely</button>
+    <div class="loginmsg" id="loginmsg"></div>
+    <small class="fine">For production, connect this screen to an approved Beaconhouse identity/SSO service.</small>
+  </div>
+</div>
+
+<div class="overlay hidden" id="modal"><div class="modal"><button id="close">×</button><div id="modalText"></div></div></div>
+<div class="overlay hidden" id="adminModal">
+  <div class="admin-modal">
+    <button id="adminClose">×</button>
+    <div class="admin-top"><div><span class="live">● PRIVATE OWNER WORKSPACE</span><h2>Nimbus Console</h2><p>Revenue, usage and model operations</p></div></div>
+    <div id="adminAuth">
+      <label>Owner email</label>
+      <input id="adminEmail" type="email" placeholder="your-email@example.com">
+      <button id="adminLogin">Request owner access</button>
+      <div id="adminMsg"></div>
+      <small>Only emails in the server-side ADMIN_EMAILS allowlist can enter. Production should use verified SSO/email authentication.</small>
+    </div>
+    <div id="adminContent" class="hidden"></div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
