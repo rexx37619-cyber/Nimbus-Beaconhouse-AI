@@ -116,7 +116,8 @@ GENERAL RESPONSE STYLE:
 Give useful answers directly. Avoid unnecessary disclaimers.
 Keep explanations understandable for school students.
 """
-MODEL_MAP={"nimbus":"gemini-2.5-flash"}
+
+MODEL_MAP={"nimbus":"gemini-3.8-flash"}
 
 async def run_agent(message: str, model: str, file_path: Optional[str]=None, file_name: Optional[str]=None) -> str:
     try:
@@ -125,7 +126,7 @@ async def run_agent(message: str, model: str, file_path: Optional[str]=None, fil
             uploaded=client.files.upload(file=Path(file_path))
             contents=[uploaded, message.strip() or f"Analyse the attached file '{file_name or 'file'}' and help the student."]
         response=client.models.generate_content(
-            model=MODEL_MAP.get(model,"gemini-2.5-flash"),
+            model=MODEL_MAP.get(model,"gemini-3.8-flash"),
             contents=contents,
             config={"system_instruction":BEACONHOUSE_INSTRUCTIONS}
         )
