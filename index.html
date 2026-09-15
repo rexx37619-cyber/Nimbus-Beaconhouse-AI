@@ -34,7 +34,7 @@
         <span class="page-brand">Nimbus</span>
         <div class="model-picker" id="modelPicker">
           <button id="modelPickerBtn" class="model-picker-btn" aria-expanded="false">
-            <span class="model-dot"></span><span id="activeModelLabel">Nimbus 4.5 ROR</span><span class="model-chevron">⌄</span>
+            <img class="model-logo" src="/assets/nimbus-logo.png" alt=""><span id="activeModelLabel">Nimbus 4.5 ROR</span><span class="model-chevron">⌄</span>
           </button>
           <div id="modelMenu" class="model-menu hidden"></div>
         </div>
@@ -78,6 +78,23 @@
           <div class="composer-note">Nimbus can make mistakes. Verify important school information with a teacher or official Beaconhouse source.</div>
         </div>
       </div>
+      <aside id="agentAssist" class="agent-assist hidden" aria-live="polite">
+        <div class="agent-card">
+          <div class="agent-card-top">
+            <div class="agent-avatar">
+              <img src="/assets/nimbus-logo.png" alt="Nimbus">
+            </div>
+            <div>
+              <div class="agent-kicker">NIMBUS AI</div>
+              <div class="agent-title">Working on it</div>
+            </div>
+          </div>
+          <div class="agent-wave" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="agent-caption">Preparing a rapid response…</div>
+        </div>
+      </aside>
     </section>
   </main>
 </div>
@@ -101,14 +118,15 @@
     <button id="closeInfo" class="close">×</button>
     <div class="info-hero">
       <img src="/assets/nimbus-logo.png" alt="Nimbus">
-      <div><div class="eyebrow">NIMBUS 4.5 ROR</div><h2>Rapid learning intelligence</h2><p>Ultra-tuned Nimbus behavior running on Google Gemini 3.5 Flash-Lite.</p></div>
+      <div><div class="eyebrow">NIMBUS 4.5 ROR</div><h2>Rapid learning intelligence</h2><p>Ultra-tuned Nimbus behavior with a rapid Google-powered engine.</p></div>
     </div>
     <div class="info-profile">
       <div class="info-person"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><b>Nimbus</b><span>4.5 ROR • Rapid model</span></div></div>
       <div class="info-person"><img src="/assets/beaconhouse-logo.png" alt="Beaconhouse"><div><b>Beaconhouse context</b><span>Public educational resources</span></div></div>
     </div>
-    <div class="info-section"><h3>About Nimbus 4.5 ROR</h3><p>Nimbus 4.5 ROR is the rapid Nimbus release, using Gemini 3.5 Flash-Lite with custom system instructions for educational help, Beaconhouse context, attachments and concise student-friendly responses.</p></div>
-    <div class="info-section"><h3>Founder</h3><p><b>Abdul Haadi Hassan</b> — founder and developer of Nimbus. The founder description can be updated from the project configuration if your public branding changes.</p></div>
+    <div class="info-section"><h3>About Nimbus 4.5 ROR</h3><p>Nimbus 4.5 ROR is the rapid Nimbus release with ultra modifications for quick educational responses, broad question answering, Beaconhouse context, attachments, coding help and file-ready outputs.</p></div>
+    <div class="info-section"><h3>Founder</h3><p><b>Abdul Haadi Hassan</b> — founder and developer of Nimbus. Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer.</p></div>
+    <div class="info-section"><h3>Files & exports</h3><p>Nimbus can prepare study sheets, formatted answers, code, text files and PDF-ready responses. Use the export controls on AI answers to copy, save text, or print/save an answer as PDF.</p></div>
     <div class="info-section"><h3>Beaconhouse official resources</h3><div id="resourceLinks" class="resource-grid"></div></div>
   </div>
 </div>

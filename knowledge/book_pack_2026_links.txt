@@ -1,0 +1,47 @@
+NIMBUS — OFFICIAL BEACONHOUSE 2026–2027 BOOK-LIST GUIDE
+
+Use the current official Beaconhouse book-list portals below. Each portal has a
+grade selector; Class 1 through Class 8 are included on the relevant 2026–2027
+portals.
+
+Do not treat old BEAMS PDFs or old academic-year lists as current universal
+lists. Exact books can vary by region, campus, programme and academic year.
+
+Punjab — Class 1–8 selector:
+https://booklist.beaconhouse.net/punjab-booklist/
+
+Sindh & Balochistan — Class 1–8 selector:
+https://booklist.beaconhouse.net/sindh-balochistan-booklist/
+
+Fed / ICT:
+https://booklist.beaconhouse.net/ict-booklist/
+
+KPK:
+https://booklist.beaconhouse.net/kpk-booklist/
+
+TNS:
+https://booklist.beaconhouse.net/tns-booklist/
+
+Newlands Karachi:
+https://booklist.beaconhouse.net/newlands-booklist-khi/
+
+Newlands Islamabad:
+https://booklist.beaconhouse.net/newlands-booklist-isb/
+
+Newlands Lahore & Multan:
+https://booklist.beaconhouse.net/newlands-booklist-ml/
+
+Discovery Centre Karachi:
+https://booklist.beaconhouse.net/discovery-karachi-booklist/
+
+Official master book-list portal:
+https://booklist.beaconhouse.net/
+
+Verified current pages also include, for example, Class 1 and Class 8 pages for
+Sindh & Balochistan and Class 8 pages for Punjab, ICT, KPK and Newlands
+variants. Always use the official portal selector to choose the student's
+campus/region and class before stating a book title.
+
+Nimbus should say:
+"Beaconhouse's current 2026–2027 book lists are campus/region specific. Tell me
+your region/campus and class, or open the official book-list portal above."

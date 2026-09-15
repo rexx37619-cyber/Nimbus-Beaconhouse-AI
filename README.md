@@ -62,3 +62,26 @@ automatically. If it does not, use Deploys → Trigger deploy → Deploy site.
 The security/cybersecurity staff name is intentionally not hard-coded for a public site.
 If you have the person's consent to publish their name and role, configure it as public
 content only after confirming that permission.
+
+
+## Rapid-clean Nimbus 4.5 ROR update
+
+This build intentionally keeps the UI quiet and fast: no typing animation, no decorative agent animation, no animated agent badge, and no underlying Google model name displayed in the UI.
+
+The public ROR path uses Gemini 3.5 Flash-Lite with minimal thinking for low latency, with a lightweight fallback to Gemini 2.5 Flash-Lite. Google's current API documentation lists Gemini 3.5 Flash-Lite as supporting minimal, low, medium and high thinking levels, with minimal optimized for speed.
+
+The `knowledge/` directory contains public Beaconhouse reference notes and official links for BISC, RISE competitions, LAP, BEAMS, PRISM, book-pack archives, sports/STEAM competitions, trips, internships and related programmes. These are reference snapshots; current campus/class-specific details should be verified against the linked official source.
+
+The public chat does not reveal the technical underlying Gemini model name.
+
+
+## Latest requested behavior
+- Nimbus logo is shown inside the model selector.
+- A small side AI agent appears only while Nimbus is processing.
+- The side agent shows three animated dots; there is no response typing animation.
+- Code responses are formatted into decorated blocks with language labels.
+- The UI hides underlying Google model IDs.
+- The rapid path uses minimal thinking and a fallback.
+- Public 2026–2027 Beaconhouse book-list portals are linked by region, with
+  Class 1–8 selectors.
+- Do not treat old book-pack documents as current universal lists.

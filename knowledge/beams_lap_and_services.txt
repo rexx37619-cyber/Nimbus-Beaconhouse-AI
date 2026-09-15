@@ -1,0 +1,25 @@
+NIMBUS BEACONHOUSE PUBLIC KNOWLEDGE — BEAMS, LAP & OTHER SERVICES
+
+BEAMS
+Official: https://beams.beaconhouse.net/home/
+BEAMS is a Beaconhouse digital platform with a public login page. The public page refers to BEAMS ID, password reset and school email attendance functionality. Nimbus must never request or store a student's BEAMS password and must not claim access to private BEAMS records.
+
+PRISM
+Official: https://beams.beaconhouse.net/prism/
+Public description: Beaconhouse professional development/e-learning platform accessed through BEAMS credentials. It is primarily a professional/employee learning resource, not a student public academic database.
+
+LAP
+Official: https://lap.beaconhouse.net/about-us/
+Public description: Learner Agency Paradigm. Its public materials describe a shift from passive receivers to active contributors and mention learner agency, initiative, empathy, social responsibility, practical action and growth.
+
+BOSS
+Official: https://boss.beaconhouse.net/about-us/
+Use the official page for the current public description of Beaconhouse Old Students Society.
+
+ACCESS CENTRE
+Official: https://www.beaconhouse.net/the-access-centre/
+Public description: Beaconhouse educational advising and university guidance resource.
+
+LEARNER PROFILE
+Official: https://www.beaconhouse.net/beaconhouse-learner-profile/
+Use the official page for the current public description and attributes.

@@ -4,3 +4,49 @@
 /* Nimbus 4.5 ROR additions */
 .sidebar.collapsed{width:0;min-width:0;padding:0;overflow:hidden;border-right:0}.sidebar.collapsed *{display:none}.main{transition:.2s}.sidebar-toggle{display:inline-grid;place-items:center;border:0;background:transparent;color:#777;width:32px;height:32px;border-radius:8px}.sidebar-toggle:hover{background:#f1f1ec}.model-picker{position:relative}.model-picker-btn{display:flex;align-items:center;gap:8px;border:1px solid #e1e2dc;background:#f7f7f4;border-radius:10px;padding:8px 10px;font-size:11px;font-weight:800}.model-dot{width:7px;height:7px;border-radius:50%;background:#44bd66;box-shadow:0 0 8px #44bd66}.model-chevron{color:#7d8085}.model-menu{position:absolute;z-index:100;top:45px;left:0;width:290px;background:#fff;border:1px solid #dfe0da;border-radius:14px;box-shadow:0 18px 55px rgba(0,0,0,.16);padding:6px}.model-menu.hidden{display:none}.model-option{width:100%;border:0;background:#fff;text-align:left;display:flex;justify-content:space-between;gap:12px;padding:11px;border-radius:9px}.model-option:hover,.model-option.active{background:#f2f3ef}.model-option b,.model-option small{display:block}.model-option b{font-size:11px}.model-option small{font-size:9px;color:#878a90;margin-top:2px}.usage-strip{margin:0 auto 8px;max-width:900px;padding:0 3px}.usage-head{display:flex;justify-content:space-between;font-size:9px;color:#8b8e93;margin-bottom:4px}.usage-head b{color:#555}.usage-track{height:4px;background:#e7e8e3;border-radius:99px;overflow:hidden}.usage-bar{height:100%;background:linear-gradient(90deg,#23bfd0,#6359ff,#ffb43b);border-radius:99px;transition:width .25s}.info-button{font-weight:800}.info-card{width:min(820px,94vw);max-height:88vh;overflow:auto;background:#fff;border-radius:22px;padding:24px;position:relative;box-shadow:0 30px 100px rgba(0,0,0,.3)}.info-hero{display:flex;gap:16px;align-items:center;background:linear-gradient(135deg,#0f1524,#19253c);color:#fff;border-radius:18px;padding:18px}.info-hero img{width:76px;height:76px;object-fit:contain;background:#0a0d13;border-radius:18px}.info-hero h2{margin:4px 0 4px;font-size:28px;letter-spacing:-.04em}.info-hero p{margin:0;color:#cbd1da;font-size:11px;line-height:1.5}.info-profile{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.info-person{display:flex;gap:10px;align-items:center;border:1px solid #dedfd9;border-radius:13px;padding:10px;background:#fbfbf8}.info-person img{width:44px;height:44px;object-fit:contain;border-radius:10px;background:#0e1014}.info-person b,.info-person span{display:block}.info-person b{font-size:11px}.info-person span{font-size:9px;color:#878a8f;margin-top:2px}.info-section{margin-top:14px;border:1px solid #dedfd9;border-radius:14px;padding:14px}.info-section h3{font-size:12px;margin:0 0 8px}.info-section p{font-size:11px;line-height:1.6;color:#666b71;margin:0}.resource-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.resource-grid a{border:1px solid #e0e1db;border-radius:10px;padding:10px;text-decoration:none;background:#fbfbf8}.resource-grid a:hover{background:#f0f1ec}.resource-grid b,.resource-grid small{display:block}.resource-grid b{font-size:10px;color:#1c54a3}.resource-grid small{font-size:8px;color:#888;margin-top:3px;word-break:break-all}@media(max-width:760px){.sidebar-toggle{display:none}.model-picker-btn{max-width:185px}.model-picker-btn span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.info-profile,.resource-grid{grid-template-columns:1fr}.info-hero{align-items:flex-start}.info-hero h2{font-size:22px}}
 body.sidebar-hidden .chat-column{width:min(1000px,100%)}
+
+/* Nimbus 4.5 ROR experience polish */
+.agent-badge{display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid #e4e4de;background:#fbfbf8;border-radius:999px;color:#666;font-size:8px;font-weight:900;letter-spacing:.08em}
+.agent-badge img{width:18px;height:18px;object-fit:contain;border-radius:5px;background:#0d0f13}.agent-badge i{width:7px;height:7px;border-radius:50%;background:#45c969;box-shadow:0 0 10px #45c969;animation:agentpulse 1.6s infinite}
+.ai-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}.ai-mini-logo{width:25px;height:25px;border-radius:8px;object-fit:contain;background:#0d0f13;box-shadow:0 0 0 1px #dedfd9;animation:agentpulse 1.8s infinite}.ai-status{font-size:8px;color:#45a95c;margin-top:2px;font-weight:800}.ai-status span{display:inline-block;width:5px;height:5px;border-radius:50%;background:#45c969;margin-right:3px}.answer-text{white-space:normal}.typing-cursor{display:inline-block;margin-left:1px;animation:blink 700ms steps(1) infinite}.answer-actions{display:flex;gap:6px;margin-top:10px}.answer-actions.hidden{display:none}.answer-actions button,.code-head button{border:1px solid #dedfd9;background:#fbfbf8;color:#64686d;border-radius:7px;padding:5px 8px;font-size:8px}.answer-actions button:hover,.code-head button:hover{background:#f0f1ec}.code-wrap{border:1px solid #2a2d33;border-radius:12px;overflow:hidden;margin:10px 0;background:#0f1217;box-shadow:0 10px 26px rgba(0,0,0,.08)}.code-head{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;background:#171a21;color:#aeb4be;font-size:8px}.code-wrap pre{margin:0;padding:13px;color:#f1f4f6;overflow:auto;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.inline-code{background:#eef0eb;border-radius:4px;padding:1px 4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}.model-usage{margin:6px 3px 3px;padding:9px 8px;border-top:1px solid #ecece7}.model-usage>div:first-child{display:flex;justify-content:space-between;color:#85898e;font-size:8px;margin-bottom:5px}.model-usage b{color:#555}.model-usage .usage-track{height:4px}.agent-badge + .model-picker{margin-left:2px}
+@keyframes agentpulse{0%,100%{transform:scale(.96);opacity:.75}50%{transform:scale(1.06);opacity:1}}@keyframes blink{50%{opacity:0}}
+@media(max-width:760px){.agent-badge{display:none}}
+
+/* Rapid clean UI: no decorative animations */
+*,*::before,*::after{animation:none !important;transition:none !important}
+.agent-badge{display:none !important}
+.ai-mini-logo,.typing-cursor{display:none !important}
+.ai-status{display:none !important}
+
+/* Nimbus rapid-clean mode: no decorative animation or motion */
+*,*::before,*::after{animation:none !important;transition:none !important;scroll-behavior:auto !important}
+.agent-badge{display:none !important}
+.ai-mini-logo{display:none !important}
+.typing-cursor{display:none !important}
+.ai-status{display:none !important}
+.model-dot{box-shadow:none !important}
+
+/* Nimbus model selector */
+.model-picker-btn{gap:8px}
+.model-logo{width:24px;height:24px;object-fit:contain;border-radius:7px;background:#0d0f13;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+/* Live Nimbus agent */
+.chat-shell{position:relative}
+.agent-assist{width:185px;margin:24px 18px 0 0;flex:none;align-self:flex-start}
+.agent-card{background:#fff;border:1px solid #e5e6e2;border-radius:18px;padding:14px;box-shadow:0 18px 45px rgba(0,0,0,.07);position:sticky;top:18px}
+.agent-card-top{display:flex;align-items:center;gap:10px}
+.agent-avatar{width:45px;height:45px;border-radius:14px;background:#0d0f13;display:grid;place-items:center;overflow:hidden}
+.agent-avatar img{width:100%;height:100%;object-fit:contain}
+.agent-kicker{font-size:8px;letter-spacing:.13em;font-weight:900;color:#8a8e95}
+.agent-title{font-size:13px;font-weight:850;margin-top:2px}
+.agent-wave{display:flex;gap:4px;align-items:center;height:25px;margin-top:12px}
+.agent-wave span{display:block;width:5px;height:7px;border-radius:999px;background:#e7bb43;animation:agentWave .8s ease-in-out infinite}
+.agent-wave span:nth-child(2){animation-delay:.12s}
+.agent-wave span:nth-child(3){animation-delay:.24s}
+.agent-caption{font-size:9px;color:#858a91;line-height:1.4}
+@keyframes agentWave{0%,100%{transform:translateY(0);opacity:.55}50%{transform:translateY(-6px);opacity:1}}
+.code-wrap{border:1px solid #2b3138;background:#0f1217;border-radius:13px;overflow:hidden;margin:10px 0;box-shadow:0 10px 28px rgba(0,0,0,.10)}
+.code-head{display:flex;align-items:center;justify-content:space-between;background:#181c22;color:#cfd4dc;padding:8px 11px;border-bottom:1px solid #272d35}
+.code-head span{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:900}
+.code-head button{border:1px solid #363d46;background:#222831;color:#e7eaef;border-radius:7px;padding:5px 8px;font-size:9px}
+.code-wrap pre{margin:0;padding:14px 15px;overflow:auto;color:#eef2f5;font-size:12px;line-height:1.55;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+@media(max-width:1100px){.agent-assist{display:none!important}}
