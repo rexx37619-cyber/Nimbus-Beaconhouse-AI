@@ -114,18 +114,33 @@ function ensureChat(text){
 }
 
 function formatAnswer(text){
-  const src=String(text||'');
-  const parts=src.split(/```([\w+-]+)?\n?([\s\S]*?)```/g);
+  const src=String(text||'').replace(/\r\n/g,'\n');
   const out=[];
-  for(let i=0;i<parts.length;i++){
-    if(i%3===0){
-      if(parts[i]) out.push({type:'text',value:parts[i]});
-    }else if(i%3===1){
-      const lang=parts[i]||''; const code=parts[i+1]||'';
-      out.push({type:'code',lang,code}); i++;
-    }
+  let cursor=0;
+  const fence=/```[ \t]*([A-Za-z0-9_+.#-]+)?[ \t]*\n?([\s\S]*?)```/g;
+  let match;
+
+  while((match=fence.exec(src))!==null){
+    if(match.index>cursor) out.push({type:'text',value:src.slice(cursor,match.index)});
+    const lang=(match[1]||guessLanguage(match[2])).trim() || 'text';
+    const code=match[2].replace(/^\n/,'').replace(/\n[ \t]*$/,'');
+    out.push({type:'code',lang,code});
+    cursor=fence.lastIndex;
   }
+
+  if(cursor<src.length) out.push({type:'text',value:src.slice(cursor)});
   return out.length?out:[{type:'text',value:src}];
+}
+
+function guessLanguage(code){
+  const s=String(code||'').trim();
+  if(/^(<!doctype html|<html[ >])/i.test(s)) return 'html';
+  if(/^(const|let|var|function|import .* from|export |console\.)/m.test(s)) return 'javascript';
+  if(/^(def |import |from .* import |print\()/m.test(s)) return 'python';
+  if(/^(body|html|\.[\w-]+)\s*\{|@media|:[a-z-]+\s*;/m.test(s)) return 'css';
+  if(/^(local |function |print\()|\bgame\b|\bInstance\b/m.test(s)) return 'lua';
+  if(/^(SELECT|INSERT|UPDATE|DELETE|CREATE)\b/im.test(s)) return 'sql';
+  return '';
 }
 
 function plainTextToHtml(text){
@@ -257,8 +272,29 @@ $('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.
 document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('messageInput').value=b.dataset.prompt;$('messageInput').focus()});
 $('newChat').onclick=resetChat;$('clearChat').onclick=resetChat;$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
 
-$('modelPickerBtn').onclick=()=>{$('modelMenu').classList.toggle('hidden');$('modelPickerBtn').setAttribute('aria-expanded',String(!$('modelMenu').classList.contains('hidden')))};
-document.addEventListener('click',e=>{const opt=e.target.closest('[data-model]');if(opt){state.model=opt.dataset.model;localStorage.setItem('nimbus_model',state.model);renderModels();$('modelMenu').classList.add('hidden');}});
+$('modelPickerBtn').addEventListener('click',e=>{
+  e.preventDefault();
+  e.stopPropagation();
+  const menu=$('modelMenu');
+  const willOpen=menu.classList.contains('hidden');
+  menu.classList.toggle('hidden',!willOpen);
+  $('modelPickerBtn').setAttribute('aria-expanded',String(willOpen));
+});
+$('modelMenu').addEventListener('click',e=>{
+  e.stopPropagation();
+  const opt=e.target.closest('[data-model]');
+  if(!opt)return;
+  state.model=opt.dataset.model;
+  localStorage.setItem('nimbus_model',state.model);
+  renderModels();
+  $('modelMenu').classList.remove('hidden');
+});
+document.addEventListener('click',e=>{
+  if(!$('modelPicker').contains(e.target)){
+    $('modelMenu').classList.add('hidden');
+    $('modelPickerBtn').setAttribute('aria-expanded','false');
+  }
+});
 
 function syncAccount(){const name='Beaconhouse student';$('accountName').textContent=name;$('accountId').textContent=state.id||'Educational ID';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.id||'Educational ID';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
 
