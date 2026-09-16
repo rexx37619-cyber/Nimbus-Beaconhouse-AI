@@ -114,3 +114,7 @@ Required Netlify environment variables for owner-only repository editing/publish
 - GITHUB_REPO=Nimbus-Beaconhouse-AI
 - GITHUB_BRANCH=main
 The workspace uses Puter.js for premium AI and the repository editor/publisher runs through Netlify Functions so secrets are not exposed in the browser.
+
+
+## Workspace security note
+The private workspace intentionally does not require a GitHub token in Netlify. Repository files are read from the public GitHub repository; owner edits are downloaded locally for manual replacement and `git push origin main`. This avoids storing a repository write credential in the Netlify deployment.

@@ -26,12 +26,33 @@ if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)retur
 document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>{if(btn.classList.contains('hidden'))return;document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));$('tab-'+btn.dataset.tab).classList.add('active');}));
 
 async function findPremiumModel(){
-  try{const models=await puter.ai.listModels();const exact=models.find(m=>m.id===PREMIUM_MODEL_ID || m.aliases?.includes(PREMIUM_MODEL_ID));if(exact)return exact.id;}
-  catch(e){console.warn('Puter model discovery failed',e)}
-  return FALLBACK_MODEL_ID;
+  const preferred=['gpt-6-astra','gpt-5.6-luna'];
+  try{
+    if(!window.puter?.ai?.listModels) return 'gpt-5.6-luna';
+    const models=await puter.ai.listModels();
+    const ids=(models||[]).flatMap(m=>[m?.id,...(Array.isArray(m?.aliases)?m.aliases:[])]).filter(Boolean).map(String);
+    for(const wanted of preferred){const hit=ids.find(id=>id.toLowerCase()===wanted.toLowerCase());if(hit)return hit;}
+  }catch(e){console.warn('Puter model discovery failed',e)}
+  return 'gpt-5.6-luna';
 }
-function extractText(r){const c=r?.message?.content ?? r?.content ?? r?.text ?? r;if(typeof c==='string')return c;if(Array.isArray(c))return c.map(x=>typeof x==='string'?x:(x?.text||'')).join('');return JSON.stringify(c,null,2)}
-$('agentForm').onsubmit=async e=>{e.preventDefault();const text=$('agentInput').value.trim();if(!text)return;appendAgent('me',text);$('agentInput').value='';appendAgent('ai','Connecting to premium agent…');const last=$('agentMessages').lastElementChild;try{const model=await findPremiumModel();$('agentModelState').textContent=model===PREMIUM_MODEL_ID?'GPT-6 Astra':'Fallback: '+model;const resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise, practical, and transparent about what you can access.'},{role:'user',content:text}],{model,normalize:true,reasoning_effort:'low',verbosity:'medium',temperature:0.3});last.textContent=extractText(resp)||'No text response was returned.';}catch(err){last.textContent='The premium agent could not connect right now. Check the Puter model availability and try again.';console.error(err)}};
+function setAgentBusy(busy){document.body.classList.toggle('agent-busy',busy);const b=$('agentRunBtn');if(b){b.disabled=busy;b.textContent=busy?'Working…':'Run'}}
+$('agentForm').onsubmit=async e=>{e.preventDefault();const text=$('agentInput').value.trim();if(!text)return;appendAgent('me',text);$('agentInput').value='';appendAgent('ai','Connecting to Nimbus 5.7 Lor…');const last=$('agentMessages').lastElementChild;setAgentBusy(true);try{
+  if(!window.puter) throw new Error('Puter.js did not load.');
+  if(!puter.auth.isSignedIn()){await puter.auth.signIn({request_auth:true});}
+  let model=await findPremiumModel();
+  $('agentModelState').textContent=model==='gpt-6-astra'?'GPT-6 Astra':'Puter: '+model;
+  let resp;
+  try{
+    resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise, practical, and transparent about what you can access.'},{role:'user',content:text}],{model,normalize:true,reasoning_effort:'low'});
+  }catch(firstErr){
+    if(model!=='gpt-5.6-luna'){
+      model='gpt-5.6-luna';
+      $('agentModelState').textContent='Puter: gpt-5.6-luna fallback';
+      resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise and practical.'},{role:'user',content:text}],{model,normalize:true,reasoning_effort:'low'});
+    }else{throw firstErr}
+  }
+  last.textContent=extractText(resp)||'No text response was returned.';
+}catch(err){last.textContent='Nimbus 5.7 Lor is temporarily unavailable. Please try again in a moment.';console.error(err)}finally{setAgentBusy(false)}};
 function appendAgent(role,text){const el=document.createElement('div');el.className='agent-msg'+(role==='me'?' me':'');el.textContent=text;$('agentMessages').appendChild(el);$('agentMessages').scrollTop=$('agentMessages').scrollHeight}
 
 function loadFinance(){const d=JSON.parse(localStorage.getItem(OWNER_LOCAL_KEY)||'{}');$('revenueInput').value=d.revenueUSD??'';$('expenseInput').value=d.expensesUSD??'';$('usdPkrRate').value=d.rate??USD_TO_PKR_DEFAULT;renderFinance()}
@@ -43,13 +64,13 @@ loadFinance();
 async function loadRepoFiles(){if(!isOwner())return;try{const r=await fetch('/.netlify/functions/project-files');const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message);repoCache=d.files.filter(p=>!p.startsWith('.git/')).sort();$('fileSelect').innerHTML=repoCache.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');$('fileCount').textContent=`${repoCache.length} repository files`;$('fileMsg').textContent='Synced from GitHub main branch.';}catch(e){$('fileMsg').textContent=e.message||'Could not sync repository files.';}}
 async function loadFile(path){const r=await fetch('/.netlify/functions/project-file?path='+encodeURIComponent(path));const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message);currentFile={path:d.path,sha:d.sha,content:d.content};$('fileEditor').value=d.content;$('fileMsg').textContent=`Loaded ${d.path} from main.`}
 $('loadFile').onclick=async()=>{try{await loadFile($('fileSelect').value)}catch(e){$('fileMsg').textContent=e.message||'Could not load file.'}}
-$('saveFile').onclick=async()=>{if(!isOwner())return;const path=$('fileSelect').value;const content=$('fileEditor').value;try{$('fileMsg').textContent='Publishing to GitHub main…';const r=await fetch('/.netlify/functions/project-file-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path,content,sha:currentFile.path===path?currentFile.sha:'',message:`Nimbus workspace: update ${path}`})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message);currentFile={...currentFile,path,content,sha:d.commit};$('fileMsg').textContent='Published to main. Netlify should deploy automatically.';await loadRepoFiles();}catch(e){$('fileMsg').textContent=e.message||'Could not publish file.'}}
+$('saveFile').onclick=()=>{if(!isOwner())return;const path=$('fileSelect').value;const content=$('fileEditor').value;const blob=new Blob([content],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=path.split('/').pop()||'nimbus-file.txt';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('fileMsg').textContent=`Downloaded ${path}. Replace that file in Nimbus_CLEAN, then git add, git commit, git push origin main.`;}
 $('refreshFiles').onclick=loadRepoFiles;
 
 function readLayout(){const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;$('accentInput').value=d.accent;$('accent2Input').value=d.accent2;$('radiusInput').value=d.radius;$('sidebarInput').value=d.sidebar;$('densityInput').value=d.density;return d}
 function getLayout(){return{accent:$('accentInput').value.trim()||DEFAULTS.accent,accent2:$('accent2Input').value.trim()||DEFAULTS.accent2,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value||260),density:$('densityInput').value||'balanced',font:DEFAULTS.font}}
 function previewLayout(){const d=getLayout(),p=$('layoutPreview');p.style.setProperty('--preview-accent',d.accent);p.style.gridTemplateColumns=`${Math.max(120,Math.min(360,d.sidebar/1.4))}px 1fr`;p.style.borderRadius=Math.max(6,Math.min(36,d.radius))+'px';document.querySelectorAll('.preview-main div').forEach((el,i)=>{el.style.height=(42+i*(d.density==='compact'?5:d.density==='airy'?14:9))+'px';el.style.borderColor=d.accent+'55'});}
 $('applyLayout').onclick=()=>{localStorage.setItem(LAYOUT_KEY,JSON.stringify(getLayout()));previewLayout();};
-$('publishLayout').onclick=async()=>{if(!isOwner())return;try{const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));const r=await fetch('/.netlify/functions/project-file-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:'site-layout.json',content:JSON.stringify(d,null,2),message:'Nimbus workspace: publish UI layout'})});const out=await r.json();if(!r.ok||!out.ok)throw new Error(out.message);$('layoutMsg').textContent='UI layout published to main. Netlify will redeploy it.';}catch(e){$('layoutMsg').textContent=e.message||'Could not publish layout.'}}
+$('publishLayout').onclick=()=>{if(!isOwner())return;const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));const content=JSON.stringify(d,null,2);const blob=new Blob([content],{type:'application/json;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='site-layout.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('layoutMsg').textContent='Downloaded site-layout.json. Replace the project file in Nimbus_CLEAN, then git add, git commit, git push origin main. Netlify will redeploy it.';}
 $('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();previewLayout()};
 ['accentInput','accent2Input','radiusInput','sidebarInput','densityInput'].forEach(id=>$(id).addEventListener('input',previewLayout));readLayout();previewLayout();

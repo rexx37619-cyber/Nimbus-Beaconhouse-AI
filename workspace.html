@@ -67,8 +67,8 @@
       </div>
 
       <div id="tab-agent" class="tab-panel">
-        <div class="section-head"><div><div class="eyebrow">PRIVATE AGENT</div><h2>Nimbus 5.7 Lor</h2></div><div class="model-tag">Puter</div></div>
-        <div class="agent-layout"><div id="agentMessages" class="agent-messages"></div><form id="agentForm" class="agent-composer"><textarea id="agentInput" rows="2" placeholder="Ask the private agent…"></textarea><button class="primary-btn" type="submit">Run</button></form></div>
+        <div class="section-head"><div><div class="eyebrow">PRIVATE AGENT</div><h2>Nimbus 5.7 Lor</h2><div class="astra-card"><div class="astra-mark">6</div><div><b>GPT-6 Astra</b><span>Ultra Modified runtime badge</span></div></div></div><div class="model-tag" id="agentModelState">Detecting model…</div></div>
+        <div class="agent-layout"><div id="agentMessages" class="agent-messages"></div><form id="agentForm" class="agent-composer"><textarea id="agentInput" rows="2" placeholder="Ask the private agent…"></textarea><button class="primary-btn" id="agentRunBtn" type="submit">Run</button></form></div>
         <div class="small-note">Premium agent access is available to owners and authorized workers only.</div>
       </div>
 
@@ -86,7 +86,7 @@
 
       <div id="tab-files" class="tab-panel owner-only-panel">
         <div class="section-head"><div><div class="eyebrow">OWNER EDITOR</div><h2>Workspace files</h2></div><div class="model-tag">Owner only</div></div>
-        <div class="file-toolbar"><select id="fileSelect"><option value="workspace-notes.txt">workspace-notes.txt</option><option value="ui-layout.json">ui-layout.json</option><option value="premium-config.json">premium-config.json</option></select><button id="loadFile">Load</button><button id="saveFile" class="primary-btn">Save to Puter FS</button></div>
+        <div class="file-toolbar"><select id="fileSelect"><option value="workspace-notes.txt">workspace-notes.txt</option><option value="ui-layout.json">ui-layout.json</option><option value="premium-config.json">premium-config.json</option></select><button id="loadFile">Load</button><button id="saveFile" class="primary-btn">Download edited file</button></div>
         <textarea id="fileEditor" class="code-editor" spellcheck="false" placeholder="Select a workspace file, then Load."></textarea>
         <div class="file-meta"><span id="fileCount">Repository files</span><span id="fileMsg" class="small-note"></span></div>
       </div>
@@ -100,8 +100,8 @@
           <label>Density<select id="densityInput"><option value="compact">Compact</option><option value="balanced" selected>Balanced</option><option value="airy">Airy</option></select></label>
         </div>
         <div class="layout-preview" id="layoutPreview"><div class="preview-side"></div><div class="preview-main"><div></div><div></div><div></div></div></div>
-        <div class="ui-actions"><button id="applyLayout" class="primary-btn">Apply preview</button><button id="publishLayout" class="primary-btn">Publish UI to main</button><button id="resetLayout">Reset</button></div><div id="layoutMsg" class="small-note"></div>
-        <div class="small-note">This studio edits the Nimbus layout configuration stored in the private workspace. Deploying those changes to the public Netlify site still requires an owner-controlled code publish.</div>
+        <div class="ui-actions"><button id="applyLayout" class="primary-btn">Apply preview</button><button id="publishLayout" class="primary-btn">Export UI update</button><button id="resetLayout">Reset</button></div><div id="layoutMsg" class="small-note"></div>
+        <div class="small-note">This studio exports a real site-layout.json. Replace that file in Nimbus_CLEAN, then run git add, git commit, git push origin main. Netlify will deploy the change.</div>
       </div>
 
       <div id="tab-security" class="tab-panel">
