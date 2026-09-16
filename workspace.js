@@ -1,136 +1,55 @@
-const OWNER_LOCAL_KEY='nimbus_workspace_finance_v1';
-const LAYOUT_KEY='nimbus_workspace_layout_v1';
-const DEFAULTS={accent:'#6359ff',radius:18,sidebar:280,density:'balanced'};
-const PREMIUM_LABEL='Nimbus 5.7 Lor';
+const OWNER_LOCAL_KEY='nimbus_workspace_finance_v2';
+const LAYOUT_KEY='nimbus_workspace_layout_v2';
+const DEFAULTS={accent:'#6d5dfc',accent2:'#22b8cf',radius:18,sidebar:260,density:'balanced',font:'Plus Jakarta Sans'};
+const PREMIUM_LABEL='Nimbus 5.7 Lor • Ultra Modified';
 const PREMIUM_MODEL_ID='gpt-6-astra';
+const FALLBACK_MODEL_ID='gpt-5.6-luna';
+const USD_TO_PKR_DEFAULT=277.27;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let session={user:null,role:'denied',permissions:[]};
+let repoCache=[];
+let currentFile={path:'',sha:'',content:''};
 
-function setSecurity(text,kind='wait'){
-  $('securityBadge').textContent=`SECURITY CHECK: ${text}`;
-  $('securityBadge').style.color=kind==='ok'?'#48d38a':kind==='bad'?'#ff6f7c':'#f0b24c';
-}
+function setSecurity(text,kind='wait'){ $('securityBadge').textContent=`SECURITY CHECK: ${text}`; $('securityBadge').style.color=kind==='ok'?'#0f9f72':kind==='bad'?'#d74764':'#b37a00'; }
 function isOwner(){return session.role==='owner'}
 function guardOwners(){document.querySelectorAll('.owner-only').forEach(el=>el.classList.toggle('hidden',!isOwner()));document.querySelectorAll('.owner-only-panel').forEach(el=>el.classList.toggle('hidden',!isOwner()));}
-
-async function getPuterUser(){
-  if(!window.puter) throw new Error('Puter.js did not load.');
-  if(!puter.auth.isSignedIn()) return null;
-  return await puter.auth.getUser();
-}
-async function getPuterEmail(){
-  if(!window.puter) throw new Error('Puter.js did not load.');
-  if(!puter.auth.isSignedIn()) return null;
-  // Puter does not expose the account email in the basic getUser() object by default.
-  // Explicit email permission returns the actual email address used by the workspace allowlist.
-  if(typeof puter.perms?.requestEmail==='function'){
-    const email=await puter.perms.requestEmail();
-    if(email) return String(email).trim().toLowerCase();
-  }
-  if(typeof puter.perms?.request==='function'){
-    const email=await puter.perms.request('email');
-    if(email) return String(email).trim().toLowerCase();
-  }
-  return '';
-}
-async function authorize(user){
-  const email=await getPuterEmail();
-  if(!email) throw new Error('Nimbus needs permission to read your Puter account email so it can verify the workspace access list. Please allow Email access and try again.');
-  const r=await fetch('/.netlify/functions/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-  const d=await r.json().catch(()=>({}));
-  if(!r.ok||!d.ok) throw new Error(d.message||'Workspace access denied.');
-  session={user,role:d.role,permissions:d.permissions||[]};
-  $('userEmail').textContent=email;
-  $('rolePill').textContent=d.role.toUpperCase();
-  $('roleNote').textContent=d.role==='owner'?'Full workspace access':'Agent-only worker access';
-  $('overviewRole').textContent=d.role==='owner'?'Owner':'Worker';
-  $('securityRoleTag').textContent=d.role==='owner'?'OWNER':'WORKER';
-  $('serverState').textContent='Allowlisted';
-  $('permissionState').textContent=d.permissions.join(' • ');
-  $('puterState').textContent='Authenticated';
-  guardOwners();
-}
-
+async function getPuterUser(){if(!window.puter) throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn()) return null;return await puter.auth.getUser();}
+async function getPuterEmail(){if(!window.puter) throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn()) return null;if(typeof puter.perms?.requestEmail==='function'){const e=await puter.perms.requestEmail();if(e)return String(e).trim().toLowerCase()}if(typeof puter.perms?.request==='function'){const e=await puter.perms.request('email');if(e)return String(e).trim().toLowerCase()}return '';}
+async function authorize(user){const email=await getPuterEmail();if(!email)throw new Error('Nimbus needs Email access from Puter to verify your workspace account.');const r=await fetch('/.netlify/functions/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw new Error(d.message||'Workspace access denied.');session={user,role:d.role,permissions:d.permissions||[]};$('userEmail').textContent=email;$('rolePill').textContent=d.role.toUpperCase();$('roleNote').textContent=d.role==='owner'?'Full workspace access':'Agent-only worker access';$('overviewRole').textContent=d.role==='owner'?'Owner':'Worker';$('securityRoleTag').textContent=d.role==='owner'?'OWNER':'WORKER';$('serverState').textContent='Allowlisted';$('permissionState').textContent=d.permissions.join(' • ');$('puterState').textContent='Authenticated';guardOwners();}
 function openWorkspace(){ $('gate').classList.add('hidden');$('workspace').classList.remove('hidden'); }
-function showDenied(msg){ $('gateMsg').textContent=msg; $('gateMsg').style.color='#ff808d'; setSecurity('DENIED','bad'); }
-async function signIn(){
-  $('signInBtn').disabled=true; $('gateMsg').textContent='Opening Puter sign-in…'; setSecurity('AUTHENTICATING');
-  try{
-    await puter.auth.signIn({request_auth:true});
-    const user=await getPuterUser();
-    await authorize(user);
-    $('gateMsg').textContent=`Access granted as ${session.role}.`;
-    setSecurity('VERIFIED','ok');
-    openWorkspace();
-  }catch(e){showDenied(e.message||'Authentication failed.');}
-  finally{$('signInBtn').disabled=false;}
-}
+function showDenied(msg){$('gateMsg').textContent=msg;$('gateMsg').style.color='#d74764';setSecurity('DENIED','bad')}
+async function signIn(){$('signInBtn').disabled=true;$('gateMsg').textContent='Opening Puter sign-in…';setSecurity('AUTHENTICATING');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent=`Access granted as ${session.role}.`;setSecurity('VERIFIED','ok');openWorkspace();if(isOwner()){await loadRepoFiles();}}catch(e){showDenied(e.message||'Authentication failed.')}finally{$('signInBtn').disabled=false}}
 $('signInBtn').onclick=signIn;
+if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;try{await authorize(u);setSecurity('VERIFIED','ok');openWorkspace();if(isOwner())await loadRepoFiles()}catch(e){showDenied(e.message)}}).catch(()=>{})}
 
-if(window.puter?.auth?.isSignedIn?.()){
-  getPuterUser().then(async u=>{
-    if(!u)return;
-    try{ await authorize(u); setSecurity('VERIFIED','ok'); openWorkspace(); }
-    catch(e){ showDenied(e.message); }
-  }).catch(()=>{});
-}
+document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>{if(btn.classList.contains('hidden'))return;document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));$('tab-'+btn.dataset.tab).classList.add('active');}));
 
-document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>{
-  if(btn.classList.contains('hidden'))return;
-  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  $('tab-'+btn.dataset.tab).classList.add('active');
-}));
+async function findPremiumModel(){
+  try{const models=await puter.ai.listModels();const exact=models.find(m=>m.id===PREMIUM_MODEL_ID || m.aliases?.includes(PREMIUM_MODEL_ID));if(exact)return exact.id;}
+  catch(e){console.warn('Puter model discovery failed',e)}
+  return FALLBACK_MODEL_ID;
+}
+function extractText(r){const c=r?.message?.content ?? r?.content ?? r?.text ?? r;if(typeof c==='string')return c;if(Array.isArray(c))return c.map(x=>typeof x==='string'?x:(x?.text||'')).join('');return JSON.stringify(c,null,2)}
+$('agentForm').onsubmit=async e=>{e.preventDefault();const text=$('agentInput').value.trim();if(!text)return;appendAgent('me',text);$('agentInput').value='';appendAgent('ai','Connecting to premium agent…');const last=$('agentMessages').lastElementChild;try{const model=await findPremiumModel();$('agentModelState').textContent=model===PREMIUM_MODEL_ID?'GPT-6 Astra':'Fallback: '+model;const resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise, practical, and transparent about what you can access.'},{role:'user',content:text}],{model,normalize:true,reasoning_effort:'low',verbosity:'medium',temperature:0.3});last.textContent=extractText(resp)||'No text response was returned.';}catch(err){last.textContent='The premium agent could not connect right now. Check the Puter model availability and try again.';console.error(err)}};
+function appendAgent(role,text){const el=document.createElement('div');el.className='agent-msg'+(role==='me'?' me':'');el.textContent=text;$('agentMessages').appendChild(el);$('agentMessages').scrollTop=$('agentMessages').scrollHeight}
 
-function appendAgent(role,text){
-  const el=document.createElement('div');el.className='agent-msg'+(role==='me'?' me':'');el.textContent=text;$('agentMessages').appendChild(el);$('agentMessages').scrollTop=$('agentMessages').scrollHeight;
-}
-$('agentForm').onsubmit=async e=>{
-  e.preventDefault();
-  const text=$('agentInput').value.trim();if(!text)return;
-  appendAgent('me',text);$('agentInput').value='';
-  appendAgent('ai','Working…');
-  const last=$('agentMessages').lastElementChild;
-  try{
-    const response=await puter.ai.chat(text,{model:PREMIUM_MODEL_ID,reasoning_effort:'minimal',verbosity:'medium',temperature:0.4});
-    const msg=response?.message?.content ?? response?.content ?? response;
-    last.textContent=typeof msg==='string'?msg:JSON.stringify(msg,null,2);
-  }catch(e){last.textContent='Nimbus 5.7 Lor is temporarily busy. Please try again.';console.error(e)}
-};
-
-function loadFinance(){
-  const d=JSON.parse(localStorage.getItem(OWNER_LOCAL_KEY)||'{}');
-  $('revenueInput').value=d.revenue??'';$('expenseInput').value=d.expenses??'';$('currencyInput').value=d.currency||'USD';renderFinance();
-}
-function renderFinance(){
-  const revenue=Number($('revenueInput').value||0), expenses=Number($('expenseInput').value||0), profit=revenue-expenses;
-  $('revenueText').textContent=`${$('currencyInput').value||'USD'} ${revenue.toLocaleString()}`;
-  $('profitText').textContent=`${$('currencyInput').value||'USD'} ${profit.toLocaleString()}`;
-  $('marginText').textContent=`${revenue?((profit/revenue)*100).toFixed(1):0}% margin`;
-  $('revenueBar').style.width=(revenue?Math.min(100,Math.max(0,profit/revenue*100)):0)+'%';
-}
-['revenueInput','expenseInput','currencyInput'].forEach(id=>$(id).addEventListener('input',renderFinance));
-$('saveFinance').onclick=()=>{localStorage.setItem(OWNER_LOCAL_KEY,JSON.stringify({revenue:Number($('revenueInput').value||0),expenses:Number($('expenseInput').value||0),currency:$('currencyInput').value||'USD'}));renderFinance()};
+function loadFinance(){const d=JSON.parse(localStorage.getItem(OWNER_LOCAL_KEY)||'{}');$('revenueInput').value=d.revenueUSD??'';$('expenseInput').value=d.expensesUSD??'';$('usdPkrRate').value=d.rate??USD_TO_PKR_DEFAULT;renderFinance()}
+function renderFinance(){const usd=Number($('revenueInput').value||0), exp=Number($('expenseInput').value||0), rate=Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT), pkr=(usd*rate), cost=(exp*rate), profit=pkr-cost;$('revenueText').textContent=`PKR ${Math.round(pkr).toLocaleString()}`;$('profitText').textContent=`PKR ${Math.round(profit).toLocaleString()}`;$('marginText').textContent=`${usd?((profit/pkr)*100).toFixed(1):0}% margin • USD ${usd.toLocaleString()} @ ${rate}`;$('revenueBar').style.width=(pkr?Math.min(100,Math.max(0,profit/pkr*100)):0)+'%';}
+['revenueInput','expenseInput','usdPkrRate'].forEach(id=>$(id).addEventListener('input',renderFinance));
+$('saveFinance').onclick=()=>{localStorage.setItem(OWNER_LOCAL_KEY,JSON.stringify({revenueUSD:Number($('revenueInput').value||0),expensesUSD:Number($('expenseInput').value||0),rate:Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT)}));renderFinance()};
 loadFinance();
 
-async function loadPuterFile(path){
-  const blob=await puter.fs.read(`/NimbusWorkspace/${path}`);return await blob.text();
-}
-async function savePuterFile(path,data){
-  await puter.fs.write(`/NimbusWorkspace/${path}`,data,{createMissingParents:true,overwrite:true});
-}
-$('loadFile').onclick=async()=>{try{$('fileMsg').textContent='Loading…';$('fileEditor').value=await loadPuterFile($('fileSelect').value);$('fileMsg').textContent='Loaded from Puter FS.'}catch(e){$('fileMsg').textContent='File does not exist yet. You can create it by saving.';$('fileEditor').value=''}};
-$('saveFile').onclick=async()=>{try{await savePuterFile($('fileSelect').value,$('fileEditor').value);$('fileMsg').textContent='Saved to private Puter workspace.'}catch(e){$('fileMsg').textContent='Could not save this file.';console.error(e)}};
+async function loadRepoFiles(){if(!isOwner())return;try{const r=await fetch('/.netlify/functions/project-files');const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message);repoCache=d.files.filter(p=>!p.startsWith('.git/')).sort();$('fileSelect').innerHTML=repoCache.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');$('fileCount').textContent=`${repoCache.length} repository files`;$('fileMsg').textContent='Synced from GitHub main branch.';}catch(e){$('fileMsg').textContent=e.message||'Could not sync repository files.';}}
+async function loadFile(path){const r=await fetch('/.netlify/functions/project-file?path='+encodeURIComponent(path));const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message);currentFile={path:d.path,sha:d.sha,content:d.content};$('fileEditor').value=d.content;$('fileMsg').textContent=`Loaded ${d.path} from main.`}
+$('loadFile').onclick=async()=>{try{await loadFile($('fileSelect').value)}catch(e){$('fileMsg').textContent=e.message||'Could not load file.'}}
+$('saveFile').onclick=async()=>{if(!isOwner())return;const path=$('fileSelect').value;const content=$('fileEditor').value;try{$('fileMsg').textContent='Publishing to GitHub main…';const r=await fetch('/.netlify/functions/project-file-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path,content,sha:currentFile.path===path?currentFile.sha:'',message:`Nimbus workspace: update ${path}`})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message);currentFile={...currentFile,path,content,sha:d.commit};$('fileMsg').textContent='Published to main. Netlify should deploy automatically.';await loadRepoFiles();}catch(e){$('fileMsg').textContent=e.message||'Could not publish file.'}}
+$('refreshFiles').onclick=loadRepoFiles;
 
-function readLayout(){const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;$('accentInput').value=d.accent;$('radiusInput').value=d.radius;$('sidebarInput').value=d.sidebar;$('densityInput').value=d.density;return d}
-function getLayout(){return{accent:$('accentInput').value.trim()||DEFAULTS.accent,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value||280),density:$('densityInput').value||'balanced'}}
-function previewLayout(){const d=getLayout();const preview=$('layoutPreview');preview.style.setProperty('--preview-accent',d.accent);preview.style.gridTemplateColumns=`${Math.max(120,Math.min(360,d.sidebar/1.4))}px 1fr`;preview.style.borderRadius=Math.max(6,Math.min(36,d.radius))+'px';const base=d.density==='compact'?8:d.density==='airy'?17:12;document.querySelectorAll('.preview-main div').forEach((el,i)=>{el.style.height=(42+i*base/2)+'px';el.style.borderRadius=Math.max(6,d.radius-5)+'px';el.style.borderColor=d.accent+'55'});}
-$('applyLayout').onclick=()=>{localStorage.setItem(LAYOUT_KEY,JSON.stringify(getLayout()));previewLayout()};
-$('saveLayout').onclick=async()=>{try{await savePuterFile('ui-layout.json',JSON.stringify(getLayout(),null,2));$('fileMsg').textContent='';alert('UI layout saved to Puter FS.')}catch(e){alert('Could not save the layout.')}};
+function readLayout(){const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;$('accentInput').value=d.accent;$('accent2Input').value=d.accent2;$('radiusInput').value=d.radius;$('sidebarInput').value=d.sidebar;$('densityInput').value=d.density;return d}
+function getLayout(){return{accent:$('accentInput').value.trim()||DEFAULTS.accent,accent2:$('accent2Input').value.trim()||DEFAULTS.accent2,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value||260),density:$('densityInput').value||'balanced',font:DEFAULTS.font}}
+function previewLayout(){const d=getLayout(),p=$('layoutPreview');p.style.setProperty('--preview-accent',d.accent);p.style.gridTemplateColumns=`${Math.max(120,Math.min(360,d.sidebar/1.4))}px 1fr`;p.style.borderRadius=Math.max(6,Math.min(36,d.radius))+'px';document.querySelectorAll('.preview-main div').forEach((el,i)=>{el.style.height=(42+i*(d.density==='compact'?5:d.density==='airy'?14:9))+'px';el.style.borderColor=d.accent+'55'});}
+$('applyLayout').onclick=()=>{localStorage.setItem(LAYOUT_KEY,JSON.stringify(getLayout()));previewLayout();};
+$('publishLayout').onclick=async()=>{if(!isOwner())return;try{const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));const r=await fetch('/.netlify/functions/project-file-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:'site-layout.json',content:JSON.stringify(d,null,2),message:'Nimbus workspace: publish UI layout'})});const out=await r.json();if(!r.ok||!out.ok)throw new Error(out.message);$('layoutMsg').textContent='UI layout published to main. Netlify will redeploy it.';}catch(e){$('layoutMsg').textContent=e.message||'Could not publish layout.'}}
 $('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();previewLayout()};
-['accentInput','radiusInput','sidebarInput','densityInput'].forEach(id=>$(id).addEventListener('input',previewLayout));readLayout();previewLayout();
-
-// Keep the premium alias obvious without falsely hard-coding an unverified provider model name.
-console.info(`${PREMIUM_LABEL} uses configurable Puter model id: ${PREMIUM_MODEL_ID}`);
+['accentInput','accent2Input','radiusInput','sidebarInput','densityInput'].forEach(id=>$(id).addEventListener('input',previewLayout));readLayout();previewLayout();

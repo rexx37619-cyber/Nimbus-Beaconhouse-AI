@@ -103,3 +103,14 @@ The workspace is marked `noindex,nofollow,noarchive`; this reduces search visibi
 
 ## Premium Models
 The public Nimbus site includes a Premium Models control using Puter.js. Nimbus 5.7 Lor is the user-facing label; the configured premium model ID is gpt-6-astra. Puter availability is checked dynamically with puter.ai.listModels(). No Gemini API key is used for the Puter premium feature. Puter documents a user-pays model where app developers do not need to provide their own AI API key; actual model availability/cost is controlled by Puter and the signed-in user's account.
+
+
+## Private workspace deployment
+Required Netlify environment variables for owner-only repository editing/publishing:
+- OWNER_EMAILS=haadi6228@gmail.com,jollyzmotion@gmail.com
+- WORKER_EMAILS=<comma-separated worker emails>
+- GITHUB_TOKEN=<server-side GitHub token with access to the Nimbus repository>
+- GITHUB_OWNER=rexx37619-cyber
+- GITHUB_REPO=Nimbus-Beaconhouse-AI
+- GITHUB_BRANCH=main
+The workspace uses Puter.js for premium AI and the repository editor/publisher runs through Netlify Functions so secrets are not exposed in the browser.

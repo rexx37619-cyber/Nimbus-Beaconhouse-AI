@@ -9,6 +9,7 @@
 <title>Nimbus 4.5 ROR — Beaconhouse Intelligence</title>
 <link rel="stylesheet" href="/styles.css">
 <script src="https://js.puter.com/v2/"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <div id="app" class="app hidden">
@@ -164,5 +165,6 @@
   </div>
 </div>
 <script src="/app.js"></script>
+<script>(async()=>{try{const r=await fetch('/site-layout.json',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const root=document.documentElement;root.style.setProperty('--nimbus-accent',d.accent||'#6d5dfc');root.style.setProperty('--nimbus-accent-2',d.accent2||'#22b8cf');root.style.setProperty('--nimbus-radius',(d.radius||18)+'px');document.body.style.fontFamily=`"${d.font||'Plus Jakarta Sans'}",Inter,system-ui,sans-serif`;document.body.dataset.nimbusDensity=d.density||'balanced';}catch(e){}})();</script>
 </body>
 </html>

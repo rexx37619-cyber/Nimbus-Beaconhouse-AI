@@ -14,6 +14,7 @@
   <header class="workspace-topbar">
     <div class="brand-wrap">
       <img src="/assets/nimbus-logo.png" alt="Nimbus">
+      <img class="partner-logo" src="/assets/beaconhouse-logo.png" alt="Beaconhouse">
       <div><b>NIMBUS PRIVATE WORKSPACE</b><span>Owners + authorized workers</span></div>
     </div>
     <div class="top-actions">
@@ -87,7 +88,7 @@
         <div class="section-head"><div><div class="eyebrow">OWNER EDITOR</div><h2>Workspace files</h2></div><div class="model-tag">Owner only</div></div>
         <div class="file-toolbar"><select id="fileSelect"><option value="workspace-notes.txt">workspace-notes.txt</option><option value="ui-layout.json">ui-layout.json</option><option value="premium-config.json">premium-config.json</option></select><button id="loadFile">Load</button><button id="saveFile" class="primary-btn">Save to Puter FS</button></div>
         <textarea id="fileEditor" class="code-editor" spellcheck="false" placeholder="Select a workspace file, then Load."></textarea>
-        <div id="fileMsg" class="small-note"></div>
+        <div class="file-meta"><span id="fileCount">Repository files</span><span id="fileMsg" class="small-note"></span></div>
       </div>
 
       <div id="tab-ui" class="tab-panel owner-only-panel">
@@ -99,7 +100,7 @@
           <label>Density<select id="densityInput"><option value="compact">Compact</option><option value="balanced" selected>Balanced</option><option value="airy">Airy</option></select></label>
         </div>
         <div class="layout-preview" id="layoutPreview"><div class="preview-side"></div><div class="preview-main"><div></div><div></div><div></div></div></div>
-        <div class="ui-actions"><button id="applyLayout" class="primary-btn">Apply preview</button><button id="saveLayout">Save layout to Puter FS</button><button id="resetLayout">Reset</button></div>
+        <div class="ui-actions"><button id="applyLayout" class="primary-btn">Apply preview</button><button id="publishLayout" class="primary-btn">Publish UI to main</button><button id="resetLayout">Reset</button></div><div id="layoutMsg" class="small-note"></div>
         <div class="small-note">This studio edits the Nimbus layout configuration stored in the private workspace. Deploying those changes to the public Netlify site still requires an owner-controlled code publish.</div>
       </div>
 
