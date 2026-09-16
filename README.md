@@ -85,3 +85,21 @@ The public chat does not reveal the technical underlying Gemini model name.
 - Public 2026–2027 Beaconhouse book-list portals are linked by region, with
   Class 1–8 selectors.
 - Do not treat old book-pack documents as current universal lists.
+
+## Nimbus Private Workspace
+
+The build now includes `workspace.html`, `workspace.css`, `workspace.js`, and `netlify/functions/workspace-authorize.mjs`.
+
+Netlify environment variables:
+- `OWNER_EMAILS=haadi6228@gmail.com,jollyzmotion@gmail.com`
+- `WORKER_EMAILS=<comma-separated authorized worker Puter emails>`
+
+The workspace requires Puter sign-in and then checks the signed-in email against the server-side lists. Owners get the premium agent, revenue/profit editor, file editor, and UI layout studio. Workers get the premium agent only.
+
+`Nimbus 5.7 Lor` is a Nimbus product label. The current default Puter model id in this build is `gpt-5.6-luna`, which can be changed in `workspace.js` after checking the current Puter model list. The build intentionally does not claim an unverified public model named “ChatGPT 6 Astra”.
+
+The workspace is marked `noindex,nofollow,noarchive`; this reduces search visibility but is not a security boundary. Access control comes from Puter authentication plus the server-side allowlist.
+
+
+## Premium Models
+The public Nimbus site includes a Premium Models control using Puter.js. Nimbus 5.7 Lor is the user-facing label; the configured premium model ID is gpt-6-astra. Puter availability is checked dynamically with puter.ai.listModels(). No Gemini API key is used for the Puter premium feature. Puter documents a user-pays model where app developers do not need to provide their own AI API key; actual model availability/cost is controlled by Puter and the signed-in user's account.

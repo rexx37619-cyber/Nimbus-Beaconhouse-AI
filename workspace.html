@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="theme-color" content="#080b11">
+<title>Nimbus 5.7 Lor — Private Workspace</title>
+<link rel="stylesheet" href="/workspace.css">
+<script src="https://js.puter.com/v2/"></script>
+</head>
+<body>
+<div class="shell">
+  <header class="workspace-topbar">
+    <div class="brand-wrap">
+      <img src="/assets/nimbus-logo.png" alt="Nimbus">
+      <div><b>NIMBUS PRIVATE WORKSPACE</b><span>Owners + authorized workers</span></div>
+    </div>
+    <div class="top-actions">
+      <span id="securityBadge" class="security-badge">SECURITY CHECK: WAITING</span>
+      <a href="/" class="back-btn">Back to Nimbus</a>
+      <button id="signInBtn" class="primary-btn">Sign in with Puter</button>
+    </div>
+  </header>
+
+  <main id="gate" class="gate">
+    <div class="gate-card">
+      <div class="shield">◆</div>
+      <div class="eyebrow">PRIVATE • NOT INDEXED</div>
+      <h1>Nimbus Workspace</h1>
+      <p>Sign in with Puter first. Nimbus then checks the signed-in account against the server-side owner/worker access lists.</p>
+      <div class="check-grid">
+        <div><b>01</b><span>Puter account detected</span></div>
+        <div><b>02</b><span>Access role checked</span></div>
+        <div><b>03</b><span>Only allowed tools unlock</span></div>
+      </div>
+      <div id="gateMsg" class="gate-msg">No workspace session yet.</div>
+    </div>
+  </main>
+
+  <main id="workspace" class="workspace hidden">
+    <aside class="workspace-nav">
+      <div class="profile-card"><div id="rolePill" class="role-pill">ROLE</div><b id="userEmail">account</b><span id="roleNote">Access controlled</span></div>
+      <button class="nav-btn active" data-tab="overview">⌂ Overview</button>
+      <button class="nav-btn" data-tab="agent">✦ Nimbus 5.7 Lor</button>
+      <button class="nav-btn owner-only" data-tab="revenue">◫ Revenue & profit</button>
+      <button class="nav-btn owner-only" data-tab="files">▣ File editor</button>
+      <button class="nav-btn owner-only" data-tab="ui">◈ UI layout studio</button>
+      <button class="nav-btn" data-tab="security">◇ Security</button>
+      <div class="nav-foot"><span>Workspace v1</span><span>Puter-powered</span></div>
+    </aside>
+
+    <section class="content">
+      <div id="tab-overview" class="tab-panel active">
+        <div class="hero-card">
+          <div><div class="eyebrow">PREMIUM AGENT</div><h1>Nimbus 5.7 Lor</h1><p>A Puter-powered premium alias for the private workspace. The underlying Puter model ID is configurable by the owners.</p></div>
+          <div class="hero-orb"><img src="/assets/nimbus-logo.png" alt="Nimbus"></div>
+        </div>
+        <div class="stat-grid">
+          <div class="tile"><span>Workspace role</span><b id="overviewRole">—</b></div>
+          <div class="tile"><span>Agent</span><b>Nimbus 5.7 Lor</b></div>
+          <div class="tile"><span>Model provider</span><b>Puter.js</b></div>
+          <div class="tile"><span>Public users</span><b>Not exposed</b></div>
+        </div>
+        <div class="notice"><b>Security note</b><p>The workspace is marked noindex and also protected by an access allowlist. Noindex is not a security boundary by itself, so the Puter sign-in + server allowlist check is the important gate.</p></div>
+      </div>
+
+      <div id="tab-agent" class="tab-panel">
+        <div class="section-head"><div><div class="eyebrow">PRIVATE AGENT</div><h2>Nimbus 5.7 Lor</h2></div><div class="model-tag">Puter</div></div>
+        <div class="agent-layout"><div id="agentMessages" class="agent-messages"></div><form id="agentForm" class="agent-composer"><textarea id="agentInput" rows="2" placeholder="Ask the private agent…"></textarea><button class="primary-btn" type="submit">Run</button></form></div>
+        <div class="small-note">Premium agent access is available to owners and authorized workers only.</div>
+      </div>
+
+      <div id="tab-revenue" class="tab-panel owner-only-panel">
+        <div class="section-head"><div><div class="eyebrow">OWNER FINANCE</div><h2>Monthly revenue</h2></div><div class="model-tag">Owner only</div></div>
+        <div class="finance-grid">
+          <label>Revenue<input id="revenueInput" type="number" min="0" step="0.01" placeholder="0"></label>
+          <label>Expenses<input id="expenseInput" type="number" min="0" step="0.01" placeholder="0"></label>
+          <label>Currency<input id="currencyInput" maxlength="8" value="USD"></label>
+        </div>
+        <div class="revenue-card"><div class="money-row"><span>Monthly revenue</span><b id="revenueText">$0</b></div><div class="revenue-track"><div id="revenueBar"></div></div><div class="profit-row"><span>Profit</span><b id="profitText">$0</b><small id="marginText">0% margin</small></div></div>
+        <button id="saveFinance" class="primary-btn">Save on this device</button>
+        <div class="small-note">For a shared cross-account ledger, connect a shared Puter Serverless Worker store. This build keeps the finance editor owner-only and local until that shared worker is configured.</div>
+      </div>
+
+      <div id="tab-files" class="tab-panel owner-only-panel">
+        <div class="section-head"><div><div class="eyebrow">OWNER EDITOR</div><h2>Workspace files</h2></div><div class="model-tag">Owner only</div></div>
+        <div class="file-toolbar"><select id="fileSelect"><option value="workspace-notes.txt">workspace-notes.txt</option><option value="ui-layout.json">ui-layout.json</option><option value="premium-config.json">premium-config.json</option></select><button id="loadFile">Load</button><button id="saveFile" class="primary-btn">Save to Puter FS</button></div>
+        <textarea id="fileEditor" class="code-editor" spellcheck="false" placeholder="Select a workspace file, then Load."></textarea>
+        <div id="fileMsg" class="small-note"></div>
+      </div>
+
+      <div id="tab-ui" class="tab-panel owner-only-panel">
+        <div class="section-head"><div><div class="eyebrow">OWNER DESIGN TOOLS</div><h2>UI layout studio</h2></div><div class="model-tag">Owner only</div></div>
+        <div class="ui-grid">
+          <label>Accent<input id="accentInput" type="text" value="#6359ff"></label>
+          <label>Panel radius<input id="radiusInput" type="number" min="6" max="36" value="18"></label>
+          <label>Sidebar width<input id="sidebarInput" type="number" min="240" max="420" value="280"></label>
+          <label>Density<select id="densityInput"><option value="compact">Compact</option><option value="balanced" selected>Balanced</option><option value="airy">Airy</option></select></label>
+        </div>
+        <div class="layout-preview" id="layoutPreview"><div class="preview-side"></div><div class="preview-main"><div></div><div></div><div></div></div></div>
+        <div class="ui-actions"><button id="applyLayout" class="primary-btn">Apply preview</button><button id="saveLayout">Save layout to Puter FS</button><button id="resetLayout">Reset</button></div>
+        <div class="small-note">This studio edits the Nimbus layout configuration stored in the private workspace. Deploying those changes to the public Netlify site still requires an owner-controlled code publish.</div>
+      </div>
+
+      <div id="tab-security" class="tab-panel">
+        <div class="section-head"><div><div class="eyebrow">ACCESS CONTROL</div><h2>Security check</h2></div><div id="securityRoleTag" class="model-tag">—</div></div>
+        <div class="security-list"><div><span>Robots directive</span><b>noindex / nofollow</b></div><div><span>Puter authentication</span><b id="puterState">Checking…</b></div><div><span>Server access list</span><b id="serverState">Checking…</b></div><div><span>Role permissions</span><b id="permissionState">Checking…</b></div></div>
+        <div class="notice warning"><b>Important</b><p>Do not treat noindex as a lock. Keep OWNER_EMAILS and WORKER_EMAILS configured in Netlify environment variables and use a trusted identity provider for stronger server-verifiable identity in a production security model.</p></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/workspace.js"></script>
+</body>
+</html>

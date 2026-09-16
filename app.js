@@ -318,3 +318,54 @@ $('ownerLogin').onclick=async()=>{const email=$('ownerEmail').value.trim();if(!e
 
 function init(){syncAccount();renderHistory();renderModels();if(state.id){$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');if(state.chats.length)loadChat(state.chats[0].id)}}
 init();
+
+
+// Public Premium Models — Nimbus 5.7 Lor via Puter.js
+const PREMIUM_PUBLIC_LABEL='Nimbus 5.7 Lor';
+const PREMIUM_PUBLIC_MODEL='gpt-6-astra';
+let premiumReady=false;
+async function openPremium(){
+  $('premiumModal').classList.remove('hidden');
+  $('premiumStatus').textContent='Checking availability…';
+  try{
+    if(!window.puter) throw new Error('Puter.js unavailable');
+    if(!puter.auth.isSignedIn()){
+      await puter.auth.signIn({request_auth:true});
+    }
+    const models=await puter.ai.listModels();
+    const exact=models.find(m=>String(m.id||'').toLowerCase()===PREMIUM_PUBLIC_MODEL);
+    premiumReady=Boolean(exact);
+    if(exact){
+      $('premiumStatus').textContent='Available';
+    }else{
+      $('premiumStatus').textContent='Not currently exposed by Puter';
+      const providers=[...new Set(models.map(m=>m.provider).filter(Boolean))].join(', ');
+      appendPremium('ai',`Nimbus 5.7 Lor is enabled as the premium label, but Puter is not currently exposing ${PREMIUM_PUBLIC_MODEL} to this app. Available providers: ${providers||'unknown'}.`);
+    }
+  }catch(e){
+    premiumReady=false;
+    $('premiumStatus').textContent='Sign-in required';
+    appendPremium('ai','Please sign in to Puter to use Nimbus 5.7 Lor.');
+  }
+}
+function appendPremium(role,text){
+  const el=document.createElement('div');el.className='premium-msg '+(role==='me'?'me':'ai');el.textContent=text;$('premiumMessages').appendChild(el);$('premiumMessages').scrollTop=$('premiumMessages').scrollHeight;
+}
+$('premiumModelsBtn').addEventListener('click',openPremium);
+$('closePremium').addEventListener('click',()=>$('premiumModal').classList.add('hidden'));
+$('premiumModal').addEventListener('click',e=>{if(e.target===$('premiumModal'))$('premiumModal').classList.add('hidden')});
+$('premiumComposer').addEventListener('submit',async e=>{
+  e.preventDefault(); const text=$('premiumInput').value.trim(); if(!text)return;
+  appendPremium('me',text); $('premiumInput').value='';
+  const wait=document.createElement('div'); wait.className='premium-msg ai'; wait.textContent='Working…'; $('premiumMessages').appendChild(wait);
+  try{
+    if(!window.puter) throw new Error('Puter.js unavailable');
+    if(!puter.auth.isSignedIn()) await puter.auth.signIn({request_auth:true});
+    const models=await puter.ai.listModels();
+    const exact=models.find(m=>String(m.id||'').toLowerCase()===PREMIUM_PUBLIC_MODEL);
+    if(!exact){wait.textContent='Nimbus 5.7 Lor is not currently available through Puter for this account.';return;}
+    const response=await puter.ai.chat(text,{model:exact.id,reasoning_effort:'minimal',stream:false});
+    const msg=response?.message?.content??response?.content??response;
+    wait.textContent=typeof msg==='string'?msg:JSON.stringify(msg,null,2);
+  }catch(err){wait.textContent='Nimbus 5.7 Lor is temporarily busy. Please try again.'; console.error(err)}
+});

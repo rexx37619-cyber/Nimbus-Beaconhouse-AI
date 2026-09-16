@@ -8,6 +8,7 @@
 <meta name="description" content="Nimbus — Beaconhouse Intelligence, a student-focused educational AI workspace.">
 <title>Nimbus 4.5 ROR — Beaconhouse Intelligence</title>
 <link rel="stylesheet" href="/styles.css">
+<script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
 <div id="app" class="app hidden">
@@ -32,6 +33,7 @@
         <button id="mobileMenu" class="mobile-menu">☰</button>
         <button id="desktopSidebarToggle" class="sidebar-toggle" title="Hide sidebar">☰</button>
         <span class="page-brand">Nimbus</span>
+        <button class="premium-chip" id="premiumModelsBtn" type="button" title="Nimbus 5.7 Lor premium model"><span class="premium-dot"></span> Premium Models</button>
         <div class="model-picker" id="modelPicker">
           <button id="modelPickerBtn" class="model-picker-btn" aria-expanded="false">
             <img class="model-logo" src="/assets/nimbus-logo.png" alt=""><span id="activeModelLabel">Nimbus 4.5 ROR</span><span class="model-chevron">⌄</span>
@@ -141,6 +143,26 @@
   </div>
 </div>
 
+
+<div id="premiumModal" class="modal-backdrop hidden">
+  <div class="premium-card">
+    <button id="closePremium" class="close">×</button>
+    <div class="premium-hero">
+      <img src="/assets/nimbus-logo.png" alt="Nimbus">
+      <div><div class="eyebrow">PREMIUM MODELS</div><h2>Nimbus 5.7 Lor</h2><p>Puter-powered premium AI access. The provider model is selected through Puter.js.</p></div>
+    </div>
+    <div class="premium-model-row">
+      <div><b>Nimbus 5.7 Lor</b><span>Premium agent • Puter-powered</span></div>
+      <span id="premiumStatus" class="premium-status">Checking availability…</span>
+    </div>
+    <div id="premiumMessages" class="premium-messages"></div>
+    <form id="premiumComposer" class="composer premium-composer" autocomplete="off">
+      <textarea id="premiumInput" rows="2" placeholder="Ask Nimbus 5.7 Lor…"></textarea>
+      <button type="submit" class="send-btn">↑</button>
+    </form>
+    <div class="composer-note">Premium AI is provided through Puter.js; availability depends on the models Puter currently exposes to your account.</div>
+  </div>
+</div>
 <script src="/app.js"></script>
 </body>
 </html>
