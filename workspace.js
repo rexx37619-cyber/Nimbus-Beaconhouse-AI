@@ -31,7 +31,12 @@ async function findPremiumModel(){
     if(!window.puter?.ai?.listModels) return 'gpt-5.6-luna';
     const models=await puter.ai.listModels();
     const ids=(models||[]).flatMap(m=>[m?.id,...(Array.isArray(m?.aliases)?m.aliases:[])]).filter(Boolean).map(String);
-    for(const wanted of preferred){const hit=ids.find(id=>id.toLowerCase()===wanted.toLowerCase());if(hit)return hit;}
+    for(const wanted of preferred){
+      const hit=ids.find(id=>id.toLowerCase()===wanted.toLowerCase() || id.toLowerCase().endsWith('/'+wanted.toLowerCase()));
+      if(hit)return hit;
+    }
+    const luna=ids.find(id=>id.toLowerCase().endsWith('/gpt-5.6-luna') || id.toLowerCase()==='gpt-5.6-luna');
+    if(luna)return luna;
   }catch(e){console.warn('Puter model discovery failed',e)}
   return 'gpt-5.6-luna';
 }
@@ -53,6 +58,19 @@ $('agentForm').onsubmit=async e=>{e.preventDefault();const text=$('agentInput').
   }
   last.textContent=extractText(resp)||'No text response was returned.';
 }catch(err){last.textContent='Nimbus 5.7 Lor is temporarily unavailable. Please try again in a moment.';console.error(err)}finally{setAgentBusy(false)}};
+
+function extractText(resp){
+  const content=resp?.message?.content ?? resp?.content ?? resp?.text ?? '';
+  if(typeof content==='string') return content;
+  if(Array.isArray(content)){
+    return content.map(part=>{
+      if(typeof part==='string') return part;
+      return part?.text || part?.content || '';
+    }).filter(Boolean).join('\n');
+  }
+  return '';
+}
+
 function appendAgent(role,text){const el=document.createElement('div');el.className='agent-msg'+(role==='me'?' me':'');el.textContent=text;$('agentMessages').appendChild(el);$('agentMessages').scrollTop=$('agentMessages').scrollHeight}
 
 function loadFinance(){const d=JSON.parse(localStorage.getItem(OWNER_LOCAL_KEY)||'{}');$('revenueInput').value=d.revenueUSD??'';$('expenseInput').value=d.expensesUSD??'';$('usdPkrRate').value=d.rate??USD_TO_PKR_DEFAULT;renderFinance()}
