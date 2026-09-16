@@ -10,6 +10,10 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 let session={user:null,role:'denied',permissions:[]};
 let repoCache=[];
 let currentFile={path:'',sha:'',content:''};
+let openAIModels=[];
+const GITHUB_OWNER='rexx37619-cyber';
+const GITHUB_REPO='Nimbus-Beaconhouse-AI';
+const GITHUB_BRANCH='main';
 
 function setSecurity(text,kind='wait'){ $('securityBadge').textContent=`SECURITY CHECK: ${text}`; $('securityBadge').style.color=kind==='ok'?'#0f9f72':kind==='bad'?'#d74764':'#b37a00'; }
 function isOwner(){return session.role==='owner'}
@@ -25,18 +29,54 @@ if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)retur
 
 document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>{if(btn.classList.contains('hidden'))return;document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));$('tab-'+btn.dataset.tab).classList.add('active');}));
 
-async function findPremiumModel(){
-  const preferred=['gpt-6-astra','gpt-5.6-luna'];
+async function loadOpenAIModels(){
+  const select=$('openaiModelSelect');
+  if(!select) return;
+  select.innerHTML='<option>Loading OpenAI models…</option>';
   try{
-    if(!window.puter?.ai?.listModels) return 'gpt-5.6-luna';
-    const models=await puter.ai.listModels();
-    const ids=(models||[]).flatMap(m=>[m?.id,...(Array.isArray(m?.aliases)?m.aliases:[])]).filter(Boolean).map(String);
-    for(const wanted of preferred){
-      const hit=ids.find(id=>id.toLowerCase()===wanted.toLowerCase() || id.toLowerCase().endsWith('/'+wanted.toLowerCase()));
+    let models=[];
+    if(window.puter?.ai?.listModels){
+      try{ models=await puter.ai.listModels('openai'); }catch{ models=await puter.ai.listModels(); }
+    }
+    openAIModels=(models||[]).filter(m=>{
+      const provider=String(m?.provider||'').toLowerCase();
+      const id=String(m?.id||'').toLowerCase();
+      return provider==='openai' || id.startsWith('gpt-') || id.includes('/gpt-') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('o4');
+    });
+    const seen=new Set();
+    openAIModels=openAIModels.filter(m=>{const id=String(m?.id||'');if(!id||seen.has(id))return false;seen.add(id);return true;}).sort((a,b)=>String(a?.name||a?.id).localeCompare(String(b?.name||b?.id)));
+    const preferred=['gpt-6-astra','gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna'];
+    openAIModels.sort((a,b)=>{
+      const ai=preferred.indexOf(String(a?.id||'')); const bi=preferred.indexOf(String(b?.id||''));
+      return (ai<0?99:ai)-(bi<0?99:bi);
+    });
+    select.innerHTML='';
+    for(const m of openAIModels){
+      const id=String(m.id);
+      const opt=document.createElement('option');
+      opt.value=id;
+      opt.textContent=m.name||id;
+      select.appendChild(opt);
+    }
+    if(!openAIModels.length){
+      select.innerHTML='<option value="gpt-6-astra">GPT-6 Astra (check Puter availability)</option>';
+    }
+    select.value=openAIModels.some(m=>m.id==='gpt-6-astra')?'gpt-6-astra':(openAIModels[0]?.id||'gpt-6-astra');
+  }catch(e){
+    console.warn('OpenAI model discovery failed',e);
+    select.innerHTML='<option value="gpt-6-astra">GPT-6 Astra</option>';
+  }
+}
+async function findPremiumModel(){
+  const selected=$('openaiModelSelect')?.value;
+  if(selected) return selected;
+  try{
+    if(window.puter?.ai?.listModels){
+      const models=await puter.ai.listModels();
+      const ids=(models||[]).flatMap(m=>[m?.id,...(Array.isArray(m?.aliases)?m.aliases:[])]).filter(Boolean).map(String);
+      const hit=ids.find(id=>id.toLowerCase()==='gpt-6-astra' || id.toLowerCase().endsWith('/gpt-6-astra'));
       if(hit)return hit;
     }
-    const luna=ids.find(id=>id.toLowerCase().endsWith('/gpt-5.6-luna') || id.toLowerCase()==='gpt-5.6-luna');
-    if(luna)return luna;
   }catch(e){console.warn('Puter model discovery failed',e)}
   return 'gpt-5.6-luna';
 }
@@ -48,12 +88,12 @@ $('agentForm').onsubmit=async e=>{e.preventDefault();const text=$('agentInput').
   $('agentModelState').textContent=model==='gpt-6-astra'?'GPT-6 Astra':'Puter: '+model;
   let resp;
   try{
-    resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise, practical, and transparent about what you can access.'},{role:'user',content:text}],{model,normalize:true,reasoning_effort:'low'});
+    resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise, practical, and transparent about what you can access.'},{role:'user',content:text}],{model,normalize:true});
   }catch(firstErr){
     if(model!=='gpt-5.6-luna'){
       model='gpt-5.6-luna';
       $('agentModelState').textContent='Puter: gpt-5.6-luna fallback';
-      resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise and practical.'},{role:'user',content:text}],{model,normalize:true,reasoning_effort:'low'});
+      resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise and practical.'},{role:'user',content:text}],{model,normalize:true});
     }else{throw firstErr}
   }
   last.textContent=extractText(resp)||'No text response was returned.';
@@ -79,16 +119,69 @@ function renderFinance(){const usd=Number($('revenueInput').value||0), exp=Numbe
 $('saveFinance').onclick=()=>{localStorage.setItem(OWNER_LOCAL_KEY,JSON.stringify({revenueUSD:Number($('revenueInput').value||0),expensesUSD:Number($('expenseInput').value||0),rate:Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT)}));renderFinance()};
 loadFinance();
 
-async function loadRepoFiles(){if(!isOwner())return;try{const r=await fetch('/.netlify/functions/project-files');const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message);repoCache=d.files.filter(p=>!p.startsWith('.git/')).sort();$('fileSelect').innerHTML=repoCache.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');$('fileCount').textContent=`${repoCache.length} repository files`;$('fileMsg').textContent='Synced from GitHub main branch.';}catch(e){$('fileMsg').textContent=e.message||'Could not sync repository files.';}}
-async function loadFile(path){const r=await fetch('/.netlify/functions/project-file?path='+encodeURIComponent(path));const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message);currentFile={path:d.path,sha:d.sha,content:d.content};$('fileEditor').value=d.content;$('fileMsg').textContent=`Loaded ${d.path} from main.`}
-$('loadFile').onclick=async()=>{try{await loadFile($('fileSelect').value)}catch(e){$('fileMsg').textContent=e.message||'Could not load file.'}}
-$('saveFile').onclick=()=>{if(!isOwner())return;const path=$('fileSelect').value;const content=$('fileEditor').value;const blob=new Blob([content],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=path.split('/').pop()||'nimbus-file.txt';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('fileMsg').textContent=`Downloaded ${path}. Replace that file in Nimbus_CLEAN, then git add, git commit, git push origin main.`;}
+async function loadRepoFiles(){
+  if(!isOwner())return;
+  try{
+    const url=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/trees/${encodeURIComponent(GITHUB_BRANCH)}?recursive=1`;
+    const r=await fetch(url,{headers:{Accept:'application/vnd.github+json'}});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d?.message||'Could not read the public Nimbus repository.');
+    repoCache=(d.tree||[]).filter(x=>x.type==='blob').map(x=>x.path).filter(p=>!p.startsWith('.git/')).sort();
+    $('fileSelect').innerHTML=repoCache.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+    $('fileCount').textContent=`${repoCache.length} repository files`;$('fileMsg').textContent='Synced from GitHub main branch.';
+  }catch(e){
+    $('fileMsg').textContent=e.message||'Could not sync repository files.';
+  }
+}
+async function loadFile(path){
+  const safe=String(path||'').replace(/^\/+/, '');
+  if(!safe || safe.includes('..')) throw new Error('Invalid file path.');
+  const url=`https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${encodeURIComponent(GITHUB_BRANCH)}/${safe.split('/').map(encodeURIComponent).join('/')}`;
+  const r=await fetch(url,{cache:'no-store'});
+  if(!r.ok) throw new Error('Could not load that repository file.');
+  const content=await r.text();
+  currentFile={path:safe,sha:'',content};
+  $('fileEditor').value=content;
+  $('fileMsg').textContent=`Loaded ${safe} from GitHub main branch.`;
+}
+$('loadFile').onclick=async()=>{try{await loadFile($('fileSelect').value)}catch(e){$('fileMsg').textContent=e.message||'Could not load file.'}};
 $('refreshFiles').onclick=loadRepoFiles;
 
-function readLayout(){const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;$('accentInput').value=d.accent;$('accent2Input').value=d.accent2;$('radiusInput').value=d.radius;$('sidebarInput').value=d.sidebar;$('densityInput').value=d.density;return d}
-function getLayout(){return{accent:$('accentInput').value.trim()||DEFAULTS.accent,accent2:$('accent2Input').value.trim()||DEFAULTS.accent2,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value||260),density:$('densityInput').value||'balanced',font:DEFAULTS.font}}
-function previewLayout(){const d=getLayout(),p=$('layoutPreview');p.style.setProperty('--preview-accent',d.accent);p.style.gridTemplateColumns=`${Math.max(120,Math.min(360,d.sidebar/1.4))}px 1fr`;p.style.borderRadius=Math.max(6,Math.min(36,d.radius))+'px';document.querySelectorAll('.preview-main div').forEach((el,i)=>{el.style.height=(42+i*(d.density==='compact'?5:d.density==='airy'?14:9))+'px';el.style.borderColor=d.accent+'55'});}
-$('applyLayout').onclick=()=>{localStorage.setItem(LAYOUT_KEY,JSON.stringify(getLayout()));previewLayout();};
-$('publishLayout').onclick=()=>{if(!isOwner())return;const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));const content=JSON.stringify(d,null,2);const blob=new Blob([content],{type:'application/json;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='site-layout.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('layoutMsg').textContent='Downloaded site-layout.json. Replace the project file in Nimbus_CLEAN, then git add, git commit, git push origin main. Netlify will redeploy it.';}
-$('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();previewLayout()};
-['accentInput','accent2Input','radiusInput','sidebarInput','densityInput'].forEach(id=>$(id).addEventListener('input',previewLayout));readLayout();previewLayout();
+function readLayout(){
+  const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;
+  $('accentInput').value=d.accent||DEFAULTS.accent;
+  $('radiusInput').value=d.radius||DEFAULTS.radius;
+  $('sidebarInput').value=d.sidebar||DEFAULTS.sidebar;
+  $('densityInput').value=d.density||DEFAULTS.density;
+  return d;
+}
+function getLayout(){
+  return{accent:$('accentInput').value||DEFAULTS.accent,accent2:DEFAULTS.accent2,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value||260),density:$('densityInput').value||'balanced',font:DEFAULTS.font};
+}
+function applyFrameLayout(){
+  const frame=$('sitePreview'); if(!frame) return;
+  const d=getLayout();
+  try{
+    const doc=frame.contentDocument; if(!doc) return;
+    doc.documentElement.style.setProperty('--nimbus-accent',d.accent);
+    doc.documentElement.style.setProperty('--nimbus-accent-2',d.accent2);
+    doc.documentElement.style.setProperty('--nimbus-radius',d.radius+'px');
+    doc.body.style.fontFamily=`"${d.font}",Inter,system-ui,sans-serif`;
+    doc.body.dataset.nimbusDensity=d.density;
+    const badge=doc.createElement('div'); badge.id='__nimbus_preview_badge'; badge.textContent='UI PREVIEW';
+    Object.assign(badge.style,{position:'fixed',right:'12px',top:'12px',zIndex:'2147483647',padding:'6px 9px',borderRadius:'999px',background:d.accent,color:'#fff',font:'700 10px Arial',boxShadow:'0 8px 20px rgba(0,0,0,.18)'});
+    doc.getElementById('__nimbus_preview_badge')?.remove(); doc.body.appendChild(badge);
+  }catch(e){console.warn('Preview frame update failed',e)}
+}
+$('sitePreview')?.addEventListener('load',applyFrameLayout);
+function saveLayoutLocal(){const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));return d}
+$('applyLayout').onclick=()=>{const d=saveLayoutLocal();applyFrameLayout();$('layoutMsg').textContent='Preview updated. Use Export UI update to create the deployable site-layout.json file.';};
+$('publishLayout').onclick=()=>{
+  const d=saveLayoutLocal();
+  const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='site-layout.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  $('layoutMsg').textContent='Downloaded site-layout.json. Replace it in Nimbus_CLEAN, then git add, git commit, git push origin main.';
+};
+$('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();applyFrameLayout();$('layoutMsg').textContent='Preview reset.';};
+readLayout();
+loadOpenAIModels();

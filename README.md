@@ -118,3 +118,6 @@ The workspace uses Puter.js for premium AI and the repository editor/publisher r
 
 ## Workspace security note
 The private workspace intentionally does not require a GitHub token in Netlify. Repository files are read from the public GitHub repository; owner edits are downloaded locally for manual replacement and `git push origin main`. This avoids storing a repository write credential in the Netlify deployment.
+
+
+Workspace updates: OpenAI models are discovered dynamically through Puter, the file editor reads public GitHub files directly, and UI Layout Studio includes a live Nimbus site preview.

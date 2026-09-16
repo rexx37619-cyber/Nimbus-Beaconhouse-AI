@@ -67,7 +67,12 @@
       </div>
 
       <div id="tab-agent" class="tab-panel">
-        <div class="section-head"><div><div class="eyebrow">PRIVATE AGENT</div><h2>Nimbus 5.7 Lor</h2><div class="astra-card"><div class="astra-mark">6</div><div><b>GPT-6 Astra</b><span>Ultra Modified runtime badge</span></div></div></div><div class="model-tag" id="agentModelState">Detecting model…</div></div>
+        <div class="section-head"><div><div class="eyebrow">PRIVATE AGENT</div><h2>Nimbus 5.7 Lor</h2><div class="astra-card"><div class="astra-mark"><span class="astra-glyph">✦</span></div><div><b>GPT-6 Astra</b><span>Ultra Modified runtime badge</span></div></div>
+          <div class="chatgpt-model-box">
+            <div class="chatgpt-model-head"><span class="chatgpt-logo-mark" aria-hidden="true"><svg viewBox="0 0 48 48" role="img"><path d="M24 4c5.7 0 10.3 3.2 12.7 7.9 5.2 0.9 9.2 5.5 9.2 10.9 0 3.9-2 7.4-5.1 9.4 0.2.9.3 1.8.3 2.7 0 5.9-4.8 10.7-10.7 10.7-2.1 0-4-.6-5.6-1.6-1.8 1-3.8 1.6-6 1.6-5.9 0-10.7-4.8-10.7-10.7 0-1 .1-1.9.4-2.8C5.5 30 3.6 26.4 3.6 22.6c0-5.6 4.3-10.2 9.7-10.9C15.7 6.8 19.6 4 24 4Zm-7.1 12.7 11.7 6.8 6.6-3.8-1.4-1.1-6.9 4-8.7-5-1.3-.9Zm-6.4 7.2 7.1 4.1v7.5l1.7.9v-9.4l-8.8-5.1v2Zm14.1 14.3V29.1l-7.3-4.2-1.6.9v9.5l1.6.9v-7.5l5.6 3.2v5.8l1.7.9Zm3.3-14.3 8.7-5v-2l-8.7 5-1.7-.9-1.6.9 3.3 1.9Zm8.7 7.2-6.9 4v2l6.9-4c2.6-1.5 4.2-4.2 4.2-7.2 0-.4 0-.8-.1-1.2l-1.7 1c.1 2.1-.8 4.2-2.4 5.4Zm-5.3-2.9-1.7-1v3.8l-1.7 1v-7.5l-1.7-.9-1.7 1v13.6l1.7 1v-7.6l1.7-.9 1.7 1 1.7-.9v-3.6Z"/></svg></span><div><b>ChatGPT / OpenAI models</b><span>Available through Puter</span></div></div>
+            <select id="openaiModelSelect" aria-label="OpenAI model"></select>
+          </div>
+        </div><div class="model-tag" id="agentModelState">Detecting model…</div></div>
         <div class="agent-layout"><div id="agentMessages" class="agent-messages"></div><form id="agentForm" class="agent-composer"><textarea id="agentInput" rows="2" placeholder="Ask the private agent…"></textarea><button class="primary-btn" id="agentRunBtn" type="submit">Run</button></form></div>
         <div class="small-note">Premium agent access is available to owners and authorized workers only.</div>
       </div>
@@ -99,7 +104,10 @@
           <label>Sidebar width<input id="sidebarInput" type="number" min="240" max="420" value="280"></label>
           <label>Density<select id="densityInput"><option value="compact">Compact</option><option value="balanced" selected>Balanced</option><option value="airy">Airy</option></select></label>
         </div>
-        <div class="layout-preview" id="layoutPreview"><div class="preview-side"></div><div class="preview-main"><div></div><div></div><div></div></div></div>
+        <div class="preview-shell">
+          <div class="preview-toolbar"><span class="preview-dot"></span><b>Nimbus site live preview</b><span class="preview-note">Edits apply to this preview first</span></div>
+          <div class="layout-preview" id="layoutPreview"><iframe id="sitePreview" src="/?workspacePreview=1" title="Nimbus site preview"></iframe></div>
+        </div>
         <div class="ui-actions"><button id="applyLayout" class="primary-btn">Apply preview</button><button id="publishLayout" class="primary-btn">Export UI update</button><button id="resetLayout">Reset</button></div><div id="layoutMsg" class="small-note"></div>
         <div class="small-note">This studio exports a real site-layout.json. Replace that file in Nimbus_CLEAN, then run git add, git commit, git push origin main. Netlify will deploy the change.</div>
       </div>
