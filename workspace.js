@@ -19,9 +19,24 @@ async function getPuterUser(){
   if(!puter.auth.isSignedIn()) return null;
   return await puter.auth.getUser();
 }
+async function getPuterEmail(){
+  if(!window.puter) throw new Error('Puter.js did not load.');
+  if(!puter.auth.isSignedIn()) return null;
+  // Puter does not expose the account email in the basic getUser() object by default.
+  // Explicit email permission returns the actual email address used by the workspace allowlist.
+  if(typeof puter.perms?.requestEmail==='function'){
+    const email=await puter.perms.requestEmail();
+    if(email) return String(email).trim().toLowerCase();
+  }
+  if(typeof puter.perms?.request==='function'){
+    const email=await puter.perms.request('email');
+    if(email) return String(email).trim().toLowerCase();
+  }
+  return '';
+}
 async function authorize(user){
-  const email=String(user?.email||user?.username||'').trim().toLowerCase();
-  if(!email) throw new Error('Puter did not provide an account email.');
+  const email=await getPuterEmail();
+  if(!email) throw new Error('Nimbus needs permission to read your Puter account email so it can verify the workspace access list. Please allow Email access and try again.');
   const r=await fetch('/.netlify/functions/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
   const d=await r.json().catch(()=>({}));
   if(!r.ok||!d.ok) throw new Error(d.message||'Workspace access denied.');
@@ -54,7 +69,11 @@ async function signIn(){
 $('signInBtn').onclick=signIn;
 
 if(window.puter?.auth?.isSignedIn?.()){
-  getPuterUser().then(u=>u&&authorize(u).then(()=>{setSecurity('VERIFIED','ok');openWorkspace()}).catch(e=>showDenied(e.message))).catch(()=>{});
+  getPuterUser().then(async u=>{
+    if(!u)return;
+    try{ await authorize(u); setSecurity('VERIFIED','ok'); openWorkspace(); }
+    catch(e){ showDenied(e.message); }
+  }).catch(()=>{});
 }
 
 document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>{
