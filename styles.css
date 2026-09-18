@@ -57,3 +57,12 @@ body.sidebar-hidden .chat-column{width:min(1000px,100%)}
 
 /* Workspace UI Layout Studio runtime variables */
 :root{--nimbus-accent:#6d5dfc;--nimbus-accent-2:#22b8cf;--nimbus-radius:18px}.model-select,.model-button,.chat-card,.suggestion-card,.sidebar,.composer,.message,.code-wrap{border-radius:var(--nimbus-radius)}button,.model-select{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif}body{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif}
+/* Cloudflare migration + quiet waiting state */
+.agent-assist{display:flex;align-items:center;justify-content:center;min-height:48px}
+.agent-assist .agent-dots{display:flex;gap:6px;align-items:center;justify-content:center}
+.agent-assist .agent-dots i,.premium-thinking i{display:block;width:7px;height:7px;border-radius:50%;background:#6d5dfc;animation:nimbusDotFlow 1.05s ease-in-out infinite}
+.agent-assist .agent-dots i:nth-child(2),.premium-thinking i:nth-child(2){animation-delay:.16s}
+.agent-assist .agent-dots i:nth-child(3),.premium-thinking i:nth-child(3){animation-delay:.32s}
+.premium-thinking{display:flex;gap:6px;align-items:center;padding:5px 2px}
+.premium-thinking i{width:6px;height:6px}
+@keyframes nimbusDotFlow{0%,60%,100%{transform:translateY(0);opacity:.42}30%{transform:translateY(-4px);opacity:1}}

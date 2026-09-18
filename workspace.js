@@ -1,187 +1,65 @@
-const OWNER_LOCAL_KEY='nimbus_workspace_finance_v2';
-const LAYOUT_KEY='nimbus_workspace_layout_v2';
-const DEFAULTS={accent:'#6d5dfc',accent2:'#22b8cf',radius:18,sidebar:260,density:'balanced',font:'Plus Jakarta Sans'};
+const FINANCE_KEY='nimbus_workspace_finance_v3';
+const LAYOUT_KEY='nimbus_workspace_layout_v3';
+const AGENT_HISTORY_KEY='nimbus_private_agent_chats_v3';
+const DEFAULTS={accent:'#6d5dfc',accent2:'#22b8cf',radius:18,sidebar:286,density:'balanced',font:'Plus Jakarta Sans'};
 const PREMIUM_LABEL='Nimbus 5.7 Lor • Ultra Modified';
 const PREMIUM_MODEL_ID='gpt-6-astra';
-const FALLBACK_MODEL_ID='gpt-5.6-luna';
 const USD_TO_PKR_DEFAULT=277.27;
-const $=id=>document.getElementById(id);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let session={user:null,role:'denied',permissions:[]};
-let repoCache=[];
-let currentFile={path:'',sha:'',content:''};
-let openAIModels=[];
 const GITHUB_OWNER='rexx37619-cyber';
 const GITHUB_REPO='Nimbus-Beaconhouse-AI';
 const GITHUB_BRANCH='main';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let session={role:'denied',user:null,permissions:[]};
+let currentFile={path:'',content:''};
+let openAIModels=[];
+let agentChats=JSON.parse(localStorage.getItem(AGENT_HISTORY_KEY)||'[]');
+let currentAgentChatId=null;
 
-function setSecurity(text,kind='wait'){ $('securityBadge').textContent=`SECURITY CHECK: ${text}`; $('securityBadge').style.color=kind==='ok'?'#0f9f72':kind==='bad'?'#d74764':'#b37a00'; }
-function isOwner(){return session.role==='owner'}
-function guardOwners(){document.querySelectorAll('.owner-only').forEach(el=>el.classList.toggle('hidden',!isOwner()));document.querySelectorAll('.owner-only-panel').forEach(el=>el.classList.toggle('hidden',!isOwner()));}
-async function getPuterUser(){if(!window.puter) throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn()) return null;return await puter.auth.getUser();}
-async function getPuterEmail(){if(!window.puter) throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn()) return null;if(typeof puter.perms?.requestEmail==='function'){const e=await puter.perms.requestEmail();if(e)return String(e).trim().toLowerCase()}if(typeof puter.perms?.request==='function'){const e=await puter.perms.request('email');if(e)return String(e).trim().toLowerCase()}return '';}
-async function authorize(user){const email=await getPuterEmail();if(!email)throw new Error('Nimbus needs Email access from Puter to verify your workspace account.');const r=await fetch('/.netlify/functions/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw new Error(d.message||'Workspace access denied.');session={user,role:d.role,permissions:d.permissions||[]};$('userEmail').textContent=email;$('rolePill').textContent=d.role.toUpperCase();$('roleNote').textContent=d.role==='owner'?'Full workspace access':'Agent-only worker access';$('overviewRole').textContent=d.role==='owner'?'Owner':'Worker';$('securityRoleTag').textContent=d.role==='owner'?'OWNER':'WORKER';$('serverState').textContent='Allowlisted';$('permissionState').textContent=d.permissions.join(' • ');$('puterState').textContent='Authenticated';guardOwners();}
-function openWorkspace(){ $('gate').classList.add('hidden');$('workspace').classList.remove('hidden'); }
-function showDenied(msg){$('gateMsg').textContent=msg;$('gateMsg').style.color='#d74764';setSecurity('DENIED','bad')}
-async function signIn(){$('signInBtn').disabled=true;$('gateMsg').textContent='Opening Puter sign-in…';setSecurity('AUTHENTICATING');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent=`Access granted as ${session.role}.`;setSecurity('VERIFIED','ok');openWorkspace();if(isOwner()){await loadRepoFiles();}}catch(e){showDenied(e.message||'Authentication failed.')}finally{$('signInBtn').disabled=false}}
+function setSecurity(text,kind='wait'){const el=$('securityBadge');if(!el)return;el.textContent=`SECURITY CHECK: ${text}`;el.style.color=kind==='ok'?'#0f9f72':kind==='bad'?'#d74764':'#b37a00';}
+function isOwner(){return session.role==='owner';}
+function guardOwners(){document.querySelectorAll('.owner-only,.owner-only-panel').forEach(el=>el.classList.toggle('hidden',!isOwner()));}
+async function getPuterUser(){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return null;return puter.auth.getUser();}
+async function getPuterEmail(){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return '';if(typeof puter.perms?.requestEmail==='function'){const e=await puter.perms.requestEmail();if(e)return String(e).trim().toLowerCase();}if(typeof puter.perms?.request==='function'){const e=await puter.perms.request('email');if(e)return String(e).trim().toLowerCase();}return '';}
+async function authorize(user){const email=await getPuterEmail();if(!email)throw new Error('Nimbus needs Puter Email access to verify the owner account.');const r=await fetch('/api/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw new Error(d.message||'Workspace access denied.');session={user,role:d.role,permissions:d.permissions||[]};$('userEmail').textContent=email;$('rolePill').textContent='OWNER';$('roleNote').textContent='Owner-only access';$('overviewRole').textContent='Owner';$('securityRoleTag').textContent='OWNER';$('serverState').textContent='Allowlisted';$('permissionState').textContent=d.permissions.join(' • ');$('puterState').textContent='Authenticated';guardOwners();}
+function openWorkspace(){$('gate').classList.add('hidden');$('workspace').classList.remove('hidden');}
+function showDenied(msg){$('gateMsg').textContent=msg;$('gateMsg').style.color='#d74764';setSecurity('DENIED','bad');}
+async function signIn(){const b=$('signInBtn');b.disabled=true;setSecurity('AUTHENTICATING');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent='Owner access granted.';setSecurity('VERIFIED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message||'Authentication failed.')}finally{b.disabled=false;}}
 $('signInBtn').onclick=signIn;
-if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;try{await authorize(u);setSecurity('VERIFIED','ok');openWorkspace();if(isOwner())await loadRepoFiles()}catch(e){showDenied(e.message)}}).catch(()=>{})}
 
-document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>{if(btn.classList.contains('hidden'))return;document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));$('tab-'+btn.dataset.tab).classList.add('active');}));
+const ALIASES={'gpt-6-astra':'Nimbus 5.7 Lor • Ultra Modified','gpt-5.6-sol':'Nimbus Sol 5.6 • Modified','gpt-5.6-terra':'Nimbus Terra 5.6 • Modified','gpt-5.6-luna':'Nimbus Luna 5.6 • Modified','gpt-5.5':'Nimbus ROR 5.5 • Modified','gpt-5.5-pro':'Nimbus ROR 5.5 Pro • Modified','gpt-5.4':'Nimbus ROR 5.4 • Modified','gpt-5.4-pro':'Nimbus ROR 5.4 Pro • Modified','gpt-5.4-mini':'Nimbus ROR Mini 5.4 • Modified','gpt-5.4-nano':'Nimbus ROR Nano 5.4 • Modified','gpt-5.3-codex':'Nimbus Code 5.3 • Modified','gpt-5.1':'Nimbus ROR 5.1 • Modified','gpt-5.1-chat':'Nimbus Chat 5.1 • Modified','gpt-5':'Nimbus ROR 5 • Modified','gpt-4.1':'Nimbus Classic 4.1 • Modified','gpt-4o':'Nimbus Omni 4o • Modified','gpt-4o-mini':'Nimbus Mini 4o • Modified'};
+function nimbusModelName(m){const id=String(m?.id||'').split('/').pop().toLowerCase();if(ALIASES[id])return ALIASES[id];const raw=String(m?.name||m?.id||'OpenAI model').replace(/^GPT\s*/i,'').replace(/\s+/g,' ').trim();return`Nimbus ${raw} • Modified`;}
+function isChatModel(m){const provider=String(m?.provider||'').toLowerCase();const last=String(m?.id||'').toLowerCase().split('/').pop();if(provider!=='openai'&&!/^gpt-/.test(last))return false;return !['image','live','audio','transcribe','embedding','embed','moderation','tts','realtime'].some(x=>last.includes(x));}
+async function loadOpenAIModels(){const select=$('openaiModelSelect');if(!select)return;select.innerHTML='<option>Loading Nimbus models…</option>';try{let models=[];if(window.puter?.ai?.listModels){try{models=await puter.ai.listModels('openai');}catch{models=await puter.ai.listModels();}}openAIModels=(models||[]).filter(isChatModel);const seen=new Set();openAIModels=openAIModels.filter(m=>{const id=String(m?.id||'');if(!id||seen.has(id))return false;seen.add(id);return true;});const priority=['gpt-6-astra','gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5','gpt-5.5-pro','gpt-5.4','gpt-5.4-pro','gpt-5.4-mini','gpt-5.4-nano','gpt-5.3-codex'];openAIModels.sort((a,b)=>{const ai=priority.indexOf(String(a?.id||'').split('/').pop());const bi=priority.indexOf(String(b?.id||'').split('/').pop());if(ai!==bi)return(ai<0?999:ai)-(bi<0?999:bi);return nimbusModelName(a).localeCompare(nimbusModelName(b));});select.innerHTML='';if(!openAIModels.length){const o=document.createElement('option');o.value=PREMIUM_MODEL_ID;o.textContent=PREMIUM_LABEL;select.appendChild(o);}else{openAIModels.forEach(m=>{const o=document.createElement('option');o.value=String(m.id);o.textContent=nimbusModelName(m);select.appendChild(o);});}const initial=openAIModels.find(m=>String(m.id).split('/').pop()==='gpt-6-astra')?.id||openAIModels[0]?.id||PREMIUM_MODEL_ID;select.value=initial;updateModelBadge(initial);}catch{select.innerHTML=`<option value="${PREMIUM_MODEL_ID}">${PREMIUM_LABEL}</option>`;updateModelBadge(PREMIUM_MODEL_ID);}}
+function updateModelBadge(id){const m=openAIModels.find(x=>String(x.id)===String(id));$('agentModelState').textContent=m?nimbusModelName(m):PREMIUM_LABEL;}
+function selectedModel(){return $('openaiModelSelect')?.value||PREMIUM_MODEL_ID;}
+$('openaiModelSelect')?.addEventListener('change',()=>{updateModelBadge(selectedModel());const c=agentChats.find(x=>x.id===currentAgentChatId);if(c){c.model=selectedModel();saveAgentChats();}});
 
-async function loadOpenAIModels(){
-  const select=$('openaiModelSelect');
-  if(!select) return;
-  select.innerHTML='<option>Loading OpenAI models…</option>';
-  try{
-    let models=[];
-    if(window.puter?.ai?.listModels){
-      try{ models=await puter.ai.listModels('openai'); }catch{ models=await puter.ai.listModels(); }
-    }
-    openAIModels=(models||[]).filter(m=>{
-      const provider=String(m?.provider||'').toLowerCase();
-      const id=String(m?.id||'').toLowerCase();
-      return provider==='openai' || id.startsWith('gpt-') || id.includes('/gpt-') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('o4');
-    });
-    const seen=new Set();
-    openAIModels=openAIModels.filter(m=>{const id=String(m?.id||'');if(!id||seen.has(id))return false;seen.add(id);return true;}).sort((a,b)=>String(a?.name||a?.id).localeCompare(String(b?.name||b?.id)));
-    const preferred=['gpt-6-astra','gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna'];
-    openAIModels.sort((a,b)=>{
-      const ai=preferred.indexOf(String(a?.id||'')); const bi=preferred.indexOf(String(b?.id||''));
-      return (ai<0?99:ai)-(bi<0?99:bi);
-    });
-    select.innerHTML='';
-    for(const m of openAIModels){
-      const id=String(m.id);
-      const opt=document.createElement('option');
-      opt.value=id;
-      opt.textContent=m.name||id;
-      select.appendChild(opt);
-    }
-    if(!openAIModels.length){
-      select.innerHTML='<option value="gpt-6-astra">GPT-6 Astra (check Puter availability)</option>';
-    }
-    select.value=openAIModels.some(m=>m.id==='gpt-6-astra')?'gpt-6-astra':(openAIModels[0]?.id||'gpt-6-astra');
-  }catch(e){
-    console.warn('OpenAI model discovery failed',e);
-    select.innerHTML='<option value="gpt-6-astra">GPT-6 Astra</option>';
-  }
-}
-async function findPremiumModel(){
-  const selected=$('openaiModelSelect')?.value;
-  if(selected) return selected;
-  try{
-    if(window.puter?.ai?.listModels){
-      const models=await puter.ai.listModels();
-      const ids=(models||[]).flatMap(m=>[m?.id,...(Array.isArray(m?.aliases)?m.aliases:[])]).filter(Boolean).map(String);
-      const hit=ids.find(id=>id.toLowerCase()==='gpt-6-astra' || id.toLowerCase().endsWith('/gpt-6-astra'));
-      if(hit)return hit;
-    }
-  }catch(e){console.warn('Puter model discovery failed',e)}
-  return 'gpt-5.6-luna';
-}
-function setAgentBusy(busy){document.body.classList.toggle('agent-busy',busy);const b=$('agentRunBtn');if(b){b.disabled=busy;b.textContent=busy?'Working…':'Run'}}
-$('agentForm').onsubmit=async e=>{e.preventDefault();const text=$('agentInput').value.trim();if(!text)return;appendAgent('me',text);$('agentInput').value='';appendAgent('ai','Connecting to Nimbus 5.7 Lor…');const last=$('agentMessages').lastElementChild;setAgentBusy(true);try{
-  if(!window.puter) throw new Error('Puter.js did not load.');
-  if(!puter.auth.isSignedIn()){await puter.auth.signIn({request_auth:true});}
-  let model=await findPremiumModel();
-  $('agentModelState').textContent=model==='gpt-6-astra'?'GPT-6 Astra':'Puter: '+model;
-  let resp;
-  try{
-    resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise, practical, and transparent about what you can access.'},{role:'user',content:text}],{model,normalize:true});
-  }catch(firstErr){
-    if(model!=='gpt-5.6-luna'){
-      model='gpt-5.6-luna';
-      $('agentModelState').textContent='Puter: gpt-5.6-luna fallback';
-      resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified, a private workspace agent. Be concise and practical.'},{role:'user',content:text}],{model,normalize:true});
-    }else{throw firstErr}
-  }
-  last.textContent=extractText(resp)||'No text response was returned.';
-}catch(err){last.textContent='Nimbus 5.7 Lor is temporarily unavailable. Please try again in a moment.';console.error(err)}finally{setAgentBusy(false)}};
+function saveAgentChats(){localStorage.setItem(AGENT_HISTORY_KEY,JSON.stringify(agentChats.slice(0,30)));}
+function newAgentChat(){const id=crypto.randomUUID?crypto.randomUUID():String(Date.now());agentChats.unshift({id,title:'New private chat',model:selectedModel(),messages:[]});agentChats=agentChats.slice(0,30);saveAgentChats();renderAgentHistory();startAgentChat(id);return id;}
+function renderAgentHistory(){const box=$('agentHistory');if(!box)return;box.innerHTML='';agentChats.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='agent-history-item'+(c.id===currentAgentChatId?' active':'');b.textContent=c.title||'Private chat';b.onclick=()=>startAgentChat(c.id);box.appendChild(b);});}
+function startAgentChat(id){const c=agentChats.find(x=>x.id===id)||agentChats[0];if(!c){newAgentChat();return;}currentAgentChatId=c.id;$('agentMessages').innerHTML='';(c.messages||[]).forEach(m=>renderSavedAgentMessage(m.role,m.text));if($('openaiModelSelect')){$('openaiModelSelect').value=c.model||selectedModel();updateModelBadge($('openaiModelSelect').value);}renderAgentHistory();}
+function renderSavedAgentMessage(role,text){const el=document.createElement('div');el.className='agent-msg '+(role==='me'?'me':'ai');if(role==='ai')renderAgentRichMessage(el,text);else el.textContent=text;$('agentMessages').appendChild(el);}
+function saveCurrentAgentMessage(role,text){const c=agentChats.find(x=>x.id===currentAgentChatId);if(!c)return;c.messages.push({role,text});if(role==='me'&&c.title==='New private chat')c.title=text.slice(0,44)+(text.length>44?'…':'');c.model=selectedModel();saveAgentChats();renderAgentHistory();}
+function appendAgent(role,text,save=true){const el=document.createElement('div');el.className='agent-msg '+(role==='me'?'me':'ai');if(role==='ai')renderAgentRichMessage(el,text);else el.textContent=text;$('agentMessages').appendChild(el);$('agentMessages').scrollTop=$('agentMessages').scrollHeight;if(save)saveCurrentAgentMessage(role,text);return el;}
+function extractText(resp){const content=resp?.message?.content??resp?.content??resp?.text??'';if(typeof content==='string')return content;if(Array.isArray(content))return content.map(p=>typeof p==='string'?p:(p?.text||p?.content||'')).filter(Boolean).join('\n');return ''}
+function renderAgentRichMessage(el,text){el.innerHTML='';const src=String(text||'').replace(/\r\n/g,'\n');const parts=src.split(/```([\w+#.-]*)\n?([\s\S]*?)```/g);for(let i=0;i<parts.length;i+=3){const before=parts[i]||'';if(before){const p=document.createElement('div');p.className='rich-prose';p.textContent=before;el.appendChild(p);}const lang=parts[i+1];const code=parts[i+2];if(code!==undefined){const wrap=document.createElement('div');wrap.className='rich-code-wrap';const head=document.createElement('div');head.className='rich-code-head';const label=document.createElement('span');label.textContent=(lang||'text').toLowerCase();const copy=document.createElement('button');copy.type='button';copy.textContent='Copy';const pre=document.createElement('pre');pre.textContent=code.replace(/^\n/,'').replace(/\n$/,'');copy.onclick=async()=>{try{await navigator.clipboard.writeText(pre.textContent);copy.textContent='Copied';setTimeout(()=>copy.textContent='Copy',900);}catch{}};head.append(label,copy);wrap.append(head,pre);el.appendChild(wrap);}}}
+function thinkingDots(){const el=document.createElement('div');el.className='agent-thinking';el.innerHTML='<span></span><span></span><span></span>';return el;}
+$('agentForm').onsubmit=async e=>{e.preventDefault();const text=$('agentInput').value.trim();if(!text)return;if(!currentAgentChatId)newAgentChat();appendAgent('me',text);$('agentInput').value='';$('agentRunBtn').disabled=true;const dots=thinkingDots();$('agentMessages').appendChild(dots);$('agentMessages').scrollTop=$('agentMessages').scrollHeight;try{if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())await puter.auth.signIn({request_auth:true});const model=selectedModel();const resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified. Be concise and useful. Do not use double-asterisk bold markers or Markdown heading hashes in normal prose. Always put requested code in fenced Markdown blocks with a real language identifier. For genuinely useful diagrams or flowcharts, provide a compact visual prompt for Nano Banana 2.'},{role:'user',content:text}],{model,normalize:true,stream:false});dots.remove();appendAgent('ai',extractText(resp)||'No text response was returned.');}catch(err){dots.remove();appendAgent('ai','Nimbus 5.7 Lor is temporarily unavailable. Please try again in a moment.');console.error(err);}finally{$('agentRunBtn').disabled=false;}};
+$('newAgentChat').onclick=()=>newAgentChat();$('clearAgentChats').onclick=()=>{agentChats=[];saveAgentChats();currentAgentChatId=null;$('agentMessages').innerHTML='';newAgentChat();};
 
-function extractText(resp){
-  const content=resp?.message?.content ?? resp?.content ?? resp?.text ?? '';
-  if(typeof content==='string') return content;
-  if(Array.isArray(content)){
-    return content.map(part=>{
-      if(typeof part==='string') return part;
-      return part?.text || part?.content || '';
-    }).filter(Boolean).join('\n');
-  }
-  return '';
-}
+function loadFinance(){const d=JSON.parse(localStorage.getItem(FINANCE_KEY)||'{}');$('revenueInput').value=d.revenueUSD??'';$('expenseInput').value=d.expensesUSD??'';$('usdPkrRate').value=d.rate??USD_TO_PKR_DEFAULT;renderFinance();}
+function renderFinance(){const usd=Number($('revenueInput').value||0),exp=Number($('expenseInput').value||0),rate=Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT),revenue=usd*rate,profit=(usd-exp)*rate;$('revenueText').textContent=`PKR ${Math.round(revenue).toLocaleString()}`;$('profitText').textContent=`PKR ${Math.round(profit).toLocaleString()}`;$('marginText').textContent=`${usd?((profit/revenue)*100).toFixed(1):0}% margin`;$('revenueBar').style.width=(revenue?Math.min(100,Math.max(0,profit/revenue*100)):0)+'%';}
+['revenueInput','expenseInput','usdPkrRate'].forEach(id=>$(id).addEventListener('input',renderFinance));$('saveFinance').onclick=()=>{localStorage.setItem(FINANCE_KEY,JSON.stringify({revenueUSD:Number($('revenueInput').value||0),expensesUSD:Number($('expenseInput').value||0),rate:Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT)}));renderFinance();};loadFinance();
 
-function appendAgent(role,text){const el=document.createElement('div');el.className='agent-msg'+(role==='me'?' me':'');el.textContent=text;$('agentMessages').appendChild(el);$('agentMessages').scrollTop=$('agentMessages').scrollHeight}
+async function loadRepoFiles(){if(!isOwner())return;try{const r=await fetch('/api/project-files');const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Could not sync important repo files.');$('fileSelect').innerHTML=(d.files||[]).map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');$('fileCount').textContent=`${(d.files||[]).length} important repo files`;$('fileMsg').textContent=`Synced from ${d.owner}/${d.repo} @ ${d.branch}`;}catch(e){$('fileMsg').textContent=e.message||'Could not sync repo files.';}}
+async function loadFile(path){const safe=String(path||'').replace(/^\/+/, '');if(!safe||safe.includes('..'))throw new Error('Invalid file path.');const r=await fetch('/api/project-file?path='+encodeURIComponent(safe));const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Could not load file.');currentFile={path:d.path,content:d.content};$('fileEditor').value=d.content;$('fileMsg').textContent=`Loaded ${d.path}`;}
+$('loadFile').onclick=async()=>{try{await loadFile($('fileSelect').value);}catch(e){$('fileMsg').textContent=e.message||'Could not load file.';}};$('refreshFiles').onclick=loadRepoFiles;$('saveFile').onclick=()=>{const path=currentFile.path||$('fileSelect').value;const content=$('fileEditor').value;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8'}));a.download=path.split('/').pop();a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('fileMsg').textContent=`Downloaded ${path}. Replace it in Nimbus_CLEAN, then git add, commit and push.`;};
 
-function loadFinance(){const d=JSON.parse(localStorage.getItem(OWNER_LOCAL_KEY)||'{}');$('revenueInput').value=d.revenueUSD??'';$('expenseInput').value=d.expensesUSD??'';$('usdPkrRate').value=d.rate??USD_TO_PKR_DEFAULT;renderFinance()}
-function renderFinance(){const usd=Number($('revenueInput').value||0), exp=Number($('expenseInput').value||0), rate=Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT), pkr=(usd*rate), cost=(exp*rate), profit=pkr-cost;$('revenueText').textContent=`PKR ${Math.round(pkr).toLocaleString()}`;$('profitText').textContent=`PKR ${Math.round(profit).toLocaleString()}`;$('marginText').textContent=`${usd?((profit/pkr)*100).toFixed(1):0}% margin • USD ${usd.toLocaleString()} @ ${rate}`;$('revenueBar').style.width=(pkr?Math.min(100,Math.max(0,profit/pkr*100)):0)+'%';}
-['revenueInput','expenseInput','usdPkrRate'].forEach(id=>$(id).addEventListener('input',renderFinance));
-$('saveFinance').onclick=()=>{localStorage.setItem(OWNER_LOCAL_KEY,JSON.stringify({revenueUSD:Number($('revenueInput').value||0),expensesUSD:Number($('expenseInput').value||0),rate:Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT)}));renderFinance()};
-loadFinance();
+function readLayout(){const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;$('accentInput').value=d.accent||DEFAULTS.accent;$('radiusInput').value=d.radius||DEFAULTS.radius;$('sidebarInput').value=d.sidebar||DEFAULTS.sidebar;$('densityInput').value=d.density||DEFAULTS.density;return d;}
+function getLayout(){return{accent:$('accentInput').value||DEFAULTS.accent,accent2:DEFAULTS.accent2,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value||286),density:$('densityInput').value||'balanced',font:DEFAULTS.font};}
+function applyFrameLayout(){const frame=$('sitePreview');if(!frame)return;try{const doc=frame.contentDocument;if(!doc)return;const d=getLayout();doc.documentElement.style.setProperty('--nimbus-accent',d.accent);doc.documentElement.style.setProperty('--nimbus-accent-2',d.accent2);doc.documentElement.style.setProperty('--nimbus-radius',d.radius+'px');doc.body.dataset.nimbusDensity=d.density;doc.body.style.fontFamily=`"${d.font}",Inter,system-ui,sans-serif`;doc.getElementById('__nimbus_preview_badge')?.remove();const badge=doc.createElement('div');badge.id='__nimbus_preview_badge';badge.textContent='LIVE UI PREVIEW';Object.assign(badge.style,{position:'fixed',right:'12px',top:'12px',zIndex:'2147483647',padding:'6px 9px',borderRadius:'999px',background:d.accent,color:'#fff',font:'800 10px Arial'});doc.body.appendChild(badge);}catch(e){console.warn(e);}}
+$('sitePreview')?.addEventListener('load',applyFrameLayout);function saveLayoutLocal(){const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));return d;}$('applyLayout').onclick=()=>{saveLayoutLocal();applyFrameLayout();$('layoutMsg').textContent='Preview updated.';};$('publishLayout').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(saveLayoutLocal(),null,2)],{type:'application/json'}));a.download='site-layout.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('layoutMsg').textContent='Downloaded site-layout.json. Replace it in Nimbus_CLEAN and push main.';};$('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();applyFrameLayout();$('layoutMsg').textContent='Preview reset.';};readLayout();
 
-async function loadRepoFiles(){
-  if(!isOwner())return;
-  try{
-    const url=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/trees/${encodeURIComponent(GITHUB_BRANCH)}?recursive=1`;
-    const r=await fetch(url,{headers:{Accept:'application/vnd.github+json'}});
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(d?.message||'Could not read the public Nimbus repository.');
-    repoCache=(d.tree||[]).filter(x=>x.type==='blob').map(x=>x.path).filter(p=>!p.startsWith('.git/')).sort();
-    $('fileSelect').innerHTML=repoCache.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
-    $('fileCount').textContent=`${repoCache.length} repository files`;$('fileMsg').textContent='Synced from GitHub main branch.';
-  }catch(e){
-    $('fileMsg').textContent=e.message||'Could not sync repository files.';
-  }
-}
-async function loadFile(path){
-  const safe=String(path||'').replace(/^\/+/, '');
-  if(!safe || safe.includes('..')) throw new Error('Invalid file path.');
-  const url=`https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${encodeURIComponent(GITHUB_BRANCH)}/${safe.split('/').map(encodeURIComponent).join('/')}`;
-  const r=await fetch(url,{cache:'no-store'});
-  if(!r.ok) throw new Error('Could not load that repository file.');
-  const content=await r.text();
-  currentFile={path:safe,sha:'',content};
-  $('fileEditor').value=content;
-  $('fileMsg').textContent=`Loaded ${safe} from GitHub main branch.`;
-}
-$('loadFile').onclick=async()=>{try{await loadFile($('fileSelect').value)}catch(e){$('fileMsg').textContent=e.message||'Could not load file.'}};
-$('refreshFiles').onclick=loadRepoFiles;
-
-function readLayout(){
-  const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;
-  $('accentInput').value=d.accent||DEFAULTS.accent;
-  $('radiusInput').value=d.radius||DEFAULTS.radius;
-  $('sidebarInput').value=d.sidebar||DEFAULTS.sidebar;
-  $('densityInput').value=d.density||DEFAULTS.density;
-  return d;
-}
-function getLayout(){
-  return{accent:$('accentInput').value||DEFAULTS.accent,accent2:DEFAULTS.accent2,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value||260),density:$('densityInput').value||'balanced',font:DEFAULTS.font};
-}
-function applyFrameLayout(){
-  const frame=$('sitePreview'); if(!frame) return;
-  const d=getLayout();
-  try{
-    const doc=frame.contentDocument; if(!doc) return;
-    doc.documentElement.style.setProperty('--nimbus-accent',d.accent);
-    doc.documentElement.style.setProperty('--nimbus-accent-2',d.accent2);
-    doc.documentElement.style.setProperty('--nimbus-radius',d.radius+'px');
-    doc.body.style.fontFamily=`"${d.font}",Inter,system-ui,sans-serif`;
-    doc.body.dataset.nimbusDensity=d.density;
-    const badge=doc.createElement('div'); badge.id='__nimbus_preview_badge'; badge.textContent='UI PREVIEW';
-    Object.assign(badge.style,{position:'fixed',right:'12px',top:'12px',zIndex:'2147483647',padding:'6px 9px',borderRadius:'999px',background:d.accent,color:'#fff',font:'700 10px Arial',boxShadow:'0 8px 20px rgba(0,0,0,.18)'});
-    doc.getElementById('__nimbus_preview_badge')?.remove(); doc.body.appendChild(badge);
-  }catch(e){console.warn('Preview frame update failed',e)}
-}
-$('sitePreview')?.addEventListener('load',applyFrameLayout);
-function saveLayoutLocal(){const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));return d}
-$('applyLayout').onclick=()=>{const d=saveLayoutLocal();applyFrameLayout();$('layoutMsg').textContent='Preview updated. Use Export UI update to create the deployable site-layout.json file.';};
-$('publishLayout').onclick=()=>{
-  const d=saveLayoutLocal();
-  const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='site-layout.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  $('layoutMsg').textContent='Downloaded site-layout.json. Replace it in Nimbus_CLEAN, then git add, git commit, git push origin main.';
-};
-$('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();applyFrameLayout();$('layoutMsg').textContent='Preview reset.';};
-readLayout();
-loadOpenAIModels();
+async function bootWorkspace(){await loadRepoFiles();await loadOpenAIModels();renderAgentHistory();if(!agentChats.length)newAgentChat();else startAgentChat(agentChats[0].id);}
+if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;try{await authorize(u);setSecurity('VERIFIED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message);}}).catch(()=>{});}
