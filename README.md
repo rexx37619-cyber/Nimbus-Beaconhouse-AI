@@ -11,3 +11,6 @@ Changes in this build:
 - Raw [NIMBUS_VISUAL] marker text is removed from student-facing replies.
 - Normal Nimbus text is cleaned to remove Markdown ** emphasis and heading # markers.
 - Code remains in fenced language-labelled code blocks.
+
+
+Workspace access is Puter sign-in only in this build; no email, username, or extra security gate is used. Signed-in Puter users can generate visuals through the Gemini image model via Puter.js.

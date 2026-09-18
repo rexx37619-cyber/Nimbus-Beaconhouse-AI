@@ -20,7 +20,7 @@ function guardOwners(){document.querySelectorAll('.owner-only,.owner-only-panel'
 async function getPuterUser(){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return null;return puter.auth.getUser();}
 function openWorkspace(){document.getElementById('gate')?.classList.add('hidden');document.getElementById('workspace')?.classList.remove('hidden');}
 function showDenied(msg){const el=document.getElementById('gateMsg');if(el){el.textContent=msg||'Please sign in with Puter.';el.style.color='#d74764';}}
-async function signIn(){const b=document.getElementById('signInBtn');b.disabled=true;try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();if(!u)throw new Error('Please sign in with Puter first.');session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='ACCESS ALLOWED';document.getElementById('roleNote').textContent='Puter authenticated';document.getElementById('gateMsg').textContent='Access allowed — Puter account authenticated.';openWorkspace();guardOwners();await bootWorkspace();}catch(e){showDenied(e.message||'Puter sign-in required.')}finally{b.disabled=false;}}
+async function signIn(){const b=document.getElementById('signInBtn');b.disabled=true;try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();if(!u)throw new Error('Please sign in with Puter first.');session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='SIGNED IN';document.getElementById('roleNote').textContent='Puter authenticated';document.getElementById('gateMsg').textContent='Access allowed — Puter account authenticated.';openWorkspace();guardOwners();await bootWorkspace();}catch(e){showDenied(e.message||'Puter sign-in required.')}finally{b.disabled=false;}}
 document.getElementById('signInBtn').onclick=signIn;
 
 const OPENAI_ALIASES={
@@ -109,13 +109,25 @@ $('agentForm').onsubmit=async e=>{
     const modelInfo=selectedAgentModel();
     if(modelInfo.kind==='image'){
       const visualPrompt=`Create one clear educational 16:9 diagram or flowchart for a student. Use concise keywords, short labels, arrows and simple icons. No long paragraphs. Topic/request: ${text}. Make it suitable for study and for the student to rephrase independently. If the request is code or game development, visualize the logic, system architecture, mechanics, or process instead of reproducing long code.`;
+      let rendered=false;
       try{
-        const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:visualPrompt,aspectRatio:'16:9',imageSize:'1K'})});
-        const vd=await vr.json().catch(()=>({}));
-        dots.remove();
-        if(vr.ok&&vd.ok&&vd.data){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords and labels shown, then rephrase explanations in your own words.');appendAgentImage(`data:${vd.mimeType||'image/png'};base64,${vd.data}`);}
-        else appendAgent('ai',vd.message||'Nano Banana 2 is temporarily unavailable. Please try again.');
-      }catch{dots.remove();appendAgent('ai','Nano Banana 2 is temporarily unavailable. Please try again.');}
+        if(window.puter?.ai?.chat){
+          if(!puter.auth.isSignedIn()) await puter.auth.signIn();
+          const vr=await puter.ai.chat(visualPrompt,{model:'gemini-3.1-flash-image-preview',image_config:{aspect_ratio:'16:9',image_size:'1K'},stream:false});
+          const src=vr?.message?.images?.[0]?.image_url?.url || vr?.images?.[0]?.image_url?.url;
+          dots.remove();
+          if(src){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords and labels shown, then rephrase explanations in your own words.');appendAgentImage(src);rendered=true;}
+        }
+      }catch(e){console.warn('Workspace Puter visual failed',e);}
+      if(!rendered){
+        try{
+          const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:visualPrompt,aspectRatio:'16:9',imageSize:'1K'})});
+          const vd=await vr.json().catch(()=>({}));
+          dots.remove();
+          if(vr.ok&&vd.ok&&vd.data){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords and labels shown, then rephrase explanations in your own words.');appendAgentImage(`data:${vd.mimeType||'image/png'};base64,${vd.data}`);rendered=true;}
+          else if(!rendered) appendAgent('ai',vd.message||'Nano Banana 2 is temporarily unavailable. Please try again.');
+        }catch{dots.remove();if(!rendered)appendAgent('ai','Nano Banana 2 is temporarily unavailable. Please try again.');}
+      }
     }else{
       const system=`You are Nimbus 5.7 Lor • Ultra Modified, a private educational workspace agent.
 STYLE: No ** bold markers. Do not use Markdown # headings. Keep responses direct.
@@ -148,4 +160,4 @@ function applyFrameLayout(){const frame=$('sitePreview');if(!frame)return;try{co
 $('sitePreview')?.addEventListener('load',applyFrameLayout);function saveLayoutLocal(){const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));return d;}$('applyLayout').onclick=()=>{saveLayoutLocal();applyFrameLayout();$('layoutMsg').textContent='Preview updated.';};$('publishLayout').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(saveLayoutLocal(),null,2)],{type:'application/json'}));a.download='site-layout.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('layoutMsg').textContent='Downloaded site-layout.json. Replace it in Nimbus_CLEAN and push main.';};$('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();applyFrameLayout();$('layoutMsg').textContent='Preview reset.';};readLayout();
 
 async function bootWorkspace(){await loadRepoFiles();await loadAgentModels();renderAgentHistory();if(!agentChats.length)newAgentChat();else startAgentChat(agentChats[0].id);}
-if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='ACCESS ALLOWED';document.getElementById('roleNote').textContent='Puter authenticated';openWorkspace();guardOwners();bootWorkspace();}).catch(()=>{});}
+if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='SIGNED IN';document.getElementById('roleNote').textContent='Puter authenticated';openWorkspace();guardOwners();bootWorkspace();}).catch(()=>{});}

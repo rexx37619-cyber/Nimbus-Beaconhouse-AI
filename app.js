@@ -267,40 +267,25 @@ function makeAutoVisualPrompt(userText,answerText){return `Create one clear, stu
 async function generateVisual(prompt,meta={}){
   const card=createVisualCard(meta);
   try{
+    if(window.puter?.ai?.chat){
+      if(!puter.auth.isSignedIn()) await puter.auth.signIn();
+      const resp=await puter.ai.chat(prompt,{model:'gemini-3.1-flash-image-preview',image_config:{aspect_ratio:'16:9',image_size:'1K'},stream:false});
+      const src=resp?.message?.images?.[0]?.image_url?.url || resp?.images?.[0]?.image_url?.url;
+      if(src){
+        card.bubble.querySelector('.visual-loading')?.remove();
+        const image=document.createElement('img'); image.className='nimbus-visual-image'; image.alt=`Nimbus ${meta.type||'diagram'}`; image.src=src; card.bubble.appendChild(image);
+        const note=document.createElement('div'); note.className='visual-rephrase-note'; note.textContent='Use the visual labels as study help and rephrase explanations in your own words.'; card.bubble.appendChild(note); $('messages').scrollTop=$('messages').scrollHeight; return true;
+      }
+    }
+  }catch(e){console.warn('Puter image generation failed',e);}
+  try{
     const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,aspectRatio:'16:9',imageSize:'1K'})});
     const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok&&d.data){
-      finishVisualCard(card,d.data,d.mimeType||'image/png',meta);
-      return true;
-    }
-    if(window.puter?.ai?.txt2img){
-      try{
-        const img=await puter.ai.txt2img(prompt,{provider:'gemini',model:'gemini-3.1-flash-image',ratio:{w:16,h:9}});
-        const src=typeof img==='string'?img:(img?.url||img?.src||'');
-        if(src){
-          card.bubble.querySelector('.visual-loading')?.remove();
-          const image=document.createElement('img');
-          image.className='nimbus-visual-image';
-          image.alt=`Nimbus ${meta.type||'diagram'}`;
-          image.src=src;
-          card.bubble.appendChild(image);
-          const note=document.createElement('div');
-          note.className='visual-rephrase-note';
-          note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';
-          card.bubble.appendChild(note);
-          $('messages').scrollTop=$('messages').scrollHeight;
-          return true;
-        }
-      }catch(e){console.warn('Puter visual fallback failed',e);}
-    }
-    failVisualCard(card);
-    return false;
-  }catch(e){
-    console.warn('Visual generation failed',e);
-    failVisualCard(card);
-    return false;
-  }
+    if(r.ok&&d.ok&&d.data){finishVisualCard(card,d.data,d.mimeType||'image/png',meta);return true;}
+  }catch(e){console.warn('Server visual generation failed',e);}
+  failVisualCard(card); return false;
 }
+
 
 async function sendMessage(text){
   const file=state.file;
