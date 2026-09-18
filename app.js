@@ -323,7 +323,7 @@ document.addEventListener('click',e=>{
 
 function syncAccount(){const name='Beaconhouse student';$('accountName').textContent=name;$('accountId').textContent=state.id||'Educational ID';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.id||'Educational ID';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
 
-$('enterNimbus').onclick=async()=>{const id=$('eduId').value.trim();if(!/^\S+@(bh|beaconite)\.edu\.pk$/i.test(id)){alert('Invalid Educational ID. Use an ID ending in @bh.edu.pk or @beaconite.edu.pk.');return;}try{const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({educational_id:id})});const d=await r.json();if(r.ok&&d.ok){state.id=id;localStorage.setItem('nimbus_id',id);$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');syncAccount();renderHistory();if(state.chats.length)loadChat(state.chats[0].id)}else alert(d.message||'Authentication unavailable.')}catch{alert('Nimbus authentication is temporarily unavailable.')}};
+$('enterNimbus').onclick=()=>{const id=$('eduId').value.trim();if(!/^\S+@(bh|beaconite)\.edu\.pk$/i.test(id)){alert('Invalid Educational ID. Use an ID ending in @bh.edu.pk or @beaconite.edu.pk.');return;}state.id=id;localStorage.setItem('nimbus_id',id);$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');syncAccount();renderHistory();if(state.chats.length)loadChat(state.chats[0].id)};
 
 $('accountBtn').onclick=$('topAccount').onclick=()=>$('menuModal').classList.remove('hidden');
 $('closeMenu').onclick=()=>$('menuModal').classList.add('hidden');

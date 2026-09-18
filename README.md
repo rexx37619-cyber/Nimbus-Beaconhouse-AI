@@ -81,3 +81,6 @@ The Pages project should detect the `functions/` directory automatically. Keep `
 
 ## Vercel deployment
 This version uses Vercel Functions in `api/*.js`. Set Framework Preset to Other, leave Build Command empty, and deploy the repository root.
+
+
+Hotfix notes: the public Educational ID gate no longer depends on /api/auth; the owner workspace uses Puter email permission via puter.perms.request('email') and the server-side Vercel OWNER_EMAILS allowlist.
