@@ -46,6 +46,20 @@ const RESOURCES=[
   ['Nimbus 2026 book-pack links','/knowledge/book_pack_2026_links.txt']
 ];
 
+const USAGE_LIMIT=1500;
+const usageKey=()=>`nimbus_usage_24h_${String(state.id||'anonymous').toLowerCase()}`;
+function readUsageWindow(){
+  try{
+    const raw=localStorage.getItem(usageKey());
+    const d=raw?JSON.parse(raw):null;
+    const now=Date.now();
+    if(!d||!Number.isFinite(d.started)||now-d.started>=86400000){
+      const fresh={used:0,started:now}; localStorage.setItem(usageKey(),JSON.stringify(fresh)); return fresh;
+    }
+    return {used:Math.max(0,Number(d.used)||0),started:d.started};
+  }catch{return {used:0,started:Date.now()};}
+}
+function writeUsageWindow(d){try{localStorage.setItem(usageKey(),JSON.stringify(d));}catch{}}
 const state={
   id:localStorage.getItem('nimbus_id')||'',
   messages:[],
@@ -53,8 +67,10 @@ const state={
   file:null,
   currentChatId:null,
   model:localStorage.getItem('nimbus_model')||'ror',
-  used:Number(localStorage.getItem('nimbus_used')||0)
+  used:0,
+  usageStarted:Date.now()
 };
+({used:state.used,started:state.usageStarted}=readUsageWindow());
 
 const $=id=>document.getElementById(id);
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -73,17 +89,17 @@ function renderHistory(){
   });
 }
 
+function usageTimeLeft(){const left=Math.max(0,86400000-(Date.now()-state.usageStarted));const h=Math.floor(left/3600000),m=Math.floor((left%3600000)/60000);return `${h}h ${m}m`;}
 function updateUsage(used){
-  if(typeof used==='number'){
-    state.used=used;
-    localStorage.setItem('nimbus_used',String(used));
-  }
-  const pct=Math.min(100,(state.used/1500)*100);
-  $('usageText').textContent=`${state.used.toLocaleString()} / 1,500 RPD`;
+  if(typeof used==='number') state.used=Math.max(0,Math.min(USAGE_LIMIT,used));
+  writeUsageWindow({used:state.used,started:state.usageStarted});
+  const pct=Math.min(100,(state.used/USAGE_LIMIT)*100);
+  $('usageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD`;
   $('usageBar').style.width=pct+'%';
-  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / 1,500 RPD`;
+  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD • resets in ${usageTimeLeft()}`;
   if($('menuUsageBar')) $('menuUsageBar').style.width=pct+'%';
 }
+function consumeLocalUsage(){state.used=Math.min(USAGE_LIMIT,state.used+1);updateUsage();}
 
 function renderModels(){
   const menu=$('modelMenu');
@@ -250,6 +266,7 @@ async function sendMessage(text){
   add('user',text||'Please analyse my attachment.',file?.name);
   state.file=null;$('fileInput').value='';$('attachment').classList.add('hidden');$('sendBtn').disabled=true;setAgentThinking(true);$('messageInput').value='';$('messageInput').style.height='auto';
   try{
+    if(state.used>=USAGE_LIMIT){add('ai',`Daily limit reached. Your 24-hour window resets in ${usageTimeLeft()}.`);return;}
     let attachment=null;
     if(file){
       if(file.size>4*1024*1024) throw new Error('Please keep attachments below 4 MB.');
@@ -265,11 +282,13 @@ async function sendMessage(text){
       if(data.text)reply+=`\n\n${data.text}`;
       add('ai',reply);
       if(data.data){addVisualMessage(data.data,data.mimeType||'image/png');}
+      consumeLocalUsage();
       return;
     }
     r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',educational_id:state.id||'anonymous',model:state.model,attachment})});
     data=await r.json().catch(()=>({}));
-    if(typeof data.used==='number')updateUsage(data.used);
+    // The server may report a count when available; the client also maintains a 24-hour per-educational-ID window.
+    if(typeof data.used==='number' && data.used>=state.used) updateUsage(data.used);
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
     let reply=data.reply||'Nimbus did not return a response.';
@@ -282,8 +301,24 @@ async function sendMessage(text){
         const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:data.visual.prompt})});
         const vd=await vr.json().catch(()=>({}));
         if(vr.ok&&vd.ok&&vd.data)addVisualMessage(vd.data,vd.mimeType||'image/png');
-      }catch(e){console.warn('Visual generation skipped',e);}
+      }catch(e){
+        console.warn('Visual generation skipped',e);
+        try{
+          if(window.puter?.ai?.txt2img){
+            if(!puter.auth.isSignedIn()) await puter.auth.signIn({request_auth:true});
+            const visualImg=await puter.ai.txt2img(data.visual.prompt,{provider:'gemini',model:'gemini-3.1-flash-image',quality:'1K',ratio:{w:16,h:9}});
+            if(visualImg?.src){
+              const blobUrl=visualImg.src;
+              const wrap=document.createElement('div');wrap.className='message ai';
+              const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';
+              bubble.innerHTML='<div class="ai-tag">NANO BANANA 2 • VISUAL</div>';
+              const img=document.createElement('img');img.className='nimbus-visual-image';img.alt='Nimbus visual';img.src=blobUrl;bubble.appendChild(img);wrap.appendChild(bubble);$('messages').appendChild(wrap);$('messages').scrollTop=$('messages').scrollHeight;
+            }
+          }
+        }catch(fallbackErr){console.warn('Puter visual fallback skipped',fallbackErr);}
+      }
     }else add('ai',reply);
+    consumeLocalUsage();
   }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
   finally{$('sendBtn').disabled=false;setAgentThinking(false);}
 }
@@ -323,7 +358,7 @@ document.addEventListener('click',e=>{
 
 function syncAccount(){const name='Beaconhouse student';$('accountName').textContent=name;$('accountId').textContent=state.id||'Educational ID';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.id||'Educational ID';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
 
-$('enterNimbus').onclick=()=>{const id=$('eduId').value.trim();if(!/^\S+@(bh|beaconite)\.edu\.pk$/i.test(id)){alert('Invalid Educational ID. Use an ID ending in @bh.edu.pk or @beaconite.edu.pk.');return;}state.id=id;localStorage.setItem('nimbus_id',id);$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');syncAccount();renderHistory();if(state.chats.length)loadChat(state.chats[0].id)};
+$('enterNimbus').onclick=()=>{const id=$('eduId').value.trim();if(!/^\S+@(bh|beaconite)\.edu\.pk$/i.test(id)){alert('Invalid Educational ID. Use an ID ending in @bh.edu.pk or @beaconite.edu.pk.');return;}state.id=id;localStorage.setItem('nimbus_id',id);({used:state.used,started:state.usageStarted}=readUsageWindow());updateUsage();$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');syncAccount();renderHistory();if(state.chats.length)loadChat(state.chats[0].id)};
 
 $('accountBtn').onclick=$('topAccount').onclick=()=>$('menuModal').classList.remove('hidden');
 $('closeMenu').onclick=()=>$('menuModal').classList.add('hidden');

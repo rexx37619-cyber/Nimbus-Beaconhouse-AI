@@ -20,8 +20,28 @@ function setSecurity(text,kind='wait'){const el=$('securityBadge');if(!el)return
 function isOwner(){return session.role==='owner';}
 function guardOwners(){document.querySelectorAll('.owner-only,.owner-only-panel').forEach(el=>el.classList.toggle('hidden',!isOwner()));}
 async function getPuterUser(){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return null;return puter.auth.getUser();}
-async function getPuterEmail(user){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return '';const direct=String(user?.email||'').trim().toLowerCase();if(direct) return direct;if(typeof puter.perms?.check==='function'){try{const granted=await puter.perms.check('email');if(granted){const e=await puter.perms.request('email');if(e)return String(e).trim().toLowerCase();}}catch{}}if(typeof puter.perms?.request==='function'){const e=await puter.perms.request('email');if(e)return String(e).trim().toLowerCase();}return '';}
-async function authorize(user){const email=await getPuterEmail(user);if(!email)throw new Error('Puter email permission is required for owner verification. Click Sign in again and allow email access.');const r=await fetch('/api/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw new Error(d.message||'Workspace access denied.');session={user,role:d.role,permissions:d.permissions||[]};$('userEmail').textContent=email;$('rolePill').textContent='OWNER';$('roleNote').textContent='Owner-only access';$('overviewRole').textContent='Owner';$('securityRoleTag').textContent='OWNER';$('serverState').textContent='Allowlisted';$('permissionState').textContent=d.permissions.join(' • ');$('puterState').textContent='Authenticated';guardOwners();}
+async function getPuterEmail(user){
+  if(!window.puter) throw new Error('Puter.js did not load.');
+  if(!puter.auth.isSignedIn()) return '';
+  const direct=String(user?.email||'').trim().toLowerCase();
+  if(direct) return direct;
+  if(typeof puter.perms?.request!=='function') return '';
+  const email=await puter.perms.request('email');
+  return String(email||'').trim().toLowerCase();
+}
+async function authorize(user){
+  const email=await getPuterEmail(user);
+  const puterUuid=String(user?.uuid||'').trim();
+  if(!email) throw new Error('Allow email access in the Puter permission dialog, then sign in again.');
+  if(!puterUuid) throw new Error('Puter account identity could not be read. Please sign in again.');
+  const r=await fetch('/api/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,puter_uuid:puterUuid})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok) throw new Error(d.message||'Workspace access denied.');
+  session={user,role:d.role,permissions:d.permissions||[]};
+  $('userEmail').textContent=email; $('rolePill').textContent='OWNER'; $('roleNote').textContent='Owner-only access';
+  $('overviewRole').textContent='Owner'; $('securityRoleTag').textContent='OWNER'; $('serverState').textContent='Allowlisted';
+  $('permissionState').textContent=d.permissions.join(' • '); $('puterState').textContent='Authenticated'; guardOwners();
+}
 function openWorkspace(){$('gate').classList.add('hidden');$('workspace').classList.remove('hidden');}
 function showDenied(msg){$('gateMsg').textContent=msg;$('gateMsg').style.color='#d74764';setSecurity('DENIED','bad');}
 async function signIn(){const b=$('signInBtn');b.disabled=true;setSecurity('AUTHENTICATING');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent='Owner access granted.';setSecurity('VERIFIED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message||'Authentication failed.')}finally{b.disabled=false;}}

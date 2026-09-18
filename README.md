@@ -84,3 +84,8 @@ This version uses Vercel Functions in `api/*.js`. Set Framework Preset to Other,
 
 
 Hotfix notes: the public Educational ID gate no longer depends on /api/auth; the owner workspace uses Puter email permission via puter.perms.request('email') and the server-side Vercel OWNER_EMAILS allowlist.
+
+
+Private workspace access: exactly two owner emails are accepted: haadi6228@gmail.com and jollyzmotion@gmail.com. Puter sign-in and email permission are required. There is no worker role.
+
+Nano Banana 2 uses Gemini 3.1 Flash Image when image-generation access is available to the configured Gemini API key; the app also has a Puter image-generation fallback for signed-in Puter users.
