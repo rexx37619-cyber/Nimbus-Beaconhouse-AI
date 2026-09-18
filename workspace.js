@@ -25,33 +25,38 @@ async function getPuterEmail(user){
   if(!puter.auth.isSignedIn()) return '';
   const direct=String(user?.email||'').trim().toLowerCase();
   if(direct) return direct;
-  if(typeof puter.perms?.request!=='function') return '';
-  const email=await puter.perms.request('email');
-  return String(email||'').trim().toLowerCase();
+  try{
+    if(typeof puter.perms?.request==='function'){
+      const email=await puter.perms.request('email');
+      return String(email||'').trim().toLowerCase();
+    }
+  }catch{}
+  return '';
 }
 async function authorize(user){
   const email=await getPuterEmail(user);
   const puterUuid=String(user?.uuid||'').trim();
-  if(!email) throw new Error('Allow email access in the Puter permission dialog, then sign in again.');
+  const puterUsername=String(user?.username||user?.username_raw||'').trim().toLowerCase();
   if(!puterUuid) throw new Error('Puter account identity could not be read. Please sign in again.');
-  const r=await fetch('/api/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,puter_uuid:puterUuid})});
+  const r=await fetch('/api/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,puter_uuid:puterUuid,puter_username:puterUsername})});
   const d=await r.json().catch(()=>({}));
   if(!r.ok||!d.ok) throw new Error(d.message||'Workspace access denied.');
   session={user,role:d.role,permissions:d.permissions||[]};
-  $('userEmail').textContent=email; $('rolePill').textContent='OWNER'; $('roleNote').textContent='Owner-only access';
+  $('userEmail').textContent=email||puterUsername||'Owner account'; $('rolePill').textContent='OWNER'; $('roleNote').textContent='Owner-only access';
   $('overviewRole').textContent='Owner'; $('securityRoleTag').textContent='OWNER'; $('serverState').textContent='Allowlisted';
   $('permissionState').textContent=d.permissions.join(' • '); $('puterState').textContent='Authenticated'; guardOwners();
+  return d;
 }
 function openWorkspace(){$('gate').classList.add('hidden');$('workspace').classList.remove('hidden');}
 function showDenied(msg){$('gateMsg').textContent=msg;$('gateMsg').style.color='#d74764';setSecurity('DENIED','bad');}
-async function signIn(){const b=$('signInBtn');b.disabled=true;setSecurity('AUTHENTICATING');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent='Owner access granted.';setSecurity('VERIFIED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message||'Authentication failed.')}finally{b.disabled=false;}}
+async function signIn(){const b=$('signInBtn');b.disabled=true;setSecurity('AUTHENTICATING');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent='Access accepted — Nimbus owner verified.';setSecurity('VERIFIED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message||'Authentication failed.')}finally{b.disabled=false;}}
 $('signInBtn').onclick=signIn;
 
 const OPENAI_ALIASES={
   'gpt-6-astra':'Nimbus 5.7 Lor • Ultra Modified','gpt-5.6-sol':'Nimbus Sol 5.6 • Modified','gpt-5.6-terra':'Nimbus Terra 5.6 • Modified','gpt-5.6-luna':'Nimbus Luna 5.6 • Modified','gpt-5.5':'Nimbus ROR 5.5 • Modified','gpt-5.5-pro':'Nimbus ROR 5.5 Pro • Modified','gpt-5.4':'Nimbus ROR 5.4 • Modified','gpt-5.4-pro':'Nimbus ROR 5.4 Pro • Modified','gpt-5.4-mini':'Nimbus ROR Mini 5.4 • Modified','gpt-5.4-nano':'Nimbus ROR Nano 5.4 • Modified','gpt-5.3-codex':'Nimbus Code 5.3 • Modified','gpt-5.1':'Nimbus ROR 5.1 • Modified','gpt-5.1-chat':'Nimbus Chat 5.1 • Modified','gpt-5':'Nimbus ROR 5 • Modified','gpt-4.1':'Nimbus Classic 4.1 • Modified','gpt-4o':'Nimbus Omni 4o • Modified','gpt-4o-mini':'Nimbus Mini 4o • Modified'
 };
 const CLAUDE_ALIASES={'claude-fable-5-1':'Nimbus Fable 5.1 • Modified','claude-fable-5':'Nimbus Fable 5 • Modified','claude-opus-5':'Nimbus Opus 5 • Modified'};
-const NANO_MODEL={id:'gemini-3.1-flash-image',provider:'gemini',kind:'image',label:'Nano Banana 2 • Visuals',sub:'Diagrams • flowcharts • concept visuals'};
+const NANO_MODEL={id:'nano-banana-2',provider:'gemini',kind:'image',label:'Nano Banana 2 • Visuals',sub:'Diagrams • flowcharts • concept visuals'};
 let agentModels=[];
 function modelId(m){return String(m?.id||'').trim();}
 function shortId(m){return modelId(m).split('/').pop().toLowerCase();}
@@ -132,11 +137,14 @@ $('agentForm').onsubmit=async e=>{
     if(!puter.auth.isSignedIn())await puter.auth.signIn({request_auth:true});
     const modelInfo=selectedAgentModel();
     if(modelInfo.kind==='image'){
-      const visualPrompt=`Create a clear educational diagram or flowchart for a student. Use concise labels and keywords only. Topic/request: ${text}. Use a clean classroom-friendly layout, arrows where appropriate, and no long paragraphs. Prefer 16:9.`;
-      const img=await puter.ai.txt2img(visualPrompt,{provider:'gemini',model:'gemini-3.1-flash-image'});
-      dots.remove();
-      if(img){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords shown and rephrase any written explanation in your own words.');appendAgentImage(img);}
-      else appendAgent('ai','Nano Banana 2 did not return an image. Please try again.');
+      const visualPrompt=`Create one clear educational 16:9 diagram or flowchart for a student. Use concise keywords, short labels, arrows and simple icons. No long paragraphs. Topic/request: ${text}. Make it suitable for study and for the student to rephrase independently. If the request is code or game development, visualize the logic, system architecture, mechanics, or process instead of reproducing long code.`;
+      try{
+        const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:visualPrompt,aspectRatio:'16:9',imageSize:'1K'})});
+        const vd=await vr.json().catch(()=>({}));
+        dots.remove();
+        if(vr.ok&&vd.ok&&vd.data){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords and labels shown, then rephrase explanations in your own words.');appendAgentImage(`data:${vd.mimeType||'image/png'};base64,${vd.data}`);}
+        else appendAgent('ai',vd.message||'Nano Banana 2 is temporarily unavailable. Please try again.');
+      }catch{dots.remove();appendAgent('ai','Nano Banana 2 is temporarily unavailable. Please try again.');}
     }else{
       const system=`You are Nimbus 5.7 Lor • Ultra Modified, a private educational workspace agent.
 STYLE: No ** bold markers. Do not use Markdown # headings. Keep responses direct.

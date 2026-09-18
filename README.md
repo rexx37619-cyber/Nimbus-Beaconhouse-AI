@@ -1,91 +1,23 @@
-# Nimbus — Cloudflare version
+# Nimbus — Vercel build
 
-Nimbus is a student-built educational AI site with a private owner workspace.
+Current deployment target: Vercel. The repository uses root `api/` Node.js functions and static HTML/CSS/JS.
 
-## Hosting
-This version is prepared for Cloudflare Pages + Pages Functions.
+## Core environment variables
+- `GEMINI_API_KEY` — public Nimbus chat + Nano Banana 2 image generation.
+- `OWNER_EMAILS` — `haadi6228@gmail.com,jollyzmotion@gmail.com`
+- `OWNER_PUTER_USERNAMES` — optional; defaults to `neat_ocean_262513,peaceful_balloon_864250`
+- `NIMBUS_DAILY_LIMIT` — default 1500
 
-Important current Cloudflare limits:
-- Static asset requests on Pages Free are free and unlimited.
-- Pages Functions count as Workers requests. The Workers Free plan currently allows 100,000 requests per day.
-So the static site is effectively unlimited for free, but backend/API traffic is still quota-limited.
-
-## Cloudflare environment variables
-Set these in the Cloudflare Pages project under Settings → Environment variables / Variables:
-
-GEMINI_API_KEY = your Gemini API key
-OWNER_EMAILS = haadi6228@gmail.com,jollyzmotion@gmail.com
-GITHUB_OWNER = rexx37619-cyber
-GITHUB_REPO = Nimbus-Beaconhouse-AI
-GITHUB_BRANCH = main
-NIMBUS_DAILY_LIMIT = 1500
-
-Do not add GITHUB_TOKEN. The workspace reads the public repository without a GitHub credential and the file editor exports edited files for manual `git push origin main`.
-
-## Cloudflare structure
-- Static site: repository root
-- Pages Functions: `functions/api/*`
-- `wrangler.toml`: Cloudflare Pages configuration
-- `_routes.json`: keeps backend Functions limited to `/api/*`, so static requests stay on the unlimited static path
-
-## API routes
-- `/api/auth`
-- `/api/chat`
-- `/api/admin-authorize`
-- `/api/workspace-authorize`
-- `/api/project-files`
-- `/api/project-file`
+Do not add `GITHUB_TOKEN`.
 
 ## Workspace
-`/workspace.html` is private and marked `noindex,nofollow,noarchive`.
-Access is owner-only and is checked with Puter sign-in plus the server-side `OWNER_EMAILS` allowlist.
-The workspace includes:
-- Nimbus 5.7 Lor • Ultra Modified private agent
-- Puter OpenAI model dropdown
-- Previous private agent chats
-- Owner-only revenue/profit panel in PKR
-- Curated important-repo file editor
-- 16:9 Nimbus UI Layout Studio
-- Live Nimbus iframe preview
-- Security status panel
+Private workspace access is limited to the two approved Puter usernames and owner emails. There is no worker role.
 
-## Code responses
-Nimbus is instructed to place requested code in fenced Markdown blocks with a language identifier. The UI also renders a language label and Copy button.
+## Visuals
+Nano Banana 2 uses Google Gemini 3.1 Flash Image (`gemini-3.1-flash-image`) through `/api/visual`. Study-help requests can automatically receive a 16:9 visual diagram/flowchart alongside keyword-focused text.
 
-## Visual helper
-Nimbus can append a `Nano Banana 2 visual plan` for genuinely useful diagrams, flowcharts, game-system visuals and keyword sheets. The plan is returned as a prompt suitable for `gemini-3.1-flash-image`.
+## Academic response mode
+Nimbus is instructed to provide keywords, factual points, structure, labels and visual support rather than polished submission-ready school prose. When asked to rewrite, it says the student must rephrase it themselves and then supplies keywords and structure.
 
-Nano Banana 2 is a Gemini API image model. Current Google pricing lists Nano Banana 2 as a paid image-generation model; do not assume it is free for API use. This build therefore generates the visual plan automatically but does not silently spend image-generation credits. Actual image generation can be enabled as a separate deliberate feature later.
-
-## AI style
-Normal Nimbus prose avoids double-asterisk bold markers and avoids Markdown heading syntax with `#`. Code blocks are still allowed to contain `#` where the programming language requires it.
-
-## Local publishing
-The main project folder is:
-`C:\Users\Hassan Rauf\Downloads\Nimbus_CLEAN`
-
-Typical publish flow:
-1. Replace edited files in `Nimbus_CLEAN`.
-2. `git add .`
-3. `git commit -m "Describe change"`
-4. `git push origin main`
-
-## Cloudflare Pages deployment
-Connect the existing GitHub repo:
-`https://github.com/rexx37619-cyber/Nimbus-Beaconhouse-AI`
-
-Build command: none
-Build output directory: `.`
-
-The Pages project should detect the `functions/` directory automatically. Keep `_routes.json` in the deployed root so only `/api/*` invokes Functions.
-
-## Vercel deployment
-This version uses Vercel Functions in `api/*.js`. Set Framework Preset to Other, leave Build Command empty, and deploy the repository root.
-
-
-Hotfix notes: the public Educational ID gate no longer depends on /api/auth; the owner workspace uses Puter email permission via puter.perms.request('email') and the server-side Vercel OWNER_EMAILS allowlist.
-
-
-Private workspace access: exactly two owner emails are accepted: haadi6228@gmail.com and jollyzmotion@gmail.com. Puter sign-in and email permission are required. There is no worker role.
-
-Nano Banana 2 uses Gemini 3.1 Flash Image when image-generation access is available to the configured Gemini API key; the app also has a Puter image-generation fallback for signed-in Puter users.
+## Model/agent UI
+The public site and private workspace use dropdown-based model selection, code blocks with language labels, copy buttons and previous-chat history.

@@ -258,7 +258,10 @@ function setAgentThinking(isThinking){
   }
 }
 
-function addVisualMessage(base64,mimeType){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';bubble.innerHTML='<div class="ai-tag">NANO BANANA 2 • VISUAL</div>';const img=document.createElement('img');img.className='nimbus-visual-image';img.alt='Nimbus visual';img.src=`data:${mimeType};base64,${base64}`;bubble.appendChild(img);d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;}
+function addVisualMessage(base64,mimeType,meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2 • VISUAL</span><strong>${title}</strong><small>${type} • ${keywords}</small></div><span class="visual-badge">IMAGE</span></div>`;const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${type}`;img.src=`data:${mimeType};base64,${base64}`;bubble.appendChild(img);const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';bubble.appendChild(note);d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;}
+function looksLikeSchoolWork(text){const s=String(text||'').toLowerCase();return /(homework|assignment|classwork|worksheet|study|studying|notes|revision|revise|exam|test|quiz|project|school|lesson|chapter|topic|explain|how does|why does|define|difference between|compare|biology|chemistry|physics|math|mathematics|history|geography|computer|programming|coding|python|javascript|html|css|lua|roblox|game|flowchart|diagram|concept map|process|steps)/i.test(s);}
+function makeAutoVisualPrompt(userText,answerText){return `Create one clear, student-friendly 16:9 educational infographic/diagram for this schoolwork request. Use concise keywords, short labels, arrows, icons and simple visual structure. Do not use paragraphs. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. Make it suitable for a student to study from and rephrase independently. If it is code or game-development help, visualize the logic, flow, system architecture, mechanics, or steps instead of reproducing long code.`;}
+async function generateVisual(prompt,meta={}){const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,aspectRatio:'16:9',imageSize:'1K'})});const d=await r.json().catch(()=>({}));if(r.ok&&d.ok&&d.data){addVisualMessage(d.data,d.mimeType||'image/png',meta);return true;}throw new Error(d.message||'Visual generation unavailable.');}
 
 async function sendMessage(text){
   const file=state.file;
@@ -275,13 +278,9 @@ async function sendMessage(text){
     }
     let r, data;
     if(state.model==='nano-banana-2'){
-      r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:`Create a clean student-friendly 16:9 diagram or flowchart for this request. Use concise labels and keywords only, no long paragraphs. Topic: ${text||'Study visual'}`})});
-      data=await r.json().catch(()=>({}));
-      if(!r.ok||!data.ok)throw new Error(data.message||'Visual generation unavailable.');
-      let reply='Nano Banana 2 visual generated.';
-      if(data.text)reply+=`\n\n${data.text}`;
-      add('ai',reply);
-      if(data.data){addVisualMessage(data.data,data.mimeType||'image/png');}
+      const visualPrompt=`Create one clear student-friendly 16:9 educational diagram or flowchart for this request. Use concise keywords only, short labels, arrows, icons and no long paragraphs. Topic/request: ${text||'Study visual'}.`;
+      const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels • arrows • key concepts'});
+      if(ok) add('ai','Nano Banana 2 visual generated. Use the labels as study help and rephrase explanations in your own words.');
       consumeLocalUsage();
       return;
     }
@@ -292,31 +291,14 @@ async function sendMessage(text){
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
     let reply=data.reply||'Nimbus did not return a response.';
-    if(data.visual?.prompt){
-      const vtype=data.visual.type||'diagram';
-      const vtitle=data.visual.title||'Visual helper';
-      reply += `\n\nNano Banana 2\nType: ${vtype}\nTitle: ${vtitle}\nKeywords/brief: ${data.visual.keywords||'Use the visual labels and rephrase the explanation in your own words.'}`;
+    if(data.visual?.prompt || looksLikeSchoolWork(text)){
+      const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
+      const vtitle=data.visual?.title||'Study visual';
+      const vkeywords=data.visual?.keywords||'keywords • labels • key concepts • arrows';
       add('ai',reply);
-      try{
-        const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:data.visual.prompt})});
-        const vd=await vr.json().catch(()=>({}));
-        if(vr.ok&&vd.ok&&vd.data)addVisualMessage(vd.data,vd.mimeType||'image/png');
-      }catch(e){
-        console.warn('Visual generation skipped',e);
-        try{
-          if(window.puter?.ai?.txt2img){
-            if(!puter.auth.isSignedIn()) await puter.auth.signIn({request_auth:true});
-            const visualImg=await puter.ai.txt2img(data.visual.prompt,{provider:'gemini',model:'gemini-3.1-flash-image',quality:'1K',ratio:{w:16,h:9}});
-            if(visualImg?.src){
-              const blobUrl=visualImg.src;
-              const wrap=document.createElement('div');wrap.className='message ai';
-              const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';
-              bubble.innerHTML='<div class="ai-tag">NANO BANANA 2 • VISUAL</div>';
-              const img=document.createElement('img');img.className='nimbus-visual-image';img.alt='Nimbus visual';img.src=blobUrl;bubble.appendChild(img);wrap.appendChild(bubble);$('messages').appendChild(wrap);$('messages').scrollTop=$('messages').scrollHeight;
-            }
-          }
-        }catch(fallbackErr){console.warn('Puter visual fallback skipped',fallbackErr);}
-      }
+      const prompt=data.visual?.prompt||makeAutoVisualPrompt(text,reply);
+      try{await generateVisual(prompt,{title:vtitle,type:vtype,keywords:vkeywords});}
+      catch(e){console.warn('Visual generation failed',e);}
     }else add('ai',reply);
     consumeLocalUsage();
   }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
