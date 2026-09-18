@@ -42,8 +42,7 @@ async function callNanoBanana2(apiKey, prompt, aspectRatio = '16:9', imageSize =
         type: 'image',
         mime_type: 'image/png',
         aspect_ratio: aspectRatio,
-        image_size: imageSize,
-        delivery: 'inline'
+        image_size: imageSize
       }
     })
   });
@@ -72,8 +71,37 @@ export default async function handler(req, res) {
     }
 
     const image = extractImage(data);
-    if (!image?.data) return res.status(502).json({ ok: false, message: 'Nano Banana 2 returned no image.' });
-    return res.status(200).json({ ok: true, mimeType: image.mimeType, data: image.data, text: image.text });
+    if (image?.data) {
+      return res.status(200).json({ ok: true, mimeType: image.mimeType, data: image.data, text: image.text });
+    }
+
+    // Fallback to the standard Gemini Generate Content endpoint using the same
+    // Nano Banana 2 model and image-only response modality.
+    const fallbackResponse = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['IMAGE'] }
+        })
+      }
+    );
+    const fallbackData = await fallbackResponse.json().catch(() => ({}));
+    const parts = fallbackData?.candidates?.[0]?.content?.parts || [];
+    const inline = parts.find(part => part?.inlineData?.data || part?.inline_data?.data);
+    if (fallbackResponse.ok && inline) {
+      const blob = inline.inlineData || inline.inline_data;
+      return res.status(200).json({
+        ok: true,
+        mimeType: blob.mimeType || blob.mime_type || 'image/png',
+        data: blob.data,
+        text: ''
+      });
+    }
+
+    return res.status(502).json({ ok: false, message: 'Nano Banana 2 returned no image.' });
   } catch {
     return res.status(502).json({ ok: false, message: 'Nano Banana 2 is temporarily unavailable.' });
   }

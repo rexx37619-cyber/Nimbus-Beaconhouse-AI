@@ -21,35 +21,26 @@ function isOwner(){return session.role==='owner';}
 function guardOwners(){document.querySelectorAll('.owner-only,.owner-only-panel').forEach(el=>el.classList.toggle('hidden',!isOwner()));}
 async function getPuterUser(){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return null;return puter.auth.getUser();}
 async function getPuterEmail(user){
-  if(!window.puter) throw new Error('Puter.js did not load.');
-  if(!puter.auth.isSignedIn()) return '';
-  const direct=String(user?.email||'').trim().toLowerCase();
-  if(direct) return direct;
-  try{
-    if(typeof puter.perms?.request==='function'){
-      const email=await puter.perms.request('email');
-      return String(email||'').trim().toLowerCase();
-    }
-  }catch{}
-  return '';
+  // Email permission is intentionally not required. Puter username/UUID are enough.
+  return String(user?.email||'').trim().toLowerCase();
 }
 async function authorize(user){
   const email=await getPuterEmail(user);
   const puterUuid=String(user?.uuid||'').trim();
   const puterUsername=String(user?.username||user?.username_raw||'').trim().toLowerCase();
-  if(!puterUuid) throw new Error('Puter account identity could not be read. Please sign in again.');
+  if(!puterUuid) throw new Error('Please sign in with Puter first.');
   const r=await fetch('/api/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,puter_uuid:puterUuid,puter_username:puterUsername})});
   const d=await r.json().catch(()=>({}));
   if(!r.ok||!d.ok) throw new Error(d.message||'Workspace access denied.');
   session={user,role:d.role,permissions:d.permissions||[]};
-  $('userEmail').textContent=email||puterUsername||'Owner account'; $('rolePill').textContent='OWNER'; $('roleNote').textContent='Owner-only access';
-  $('overviewRole').textContent='Owner'; $('securityRoleTag').textContent='OWNER'; $('serverState').textContent='Allowlisted';
+  $('userEmail').textContent=email||puterUsername||'Puter account'; $('rolePill').textContent='ACCESS ALLOWED'; $('roleNote').textContent='Puter account authenticated';
+  $('overviewRole').textContent='Puter account'; $('securityRoleTag').textContent='ACCESS ALLOWED'; $('serverState').textContent='Allowed';
   $('permissionState').textContent=d.permissions.join(' • '); $('puterState').textContent='Authenticated'; guardOwners();
   return d;
 }
 function openWorkspace(){$('gate').classList.add('hidden');$('workspace').classList.remove('hidden');}
 function showDenied(msg){$('gateMsg').textContent=msg;$('gateMsg').style.color='#d74764';setSecurity('DENIED','bad');}
-async function signIn(){const b=$('signInBtn');b.disabled=true;setSecurity('AUTHENTICATING');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent='Access accepted — Nimbus owner verified.';setSecurity('VERIFIED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message||'Authentication failed.')}finally{b.disabled=false;}}
+async function signIn(){const b=$('signInBtn');b.disabled=true;setSecurity('CHECKING PUTER ACCOUNT');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent='Access allowed — Puter account authenticated.';setSecurity('ACCESS ALLOWED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message||'Puter sign-in required.')}finally{b.disabled=false;}}
 $('signInBtn').onclick=signIn;
 
 const OPENAI_ALIASES={

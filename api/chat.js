@@ -41,8 +41,22 @@ ERROR STYLE:
 - If a model path fails, give a short neutral answer and invite the user to retry.
 `;
 function stripVisual(text) {
-  const match = String(text || '').match(VISUAL_MARKER);
-  if (!match) return { text: String(text || ''), visual: null };
+  const source = String(text || '');
+  const match = source.match(VISUAL_MARKER);
+  if (!match) {
+    const openIndex = source.indexOf('[NIMBUS_VISUAL]');
+    if (openIndex !== -1) {
+      const block = source.slice(openIndex + '[NIMBUS_VISUAL]'.length).trim();
+      const lines = block.split(/\n+/).map(s => s.trim()).filter(Boolean);
+      const visual = {};
+      for (const line of lines) {
+        const i = line.indexOf(':');
+        if (i > -1) visual[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+      }
+      return { text: source.slice(0, openIndex).trim(), visual: Object.keys(visual).length ? visual : null };
+    }
+    return { text: source, visual: null };
+  }
   const lines = match[1].trim().split(/\n+/).map(s => s.trim()).filter(Boolean);
   const visual = {};
   for (const line of lines) {

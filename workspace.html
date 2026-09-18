@@ -41,7 +41,7 @@
 
   <main id="workspace" class="workspace hidden">
     <aside class="workspace-nav">
-      <div class="profile-card"><div id="rolePill" class="role-pill">OWNER</div><b id="userEmail">account</b><span id="roleNote">Owner-only access</span></div>
+      <div class="profile-card"><div id="rolePill" class="role-pill">ACCESS ALLOWED</div><b id="userEmail">account</b><span id="roleNote">Owner-only access</span></div>
       <button class="nav-btn active" data-tab="overview">⌂ Overview</button>
       <button class="nav-btn" data-tab="agent">✦ AI agent</button>
       <button class="nav-btn" data-tab="revenue">◫ Revenue & profit</button>
@@ -63,7 +63,7 @@
           <div class="tile"><span>Agent access</span><b>Puter.js</b></div>
           <div class="tile"><span>Workspace scope</span><b>2 owners only</b></div>
         </div>
-        <div class="notice"><b>Owner security</b><p>Workspace access requires an authenticated Puter account whose username or owner email matches the two-server allowlist. There is no worker role. Any other Puter account is denied.</p></div>
+        <div class="notice"><b>Puter access</b><p>Workspace access uses Puter sign-in only. Once your Puter account is authenticated, the workspace shows ACCESS ALLOWED.</p></div>
       </div>
 
       <div id="tab-agent" class="tab-panel">
@@ -74,7 +74,7 @@
         </div>
         <div class="agent-history-row"><div class="agent-history-title">Previous chats</div><div id="agentHistory" class="agent-history"></div></div>
         <div class="agent-layout"><div id="agentMessages" class="agent-messages"></div><form id="agentForm" class="agent-composer"><textarea id="agentInput" rows="2" placeholder="Ask the private agent…"></textarea><button class="primary-btn" id="agentRunBtn" type="submit">Run</button></form></div>
-        <div class="small-note">Owners only. Puter sign-in + owner-email verification are both required. The agent uses a flowing three-dot state only — no connection text.</div>
+        <div class="small-note">Puter account access. Sign in through Puter to continue. The agent uses a flowing three-dot state only — no connection text.</div>
       </div>
 
       <div id="tab-revenue" class="tab-panel">
@@ -110,8 +110,8 @@
       </div>
 
       <div id="tab-security" class="tab-panel">
-        <div class="section-head"><div><div class="eyebrow">ACCESS CONTROL</div><h2>Security check</h2></div><div id="securityRoleTag" class="model-tag">OWNER</div></div>
-        <div class="security-list"><div><span>Robots directive</span><b>noindex / nofollow</b></div><div><span>Puter authentication</span><b id="puterState">Checking…</b></div><div><span>Server owner allowlist</span><b id="serverState">Checking…</b></div><div><span>Granted permissions</span><b id="permissionState">Checking…</b></div></div>
+        <div class="section-head"><div><div class="eyebrow">ACCESS CONTROL</div><h2>Security check</h2></div><div id="securityRoleTag" class="model-tag">ACCESS ALLOWED</div></div>
+        <div class="security-list"><div><span>Robots directive</span><b>noindex / nofollow</b></div><div><span>Puter authentication</span><b id="puterState">Checking…</b></div><div><span>Workspace access</span><b id="serverState">Checking…</b></div><div><span>Granted permissions</span><b id="permissionState">Checking…</b></div></div>
         <div class="notice warning"><b>Security note</b><p>Noindex is not a lock. The actual gate is Puter sign-in plus the server-side owner allowlist. Keep owner emails and API keys in Vercel environment variables, never in the repository.</p></div>
       </div>
     </section>
