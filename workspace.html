@@ -31,7 +31,7 @@
       <div class="gate-brand"><img src="/assets/nimbus-logo.png" alt="Nimbus"><img src="/assets/chatgpt-logo.png" alt="OpenAI"></div>
       <div class="eyebrow">PRIVATE • OWNER ONLY • NOT INDEXED</div>
       <h1>Nimbus Workspace</h1>
-      <p>Only the two server-allowlisted owner accounts can enter this area. Puter verifies the signed-in account, then the Cloudflare function checks the owner list.</p>
+      <p>Only the two server-allowlisted owner accounts can enter this area. Puter verifies the signed-in account, then the Vercel API checks the server-side owner list.</p>
       <div class="check-grid">
         <div><b>01</b><span>Puter identity</span></div><div><b>02</b><span>Server owner check</span></div><div><b>03</b><span>Owner tools unlock</span></div>
       </div>
@@ -48,7 +48,7 @@
       <button class="nav-btn" data-tab="files">▣ File editor</button>
       <button class="nav-btn" data-tab="ui">◈ UI layout studio</button>
       <button class="nav-btn" data-tab="security">◇ Security</button>
-      <div class="nav-foot"><span>Workspace v2</span><span>Cloudflare + Puter</span></div>
+      <div class="nav-foot"><span>Workspace v2</span><span>Vercel + Puter</span></div>
     </aside>
 
     <section class="content">
@@ -63,18 +63,18 @@
           <div class="tile"><span>Agent access</span><b>Puter.js</b></div>
           <div class="tile"><span>Workspace scope</span><b>2 owners only</b></div>
         </div>
-        <div class="notice"><b>Cloudflare deployment</b><p>Static Nimbus assets are free and unlimited on Cloudflare Pages. Dynamic Functions are subject to the Cloudflare Workers Free plan request limit, so this is not literally unlimited for backend requests.</p></div>
+        <div class="notice"><b>Owner security</b><p>Workspace access requires an authenticated Puter account and a matching owner email on the server allowlist. Workers and other roles are not admitted.</p></div>
       </div>
 
       <div id="tab-agent" class="tab-panel">
-        <div class="section-head"><div><div class="eyebrow">PRIVATE AI AGENT</div><h2>Nimbus 5.7 Lor</h2><div class="astra-card"><img src="/assets/chatgpt-logo.png" alt="ChatGPT"><div><b>ChatGPT / OpenAI models</b><span>Nimbus-branded aliases • selected through Puter</span></div></div></div><div class="model-tag" id="agentModelState">Detecting model…</div></div>
+        <div class="section-head"><div><div class="eyebrow">PRIVATE AI AGENT</div><h2>Nimbus 5.7 Lor</h2><div class="provider-strip"><div class="provider-chip"><img src="/assets/chatgpt-logo.png" alt="ChatGPT"><span>OpenAI</span></div><div class="provider-chip"><img src="/assets/claude-logo.png" alt="Claude"><span>Claude</span></div><div class="provider-chip"><img src="/assets/nimbus-logo.png" alt="Nimbus"><span>Nano Banana 2</span></div></div></div><div class="model-tag" id="agentModelState">Detecting model…</div></div>
         <div class="agent-control-bar">
-          <div class="agent-model-control"><label for="openaiModelSelect">Model</label><select id="openaiModelSelect" aria-label="Nimbus OpenAI model"></select></div>
+          <div class="agent-model-control"><label for="openaiModelSelect">Model</label><select id="openaiModelSelect" aria-label="Nimbus model"></select></div>
           <button id="newAgentChat" type="button">New chat</button><button id="clearAgentChats" type="button">Clear history</button>
         </div>
         <div class="agent-history-row"><div class="agent-history-title">Previous chats</div><div id="agentHistory" class="agent-history"></div></div>
         <div class="agent-layout"><div id="agentMessages" class="agent-messages"></div><form id="agentForm" class="agent-composer"><textarea id="agentInput" rows="2" placeholder="Ask the private agent…"></textarea><button class="primary-btn" id="agentRunBtn" type="submit">Run</button></form></div>
-        <div class="small-note">Owners only. No connection text is shown while the backend is running; the agent uses a flowing three-dot state.</div>
+        <div class="small-note">Owners only. Puter sign-in + owner-email verification are both required. The agent uses a flowing three-dot state only — no connection text.</div>
       </div>
 
       <div id="tab-revenue" class="tab-panel">

@@ -27,12 +27,61 @@ function showDenied(msg){$('gateMsg').textContent=msg;$('gateMsg').style.color='
 async function signIn(){const b=$('signInBtn');b.disabled=true;setSecurity('AUTHENTICATING');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent='Owner access granted.';setSecurity('VERIFIED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message||'Authentication failed.')}finally{b.disabled=false;}}
 $('signInBtn').onclick=signIn;
 
-const ALIASES={'gpt-6-astra':'Nimbus 5.7 Lor • Ultra Modified','gpt-5.6-sol':'Nimbus Sol 5.6 • Modified','gpt-5.6-terra':'Nimbus Terra 5.6 • Modified','gpt-5.6-luna':'Nimbus Luna 5.6 • Modified','gpt-5.5':'Nimbus ROR 5.5 • Modified','gpt-5.5-pro':'Nimbus ROR 5.5 Pro • Modified','gpt-5.4':'Nimbus ROR 5.4 • Modified','gpt-5.4-pro':'Nimbus ROR 5.4 Pro • Modified','gpt-5.4-mini':'Nimbus ROR Mini 5.4 • Modified','gpt-5.4-nano':'Nimbus ROR Nano 5.4 • Modified','gpt-5.3-codex':'Nimbus Code 5.3 • Modified','gpt-5.1':'Nimbus ROR 5.1 • Modified','gpt-5.1-chat':'Nimbus Chat 5.1 • Modified','gpt-5':'Nimbus ROR 5 • Modified','gpt-4.1':'Nimbus Classic 4.1 • Modified','gpt-4o':'Nimbus Omni 4o • Modified','gpt-4o-mini':'Nimbus Mini 4o • Modified'};
-function nimbusModelName(m){const id=String(m?.id||'').split('/').pop().toLowerCase();if(ALIASES[id])return ALIASES[id];const raw=String(m?.name||m?.id||'OpenAI model').replace(/^GPT\s*/i,'').replace(/\s+/g,' ').trim();return`Nimbus ${raw} • Modified`;}
-function isChatModel(m){const provider=String(m?.provider||'').toLowerCase();const last=String(m?.id||'').toLowerCase().split('/').pop();if(provider!=='openai'&&!/^gpt-/.test(last))return false;return !['image','live','audio','transcribe','embedding','embed','moderation','tts','realtime'].some(x=>last.includes(x));}
-async function loadOpenAIModels(){const select=$('openaiModelSelect');if(!select)return;select.innerHTML='<option>Loading Nimbus models…</option>';try{let models=[];if(window.puter?.ai?.listModels){try{models=await puter.ai.listModels('openai');}catch{models=await puter.ai.listModels();}}openAIModels=(models||[]).filter(isChatModel);const seen=new Set();openAIModels=openAIModels.filter(m=>{const id=String(m?.id||'');if(!id||seen.has(id))return false;seen.add(id);return true;});const priority=['gpt-6-astra','gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5','gpt-5.5-pro','gpt-5.4','gpt-5.4-pro','gpt-5.4-mini','gpt-5.4-nano','gpt-5.3-codex'];openAIModels.sort((a,b)=>{const ai=priority.indexOf(String(a?.id||'').split('/').pop());const bi=priority.indexOf(String(b?.id||'').split('/').pop());if(ai!==bi)return(ai<0?999:ai)-(bi<0?999:bi);return nimbusModelName(a).localeCompare(nimbusModelName(b));});select.innerHTML='';if(!openAIModels.length){const o=document.createElement('option');o.value=PREMIUM_MODEL_ID;o.textContent=PREMIUM_LABEL;select.appendChild(o);}else{openAIModels.forEach(m=>{const o=document.createElement('option');o.value=String(m.id);o.textContent=nimbusModelName(m);select.appendChild(o);});}const initial=openAIModels.find(m=>String(m.id).split('/').pop()==='gpt-6-astra')?.id||openAIModels[0]?.id||PREMIUM_MODEL_ID;select.value=initial;updateModelBadge(initial);}catch{select.innerHTML=`<option value="${PREMIUM_MODEL_ID}">${PREMIUM_LABEL}</option>`;updateModelBadge(PREMIUM_MODEL_ID);}}
-function updateModelBadge(id){const m=openAIModels.find(x=>String(x.id)===String(id));$('agentModelState').textContent=m?nimbusModelName(m):PREMIUM_LABEL;}
-function selectedModel(){return $('openaiModelSelect')?.value||PREMIUM_MODEL_ID;}
+const OPENAI_ALIASES={
+  'gpt-6-astra':'Nimbus 5.7 Lor • Ultra Modified','gpt-5.6-sol':'Nimbus Sol 5.6 • Modified','gpt-5.6-terra':'Nimbus Terra 5.6 • Modified','gpt-5.6-luna':'Nimbus Luna 5.6 • Modified','gpt-5.5':'Nimbus ROR 5.5 • Modified','gpt-5.5-pro':'Nimbus ROR 5.5 Pro • Modified','gpt-5.4':'Nimbus ROR 5.4 • Modified','gpt-5.4-pro':'Nimbus ROR 5.4 Pro • Modified','gpt-5.4-mini':'Nimbus ROR Mini 5.4 • Modified','gpt-5.4-nano':'Nimbus ROR Nano 5.4 • Modified','gpt-5.3-codex':'Nimbus Code 5.3 • Modified','gpt-5.1':'Nimbus ROR 5.1 • Modified','gpt-5.1-chat':'Nimbus Chat 5.1 • Modified','gpt-5':'Nimbus ROR 5 • Modified','gpt-4.1':'Nimbus Classic 4.1 • Modified','gpt-4o':'Nimbus Omni 4o • Modified','gpt-4o-mini':'Nimbus Mini 4o • Modified'
+};
+const CLAUDE_ALIASES={'claude-fable-5-1':'Nimbus Fable 5.1 • Modified','claude-fable-5':'Nimbus Fable 5 • Modified','claude-opus-5':'Nimbus Opus 5 • Modified'};
+const NANO_MODEL={id:'gemini-3.1-flash-image',provider:'gemini',kind:'image',label:'Nano Banana 2 • Visuals',sub:'Diagrams • flowcharts • concept visuals'};
+let agentModels=[];
+function modelId(m){return String(m?.id||'').trim();}
+function shortId(m){return modelId(m).split('/').pop().toLowerCase();}
+function nimbusModelName(m){
+  const id=shortId(m);
+  if(m?.kind==='image') return NANO_MODEL.label;
+  if(String(m?.provider).toLowerCase()==='claude' && CLAUDE_ALIASES[id]) return CLAUDE_ALIASES[id];
+  if(String(m?.provider).toLowerCase()==='openai' && OPENAI_ALIASES[id]) return OPENAI_ALIASES[id];
+  const raw=String(m?.name||m?.id||'Model').replace(/^Claude\s*/i,'').replace(/^GPT\s*/i,'').replace(/\s+/g,' ').trim();
+  return `Nimbus ${raw} • Modified`;
+}
+function isChatProviderModel(m, provider){
+  const p=String(m?.provider||provider||'').toLowerCase();
+  const id=shortId(m);
+  if(!['openai','claude'].includes(p)) return false;
+  return !['image','live','audio','transcribe','embedding','embed','moderation','tts','realtime','speech'].some(x=>id.includes(x));
+}
+function sortModels(list, priority){
+  return [...list].sort((a,b)=>{
+    const ai=priority.indexOf(shortId(a)), bi=priority.indexOf(shortId(b));
+    if(ai!==bi) return (ai<0?999:ai)-(bi<0?999:bi);
+    return nimbusModelName(a).localeCompare(nimbusModelName(b));
+  });
+}
+async function loadAgentModels(){
+  const select=$('openaiModelSelect');
+  if(!select) return;
+  select.innerHTML='<option>Loading Nimbus models…</option>';
+  try{
+    let openai=[], claude=[];
+    if(window.puter?.ai?.listModels){
+      try{openai=await puter.ai.listModels('openai');}catch{openai=[];}
+      try{claude=await puter.ai.listModels('claude');}catch{claude=[];}
+    }
+    openai=(openai||[]).filter(m=>isChatProviderModel(m,'openai'));
+    claude=(claude||[]).filter(m=>isChatProviderModel(m,'claude'));
+    const unique=(arr)=>{const seen=new Set();return arr.filter(m=>{const id=modelId(m);if(!id||seen.has(id))return false;seen.add(id);return true;});};
+    openai=unique(openai); claude=unique(claude);
+    agentModels=[NANO_MODEL,...sortModels(openai,['gpt-6-astra','gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-pro','gpt-5.5','gpt-5.4-pro','gpt-5.4','gpt-5.3-codex']),...sortModels(claude,['claude-fable-5-1','claude-fable-5','claude-opus-5','claude-sonnet-5','claude-opus-4-8','claude-opus-4-7','claude-opus-4-6'])];
+    select.innerHTML='';
+    const groups=[['Visual model',agentModels.filter(m=>m.kind==='image')],['OpenAI / ChatGPT',agentModels.filter(m=>String(m.provider).toLowerCase()==='openai')],['Anthropic / Claude',agentModels.filter(m=>String(m.provider).toLowerCase()==='claude')]];
+    groups.forEach(([label,items])=>{if(!items.length)return;const g=document.createElement('optgroup');g.label=label;items.forEach(m=>{const o=document.createElement('option');o.value=modelId(m);o.textContent=nimbusModelName(m);g.appendChild(o);});select.appendChild(g);});
+    if(!select.options.length){const o=document.createElement('option');o.value=NANO_MODEL.id;o.textContent=NANO_MODEL.label;select.appendChild(o);}
+    const initial=agentChats.find(c=>c.id===currentAgentChatId)?.model || agentModels.find(m=>shortId(m)==='gpt-6-astra')?.id || agentModels.find(m=>String(m.provider)==='openai')?.id || NANO_MODEL.id;
+    select.value=initial; updateModelBadge(initial);
+  }catch{select.innerHTML=`<option value="${NANO_MODEL.id}">${NANO_MODEL.label}</option>`;select.value=NANO_MODEL.id;updateModelBadge(NANO_MODEL.id);}
+}
+function selectedModel(){return $('openaiModelSelect')?.value||NANO_MODEL.id;}
+function selectedAgentModel(){return agentModels.find(m=>modelId(m)===selectedModel())||NANO_MODEL;}
+function updateModelBadge(id){const m=agentModels.find(x=>modelId(x)===String(id));$('agentModelState').textContent=m?nimbusModelName(m):NANO_MODEL.label;}
 $('openaiModelSelect')?.addEventListener('change',()=>{updateModelBadge(selectedModel());const c=agentChats.find(x=>x.id===currentAgentChatId);if(c){c.model=selectedModel();saveAgentChats();}});
 
 function saveAgentChats(){localStorage.setItem(AGENT_HISTORY_KEY,JSON.stringify(agentChats.slice(0,30)));}
@@ -42,10 +91,48 @@ function startAgentChat(id){const c=agentChats.find(x=>x.id===id)||agentChats[0]
 function renderSavedAgentMessage(role,text){const el=document.createElement('div');el.className='agent-msg '+(role==='me'?'me':'ai');if(role==='ai')renderAgentRichMessage(el,text);else el.textContent=text;$('agentMessages').appendChild(el);}
 function saveCurrentAgentMessage(role,text){const c=agentChats.find(x=>x.id===currentAgentChatId);if(!c)return;c.messages.push({role,text});if(role==='me'&&c.title==='New private chat')c.title=text.slice(0,44)+(text.length>44?'…':'');c.model=selectedModel();saveAgentChats();renderAgentHistory();}
 function appendAgent(role,text,save=true){const el=document.createElement('div');el.className='agent-msg '+(role==='me'?'me':'ai');if(role==='ai')renderAgentRichMessage(el,text);else el.textContent=text;$('agentMessages').appendChild(el);$('agentMessages').scrollTop=$('agentMessages').scrollHeight;if(save)saveCurrentAgentMessage(role,text);return el;}
+
+function appendAgentImage(img){const host=$('agentMessages');if(!host)return;const wrap=document.createElement('div');wrap.className='agent-image-wrap';const image=img instanceof HTMLImageElement?img:document.createElement('img');if(!(img instanceof HTMLImageElement)){if(typeof img==='string')image.src=img;else if(img?.src)image.src=img.src;else return;}image.alt='Nano Banana 2 generated visual';image.className='agent-generated-image';wrap.appendChild(image);host.appendChild(wrap);host.scrollTop=host.scrollHeight;}
 function extractText(resp){const content=resp?.message?.content??resp?.content??resp?.text??'';if(typeof content==='string')return content;if(Array.isArray(content))return content.map(p=>typeof p==='string'?p:(p?.text||p?.content||'')).filter(Boolean).join('\n');return ''}
 function renderAgentRichMessage(el,text){el.innerHTML='';const src=String(text||'').replace(/\r\n/g,'\n');const parts=src.split(/```([\w+#.-]*)\n?([\s\S]*?)```/g);for(let i=0;i<parts.length;i+=3){const before=parts[i]||'';if(before){const p=document.createElement('div');p.className='rich-prose';p.textContent=before;el.appendChild(p);}const lang=parts[i+1];const code=parts[i+2];if(code!==undefined){const wrap=document.createElement('div');wrap.className='rich-code-wrap';const head=document.createElement('div');head.className='rich-code-head';const label=document.createElement('span');label.textContent=(lang||'text').toLowerCase();const copy=document.createElement('button');copy.type='button';copy.textContent='Copy';const pre=document.createElement('pre');pre.textContent=code.replace(/^\n/,'').replace(/\n$/,'');copy.onclick=async()=>{try{await navigator.clipboard.writeText(pre.textContent);copy.textContent='Copied';setTimeout(()=>copy.textContent='Copy',900);}catch{}};head.append(label,copy);wrap.append(head,pre);el.appendChild(wrap);}}}
 function thinkingDots(){const el=document.createElement('div');el.className='agent-thinking';el.innerHTML='<span></span><span></span><span></span>';return el;}
-$('agentForm').onsubmit=async e=>{e.preventDefault();const text=$('agentInput').value.trim();if(!text)return;if(!currentAgentChatId)newAgentChat();appendAgent('me',text);$('agentInput').value='';$('agentRunBtn').disabled=true;const dots=thinkingDots();$('agentMessages').appendChild(dots);$('agentMessages').scrollTop=$('agentMessages').scrollHeight;try{if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())await puter.auth.signIn({request_auth:true});const model=selectedModel();const resp=await puter.ai.chat([{role:'system',content:'You are Nimbus 5.7 Lor • Ultra Modified. Be concise and useful. Do not use double-asterisk bold markers or Markdown heading hashes in normal prose. Always put requested code in fenced Markdown blocks with a real language identifier. For genuinely useful diagrams or flowcharts, provide a compact visual prompt for Nano Banana 2.'},{role:'user',content:text}],{model,normalize:true,stream:false});dots.remove();appendAgent('ai',extractText(resp)||'No text response was returned.');}catch(err){dots.remove();appendAgent('ai','Nimbus 5.7 Lor is temporarily unavailable. Please try again in a moment.');console.error(err);}finally{$('agentRunBtn').disabled=false;}};
+$('agentForm').onsubmit=async e=>{
+  e.preventDefault();
+  const text=$('agentInput').value.trim();
+  if(!text)return;
+  if(!currentAgentChatId)newAgentChat();
+  appendAgent('me',text);
+  $('agentInput').value='';
+  $('agentRunBtn').disabled=true;
+  const dots=thinkingDots();
+  $('agentMessages').appendChild(dots);
+  $('agentMessages').scrollTop=$('agentMessages').scrollHeight;
+  try{
+    if(!window.puter)throw new Error('Puter.js did not load.');
+    if(!puter.auth.isSignedIn())await puter.auth.signIn({request_auth:true});
+    const modelInfo=selectedAgentModel();
+    if(modelInfo.kind==='image'){
+      const visualPrompt=`Create a clear educational diagram or flowchart for a student. Use concise labels and keywords only. Topic/request: ${text}. Use a clean classroom-friendly layout, arrows where appropriate, and no long paragraphs. Prefer 16:9.`;
+      const img=await puter.ai.txt2img(visualPrompt,{provider:'gemini',model:'gemini-3.1-flash-image'});
+      dots.remove();
+      if(img){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords shown and rephrase any written explanation in your own words.');appendAgentImage(img);}
+      else appendAgent('ai','Nano Banana 2 did not return an image. Please try again.');
+    }else{
+      const system=`You are Nimbus 5.7 Lor • Ultra Modified, a private educational workspace agent.
+STYLE: No ** bold markers. Do not use Markdown # headings. Keep responses direct.
+STUDENT WORK: For school answers, notes, assignments, essays, or paragraphs, give factual keywords, key points, structure, and concepts rather than polished submission-ready prose. If the user asks you to rewrite or rephrase an answer, say: "Please rephrase it in your own words." Then provide the information/keywords and a suggested structure, not a ready-to-submit paragraph.
+VISUALS: When a diagram, flowchart, concept map, or game/system visual is useful, provide concise keywords and a Nano Banana 2-ready visual prompt.
+CODING: Always put code in fenced Markdown blocks with a real language identifier. Explain code outside the fence.`;
+      const resp=await puter.ai.chat([{role:'system',content:system},{role:'user',content:text}],{model:selectedModel(),normalize:true,stream:false});
+      dots.remove();
+      appendAgent('ai',extractText(resp)||'No text response was returned.');
+    }
+  }catch(err){
+    dots.remove();
+    appendAgent('ai','Nimbus is temporarily unavailable. Please try again in a moment.');
+    console.error(err);
+  }finally{$('agentRunBtn').disabled=false;}
+};
 $('newAgentChat').onclick=()=>newAgentChat();$('clearAgentChats').onclick=()=>{agentChats=[];saveAgentChats();currentAgentChatId=null;$('agentMessages').innerHTML='';newAgentChat();};
 
 function loadFinance(){const d=JSON.parse(localStorage.getItem(FINANCE_KEY)||'{}');$('revenueInput').value=d.revenueUSD??'';$('expenseInput').value=d.expensesUSD??'';$('usdPkrRate').value=d.rate??USD_TO_PKR_DEFAULT;renderFinance();}
@@ -61,5 +148,5 @@ function getLayout(){return{accent:$('accentInput').value||DEFAULTS.accent,accen
 function applyFrameLayout(){const frame=$('sitePreview');if(!frame)return;try{const doc=frame.contentDocument;if(!doc)return;const d=getLayout();doc.documentElement.style.setProperty('--nimbus-accent',d.accent);doc.documentElement.style.setProperty('--nimbus-accent-2',d.accent2);doc.documentElement.style.setProperty('--nimbus-radius',d.radius+'px');doc.body.dataset.nimbusDensity=d.density;doc.body.style.fontFamily=`"${d.font}",Inter,system-ui,sans-serif`;doc.getElementById('__nimbus_preview_badge')?.remove();const badge=doc.createElement('div');badge.id='__nimbus_preview_badge';badge.textContent='LIVE UI PREVIEW';Object.assign(badge.style,{position:'fixed',right:'12px',top:'12px',zIndex:'2147483647',padding:'6px 9px',borderRadius:'999px',background:d.accent,color:'#fff',font:'800 10px Arial'});doc.body.appendChild(badge);}catch(e){console.warn(e);}}
 $('sitePreview')?.addEventListener('load',applyFrameLayout);function saveLayoutLocal(){const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));return d;}$('applyLayout').onclick=()=>{saveLayoutLocal();applyFrameLayout();$('layoutMsg').textContent='Preview updated.';};$('publishLayout').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(saveLayoutLocal(),null,2)],{type:'application/json'}));a.download='site-layout.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('layoutMsg').textContent='Downloaded site-layout.json. Replace it in Nimbus_CLEAN and push main.';};$('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();applyFrameLayout();$('layoutMsg').textContent='Preview reset.';};readLayout();
 
-async function bootWorkspace(){await loadRepoFiles();await loadOpenAIModels();renderAgentHistory();if(!agentChats.length)newAgentChat();else startAgentChat(agentChats[0].id);}
+async function bootWorkspace(){await loadRepoFiles();await loadAgentModels();renderAgentHistory();if(!agentChats.length)newAgentChat();else startAgentChat(agentChats[0].id);}
 if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;try{await authorize(u);setSecurity('VERIFIED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message);}}).catch(()=>{});}

@@ -66,3 +66,5 @@ body.sidebar-hidden .chat-column{width:min(1000px,100%)}
 .premium-thinking{display:flex;gap:6px;align-items:center;padding:5px 2px}
 .premium-thinking i{width:6px;height:6px}
 @keyframes nimbusDotFlow{0%,60%,100%{transform:translateY(0);opacity:.42}30%{transform:translateY(-4px);opacity:1}}
+
+.visual-bubble{overflow:hidden}.nimbus-visual-image{display:block;width:min(100%,960px);max-height:560px;object-fit:contain;border-radius:12px;margin-top:8px;background:#f2f4f8}.model-option[data-model="nano-banana-2"] b{color:#6d5dfc}

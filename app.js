@@ -1,6 +1,7 @@
 const MODELS={
   ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid • Ultra modifications'},
-  legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'}
+  legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'},
+  'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams • Flowcharts • Visuals'}
 };
 
 const RESOURCES=[
@@ -241,6 +242,8 @@ function setAgentThinking(isThinking){
   }
 }
 
+function addVisualMessage(base64,mimeType){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';bubble.innerHTML='<div class="ai-tag">NANO BANANA 2 • VISUAL</div>';const img=document.createElement('img');img.className='nimbus-visual-image';img.alt='Nimbus visual';img.src=`data:${mimeType};base64,${base64}`;bubble.appendChild(img);d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;}
+
 async function sendMessage(text){
   const file=state.file;
   ensureChat(text||'Study file');
@@ -253,8 +256,19 @@ async function sendMessage(text){
       const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)});
       attachment={name:file.name,mimeType:file.type||'application/octet-stream',data:dataUrl.split(',')[1]};
     }
-    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',educational_id:state.id||'anonymous',model:state.model,attachment})});
-    const data=await r.json().catch(()=>({}));
+    let r, data;
+    if(state.model==='nano-banana-2'){
+      r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:`Create a clean student-friendly 16:9 diagram or flowchart for this request. Use concise labels and keywords only, no long paragraphs. Topic: ${text||'Study visual'}`})});
+      data=await r.json().catch(()=>({}));
+      if(!r.ok||!data.ok)throw new Error(data.message||'Visual generation unavailable.');
+      let reply='Nano Banana 2 visual generated.';
+      if(data.text)reply+=`\n\n${data.text}`;
+      add('ai',reply);
+      if(data.data){addVisualMessage(data.data,data.mimeType||'image/png');}
+      return;
+    }
+    r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',educational_id:state.id||'anonymous',model:state.model,attachment})});
+    data=await r.json().catch(()=>({}));
     if(typeof data.used==='number')updateUsage(data.used);
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
@@ -262,9 +276,14 @@ async function sendMessage(text){
     if(data.visual?.prompt){
       const vtype=data.visual.type||'diagram';
       const vtitle=data.visual.title||'Visual helper';
-      reply += `\n\nNano Banana 2 visual plan\nType: ${vtype}\nTitle: ${vtitle}\nPrompt: ${data.visual.prompt}`;
-    }
-    add('ai',reply);
+      reply += `\n\nNano Banana 2\nType: ${vtype}\nTitle: ${vtitle}\nKeywords/brief: ${data.visual.keywords||'Use the visual labels and rephrase the explanation in your own words.'}`;
+      add('ai',reply);
+      try{
+        const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:data.visual.prompt})});
+        const vd=await vr.json().catch(()=>({}));
+        if(vr.ok&&vd.ok&&vd.data)addVisualMessage(vd.data,vd.mimeType||'image/png');
+      }catch(e){console.warn('Visual generation skipped',e);}
+    }else add('ai',reply);
   }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
   finally{$('sendBtn').disabled=false;setAgentThinking(false);}
 }
