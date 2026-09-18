@@ -20,37 +20,7 @@ function guardOwners(){document.querySelectorAll('.owner-only,.owner-only-panel'
 async function getPuterUser(){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return null;return puter.auth.getUser();}
 function openWorkspace(){document.getElementById('gate')?.classList.add('hidden');document.getElementById('workspace')?.classList.remove('hidden');}
 function showDenied(msg){const el=document.getElementById('gateMsg');if(el){el.textContent=msg||'Please sign in with Puter.';el.style.color='#d74764';}}
-
-async function signIn(){
-  const b=document.getElementById('signInBtn');
-  b.disabled=true;
-  try{
-    await puter.auth.signIn({request_auth:true});
-    const u=await getPuterUser();
-    if(!u)throw new Error('Please sign in with Puter first.');
-    
-    // Secure Owner Email Validation Check
-    const allowedOwners=['haadi6228@gmail.com','jollyzmotion@gmail.com'];
-    const userEmail=(u.email||'').trim().toLowerCase();
-    
-    if(!allowedOwners.includes(userEmail)){
-      showDenied('Access Denied: This private workspace is restricted to authorized owners.');
-      return;
-    }
-
-    session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};
-    document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';
-    document.getElementById('rolePill').textContent='SIGNED IN';
-    document.getElementById('roleNote').textContent='Puter authenticated';
-    openWorkspace();
-    guardOwners();
-    await bootWorkspace();
-  }catch(e){
-    showDenied(e.message||'Puter sign-in required.');
-  }finally{
-    b.disabled=false;
-  }
-}
+async function signIn(){const b=document.getElementById('signInBtn');b.disabled=true;try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();if(!u)throw new Error('Please sign in with Puter first.');session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='ACCESS ALLOWED';document.getElementById('roleNote').textContent='Puter authenticated';document.getElementById('gateMsg').textContent='Access allowed — Puter account authenticated.';openWorkspace();guardOwners();await bootWorkspace();}catch(e){showDenied(e.message||'Puter sign-in required.')}finally{b.disabled=false;}}
 document.getElementById('signInBtn').onclick=signIn;
 
 const OPENAI_ALIASES={
@@ -113,7 +83,7 @@ $('openaiModelSelect')?.addEventListener('change',()=>{updateModelBadge(selected
 function saveAgentChats(){localStorage.setItem(AGENT_HISTORY_KEY,JSON.stringify(agentChats.slice(0,30)));}
 function newAgentChat(){const id=crypto.randomUUID?crypto.randomUUID():String(Date.now());agentChats.unshift({id,title:'New private chat',model:selectedModel(),messages:[]});agentChats=agentChats.slice(0,30);saveAgentChats();renderAgentHistory();startAgentChat(id);return id;}
 function renderAgentHistory(){const box=$('agentHistory');if(!box)return;box.innerHTML='';agentChats.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='agent-history-item'+(c.id===currentAgentChatId?' active':'');b.textContent=c.title||'Private chat';b.onclick=()=>startAgentChat(c.id);box.appendChild(b);});}
-function startAgentChat(id){const c=agentChats.find(x=>x.id===id)||agentChats[0];if(!c){newAgentChat();return;}currentAgentChatId=c.id;$('agentMessages').innerHTML='';(c.messages\vert{}\vert{}[]).forEach(m=>renderSavedAgentMessage(m.role,m.text));if($('openaiModelSelect')){$('openaiModelSelect').value=c.model\vert{}\vert{}selectedModel();updateModelBadge($('openaiModelSelect').value);}renderAgentHistory();}
+function startAgentChat(id){const c=agentChats.find(x=>x.id===id)||agentChats[0];if(!c){newAgentChat();return;}currentAgentChatId=c.id;$('agentMessages').innerHTML='';(c.messages||[]).forEach(m=>renderSavedAgentMessage(m.role,m.text));if($('openaiModelSelect')){$('openaiModelSelect').value=c.model||selectedModel();updateModelBadge($('openaiModelSelect').value);}renderAgentHistory();}
 function renderSavedAgentMessage(role,text){const el=document.createElement('div');el.className='agent-msg '+(role==='me'?'me':'ai');if(role==='ai')renderAgentRichMessage(el,text);else el.textContent=text;$('agentMessages').appendChild(el);}
 function saveCurrentAgentMessage(role,text){const c=agentChats.find(x=>x.id===currentAgentChatId);if(!c)return;c.messages.push({role,text});if(role==='me'&&c.title==='New private chat')c.title=text.slice(0,44)+(text.length>44?'…':'');c.model=selectedModel();saveAgentChats();renderAgentHistory();}
 function appendAgent(role,text,save=true){const el=document.createElement('div');el.className='agent-msg '+(role==='me'?'me':'ai');if(role==='ai')renderAgentRichMessage(el,text);else el.textContent=text;$('agentMessages').appendChild(el);$('agentMessages').scrollTop=$('agentMessages').scrollHeight;if(save)saveCurrentAgentMessage(role,text);return el;}
@@ -128,7 +98,8 @@ $('agentForm').onsubmit=async e=>{
   if(!text)return;
   if(!currentAgentChatId)newAgentChat();
   appendAgent('me',text);
-  $('agentInput').value='';$('agentRunBtn').disabled=true;
+  $('agentInput').value='';
+  $('agentRunBtn').disabled=true;
   const dots=thinkingDots();
   $('agentMessages').appendChild(dots);
   $('agentMessages').scrollTop=$('agentMessages').scrollHeight;
@@ -138,25 +109,13 @@ $('agentForm').onsubmit=async e=>{
     const modelInfo=selectedAgentModel();
     if(modelInfo.kind==='image'){
       const visualPrompt=`Create one clear educational 16:9 diagram or flowchart for a student. Use concise keywords, short labels, arrows and simple icons. No long paragraphs. Topic/request: ${text}. Make it suitable for study and for the student to rephrase independently. If the request is code or game development, visualize the logic, system architecture, mechanics, or process instead of reproducing long code.`;
-      let rendered=false;
       try{
-        if(window.puter?.ai?.chat){
-          if(!puter.auth.isSignedIn()) await puter.auth.signIn();
-          const vr=await puter.ai.chat(visualPrompt,{model:'gemini-3.1-flash-image-preview',image_config:{aspect_ratio:'16:9',image_size:'1K'},stream:false});
-          const src=vr?.message?.images?.[0]?.image_url?.url || vr?.images?.[0]?.image_url?.url;
-          dots.remove();
-          if(src){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords and labels shown, then rephrase explanations in your own words.');appendAgentImage(src);rendered=true;}
-        }
-      }catch(e){console.warn('Workspace Puter visual failed',e);}
-      if(!rendered){
-        try{
-          const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:visualPrompt,aspectRatio:'16:9',imageSize:'1K'})});
-          const vd=await vr.json().catch(()=>({}));
-          dots.remove();
-          if(vr.ok&&vd.ok&&vd.data){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords and labels shown, then rephrase explanations in your own words.');appendAgentImage(`data:${vd.mimeType||'image/png'};base64,${vd.data}`);rendered=true;}
-          else if(!rendered) appendAgent('ai',vd.message||'Nano Banana 2 is temporarily unavailable. Please try again.');
-        }catch{dots.remove();if(!rendered)appendAgent('ai','Nano Banana 2 is temporarily unavailable. Please try again.');}
-      }
+        const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:visualPrompt,aspectRatio:'16:9',imageSize:'1K'})});
+        const vd=await vr.json().catch(()=>({}));
+        dots.remove();
+        if(vr.ok&&vd.ok&&vd.data){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords and labels shown, then rephrase explanations in your own words.');appendAgentImage(`data:${vd.mimeType||'image/png'};base64,${vd.data}`);}
+        else appendAgent('ai',vd.message||'Nano Banana 2 is temporarily unavailable. Please try again.');
+      }catch{dots.remove();appendAgent('ai','Nano Banana 2 is temporarily unavailable. Please try again.');}
     }else{
       const system=`You are Nimbus 5.7 Lor • Ultra Modified, a private educational workspace agent.
 STYLE: No ** bold markers. Do not use Markdown # headings. Keep responses direct.
@@ -176,30 +135,17 @@ CODING: Always put code in fenced Markdown blocks with a real language identifie
 $('newAgentChat').onclick=()=>newAgentChat();$('clearAgentChats').onclick=()=>{agentChats=[];saveAgentChats();currentAgentChatId=null;$('agentMessages').innerHTML='';newAgentChat();};
 
 function loadFinance(){const d=JSON.parse(localStorage.getItem(FINANCE_KEY)||'{}');$('revenueInput').value=d.revenueUSD??'';$('expenseInput').value=d.expensesUSD??'';$('usdPkrRate').value=d.rate??USD_TO_PKR_DEFAULT;renderFinance();}
-function renderFinance(){const usd=Number($('revenueInput').value\vert{}\vert{}0),exp=Number($('expenseInput').value||0),rate=Number($('usdPkrRate').value\vert{}\vert{}USD_TO_PKR_DEFAULT),revenue=usd*rate,profit=(usd-exp)*rate;$('revenueText').textContent=`PKR ${Math.round(revenue).toLocaleString()}`;$('profitText').textContent=`PKR ${Math.round(profit).toLocaleString()}`;$('marginText').textContent=`${usd?((profit/revenue)*100).toFixed(1):0}% margin`;$('revenueBar').style.width=(revenue?Math.min(100,Math.max(0,profit/revenue*100)):0)+'%';}
-['revenueInput','expenseInput','usdPkrRate'].forEach(id=>$(id).addEventListener('input',renderFinance));$('saveFinance').onclick=()=>{localStorage.setItem(FINANCE_KEY,JSON.stringify({revenueUSD:Number($('revenueInput').value||0),expensesUSD:Number($('expenseInput').value\vert{}\vert{}0),rate:Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT)}));renderFinance();};loadFinance();
+function renderFinance(){const usd=Number($('revenueInput').value||0),exp=Number($('expenseInput').value||0),rate=Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT),revenue=usd*rate,profit=(usd-exp)*rate;$('revenueText').textContent=`PKR ${Math.round(revenue).toLocaleString()}`;$('profitText').textContent=`PKR ${Math.round(profit).toLocaleString()}`;$('marginText').textContent=`${usd?((profit/revenue)*100).toFixed(1):0}% margin`;$('revenueBar').style.width=(revenue?Math.min(100,Math.max(0,profit/revenue*100)):0)+'%';}
+['revenueInput','expenseInput','usdPkrRate'].forEach(id=>$(id).addEventListener('input',renderFinance));$('saveFinance').onclick=()=>{localStorage.setItem(FINANCE_KEY,JSON.stringify({revenueUSD:Number($('revenueInput').value||0),expensesUSD:Number($('expenseInput').value||0),rate:Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT)}));renderFinance();};loadFinance();
 
 async function loadRepoFiles(){if(!isOwner())return;try{const r=await fetch('/api/project-files');const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Could not sync important repo files.');$('fileSelect').innerHTML=(d.files||[]).map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');$('fileCount').textContent=`${(d.files||[]).length} important repo files`;$('fileMsg').textContent=`Synced from ${d.owner}/${d.repo} @ ${d.branch}`;}catch(e){$('fileMsg').textContent=e.message||'Could not sync repo files.';}}
 async function loadFile(path){const safe=String(path||'').replace(/^\/+/, '');if(!safe||safe.includes('..'))throw new Error('Invalid file path.');const r=await fetch('/api/project-file?path='+encodeURIComponent(safe));const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Could not load file.');currentFile={path:d.path,content:d.content};$('fileEditor').value=d.content;$('fileMsg').textContent=`Loaded ${d.path}`;}
-$('loadFile').onclick=async()=>{try{await loadFile($('fileSelect').value);}catch(e){$('fileMsg').textContent=e.message\vert{}\vert{}'Could not load file.';}};$('refreshFiles').onclick=loadRepoFiles;$('saveFile').onclick=()=>{const path=currentFile.path\vert{}\vert{}$('fileSelect').value;const content=$('fileEditor').value;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8'}));a.download=path.split('/').pop();a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('fileMsg').textContent=`Downloaded ${path}. Replace it in Nimbus_CLEAN, then git add, commit and push.`;};
+$('loadFile').onclick=async()=>{try{await loadFile($('fileSelect').value);}catch(e){$('fileMsg').textContent=e.message||'Could not load file.';}};$('refreshFiles').onclick=loadRepoFiles;$('saveFile').onclick=()=>{const path=currentFile.path||$('fileSelect').value;const content=$('fileEditor').value;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8'}));a.download=path.split('/').pop();a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('fileMsg').textContent=`Downloaded ${path}. Replace it in Nimbus_CLEAN, then git add, commit and push.`;};
 
-function readLayout(){const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;$('accentInput').value=d.accent\vert{}\vert{}DEFAULTS.accent;$('radiusInput').value=d.radius||DEFAULTS.radius;$('sidebarInput').value=d.sidebar\vert{}\vert{}DEFAULTS.sidebar;$('densityInput').value=d.density||DEFAULTS.density;return d;}
-function getLayout(){return{accent:$('accentInput').value\vert{}\vert{}DEFAULTS.accent,accent2:DEFAULTS.accent2,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value\vert{}\vert{}286),density:$('densityInput').value||'balanced',font:DEFAULTS.font};}
+function readLayout(){const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;$('accentInput').value=d.accent||DEFAULTS.accent;$('radiusInput').value=d.radius||DEFAULTS.radius;$('sidebarInput').value=d.sidebar||DEFAULTS.sidebar;$('densityInput').value=d.density||DEFAULTS.density;return d;}
+function getLayout(){return{accent:$('accentInput').value||DEFAULTS.accent,accent2:DEFAULTS.accent2,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value||286),density:$('densityInput').value||'balanced',font:DEFAULTS.font};}
 function applyFrameLayout(){const frame=$('sitePreview');if(!frame)return;try{const doc=frame.contentDocument;if(!doc)return;const d=getLayout();doc.documentElement.style.setProperty('--nimbus-accent',d.accent);doc.documentElement.style.setProperty('--nimbus-accent-2',d.accent2);doc.documentElement.style.setProperty('--nimbus-radius',d.radius+'px');doc.body.dataset.nimbusDensity=d.density;doc.body.style.fontFamily=`"${d.font}",Inter,system-ui,sans-serif`;doc.getElementById('__nimbus_preview_badge')?.remove();const badge=doc.createElement('div');badge.id='__nimbus_preview_badge';badge.textContent='LIVE UI PREVIEW';Object.assign(badge.style,{position:'fixed',right:'12px',top:'12px',zIndex:'2147483647',padding:'6px 9px',borderRadius:'999px',background:d.accent,color:'#fff',font:'800 10px Arial'});doc.body.appendChild(badge);}catch(e){console.warn(e);}}
 $('sitePreview')?.addEventListener('load',applyFrameLayout);function saveLayoutLocal(){const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));return d;}$('applyLayout').onclick=()=>{saveLayoutLocal();applyFrameLayout();$('layoutMsg').textContent='Preview updated.';};$('publishLayout').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(saveLayoutLocal(),null,2)],{type:'application/json'}));a.download='site-layout.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('layoutMsg').textContent='Downloaded site-layout.json. Replace it in Nimbus_CLEAN and push main.';};$('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();applyFrameLayout();$('layoutMsg').textContent='Preview reset.';};readLayout();
 
 async function bootWorkspace(){await loadRepoFiles();await loadAgentModels();renderAgentHistory();if(!agentChats.length)newAgentChat();else startAgentChat(agentChats[0].id);}
-if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;
-  // Check on initial automated load as well
-  const allowedOwners=['haadi6228@gmail.com','jollyzmotion@gmail.com'];
-  const userEmail=(u.email||'').trim().toLowerCase();
-  if(!allowedOwners.includes(userEmail)) return;
-
-  session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};
-  document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';
-  document.getElementById('rolePill').textContent='SIGNED IN';
-  document.getElementById('roleNote').textContent='Puter authenticated';
-  openWorkspace();
-  guardOwners();
-  bootWorkspace();
-}).catch(()=>{});}
+if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='ACCESS ALLOWED';document.getElementById('roleNote').textContent='Puter authenticated';openWorkspace();guardOwners();bootWorkspace();}).catch(()=>{});}

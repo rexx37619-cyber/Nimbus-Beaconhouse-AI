@@ -96,8 +96,8 @@ function updateUsage(used){
   const pct=Math.min(100,(state.used/USAGE_LIMIT)*100);
   $('usageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD`;
   $('usageBar').style.width=pct+'%';
-  if($('menuUsageText'))$('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD • resets in ${usageTimeLeft()}`;
-  if($('menuUsageBar'))$('menuUsageBar').style.width=pct+'%';
+  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD • resets in ${usageTimeLeft()}`;
+  if($('menuUsageBar')) $('menuUsageBar').style.width=pct+'%';
 }
 function consumeLocalUsage(){state.used=Math.min(USAGE_LIMIT,state.used+1);updateUsage();}
 
@@ -119,7 +119,8 @@ function renderModels(){
 
 function resetChat(){
   state.messages=[]; state.currentChatId=null;
-  $('messages').innerHTML=''; $('messages').classList.remove('show');$('welcome').classList.remove('hidden'); renderHistory();
+  $('messages').innerHTML=''; $('messages').classList.remove('show');
+  $('welcome').classList.remove('hidden'); renderHistory();
 }
 
 function ensureChat(text){
@@ -185,7 +186,7 @@ function makeAiBubble(text){
 }
 
 function renderMessage(role,text,fileName,scroll=true,animate=false){
-  $('welcome').classList.add('hidden');$('messages').classList.add('show');
+  $('welcome').classList.add('hidden'); $('messages').classList.add('show');
   const d=document.createElement('div'); d.className='message '+role;
   if(role==='ai'){
     const bubble=makeAiBubble(text);
@@ -262,29 +263,44 @@ function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
 function looksLikeSchoolWork(text){const s=String(text||'').toLowerCase();return /(homework|assignment|classwork|worksheet|study|studying|notes|revision|revise|exam|test|quiz|project|school|lesson|chapter|topic|explain|how does|why does|define|difference between|compare|biology|chemistry|physics|math|mathematics|history|geography|computer|programming|coding|python|javascript|html|css|lua|roblox|game|flowchart|diagram|concept map|process|steps)/i.test(s);}
-function makeAutoVisualPrompt(userText,answerText){return `Create one clear student-friendly 16:9 educational infographic/diagram for this schoolwork request. Use concise keywords, short labels, arrows, icons and simple visual structure. Do not use paragraphs. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. Make it suitable for a student to study from and rephrase independently. If it is code or game-development help, visualize the logic, flow, system architecture, mechanics, or steps instead of reproducing long code.`;}
+function makeAutoVisualPrompt(userText,answerText){return `Create one clear, student-friendly 16:9 educational infographic/diagram for this schoolwork request. Use concise keywords, short labels, arrows, icons and simple visual structure. Do not use paragraphs. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. Make it suitable for a student to study from and rephrase independently. If it is code or game-development help, visualize the logic, flow, system architecture, mechanics, or steps instead of reproducing long code.`;}
 async function generateVisual(prompt,meta={}){
   const card=createVisualCard(meta);
   try{
-    if(window.puter?.ai?.chat){
-      if(!puter.auth.isSignedIn()) await puter.auth.signIn();
-      const resp=await puter.ai.chat(prompt,{model:'gemini-3.1-flash-image-preview',image_config:{aspect_ratio:'16:9',image_size:'1K'},stream:false});
-      const src=resp?.message?.images?.[0]?.image_url?.url || resp?.images?.[0]?.image_url?.url;
-      if(src){
-        card.bubble.querySelector('.visual-loading')?.remove();
-        const image=document.createElement('img'); image.className='nimbus-visual-image'; image.alt=`Nimbus ${meta.type||'diagram'}`; image.src=src; card.bubble.appendChild(image);
-        const note=document.createElement('div'); note.className='visual-rephrase-note'; note.textContent='Use the visual labels as study help and rephrase explanations in your own words.'; card.bubble.appendChild(note); $('messages').scrollTop=$('messages').scrollHeight; return true;
-      }
-    }
-  }catch(e){console.warn('Puter image generation failed',e);}
-  try{
     const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,aspectRatio:'16:9',imageSize:'1K'})});
     const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok&&d.data){finishVisualCard(card,d.data,d.mimeType||'image/png',meta);return true;}
-  }catch(e){console.warn('Server visual generation failed',e);}
-  failVisualCard(card); return false;
+    if(r.ok&&d.ok&&d.data){
+      finishVisualCard(card,d.data,d.mimeType||'image/png',meta);
+      return true;
+    }
+    if(window.puter?.ai?.txt2img){
+      try{
+        const img=await puter.ai.txt2img(prompt,{provider:'gemini',model:'gemini-3.1-flash-image',ratio:{w:16,h:9}});
+        const src=typeof img==='string'?img:(img?.url||img?.src||'');
+        if(src){
+          card.bubble.querySelector('.visual-loading')?.remove();
+          const image=document.createElement('img');
+          image.className='nimbus-visual-image';
+          image.alt=`Nimbus ${meta.type||'diagram'}`;
+          image.src=src;
+          card.bubble.appendChild(image);
+          const note=document.createElement('div');
+          note.className='visual-rephrase-note';
+          note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';
+          card.bubble.appendChild(note);
+          $('messages').scrollTop=$('messages').scrollHeight;
+          return true;
+        }
+      }catch(e){console.warn('Puter visual fallback failed',e);}
+    }
+    failVisualCard(card);
+    return false;
+  }catch(e){
+    console.warn('Visual generation failed',e);
+    failVisualCard(card);
+    return false;
+  }
 }
-
 
 async function sendMessage(text){
   const file=state.file;
@@ -309,6 +325,7 @@ async function sendMessage(text){
     }
     r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',educational_id:state.id||'anonymous',model:state.model,attachment})});
     data=await r.json().catch(()=>({}));
+    // The server may report a count when available; the client also maintains a 24-hour per-educational-ID window.
     if(typeof data.used==='number' && data.used>=state.used) updateUsage(data.used);
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
@@ -333,7 +350,8 @@ $('messageInput').addEventListener('input',()=>{const el=$('messageInput');el.st
 $('attachBtn').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`📎 <b>${escapeHtml(f.name)}</b> · ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">×</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
 
-document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('messageInput').value=b.dataset.prompt;$('messageInput').focus()});$('newChat').onclick=resetChat;$('clearChat').onclick=resetChat;$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
+document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('messageInput').value=b.dataset.prompt;$('messageInput').focus()});
+$('newChat').onclick=resetChat;$('clearChat').onclick=resetChat;$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
 
 $('modelPickerBtn').addEventListener('click',e=>{
   e.preventDefault();
@@ -354,26 +372,30 @@ $('modelMenu').addEventListener('click',e=>{
 });
 document.addEventListener('click',e=>{
   if(!$('modelPicker').contains(e.target)){
-    $('modelMenu').classList.add('hidden');$('modelPickerBtn').setAttribute('aria-expanded','false');
+    $('modelMenu').classList.add('hidden');
+    $('modelPickerBtn').setAttribute('aria-expanded','false');
   }
 });
 
-function syncAccount(){const name='Beaconhouse student';$('accountName').textContent=name;$('accountId').textContent=state.id\vert{}\vert{}'Educational ID';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id\vert{}\vert{}'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.id\vert{}\vert{}'Educational ID';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
+function syncAccount(){const name='Beaconhouse student';$('accountName').textContent=name;$('accountId').textContent=state.id||'Educational ID';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.id||'Educational ID';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
 
-$('enterNimbus').onclick=()=>{const id=$('eduId').value.trim();if(!/^\S+@(bh\vert{}beaconite)\.edu\.pk$/i.test(id)){alert('Invalid Educational ID. Use an ID ending in @bh.edu.pk or @beaconite.edu.pk.');return;}state.id=id;localStorage.setItem('nimbus_id',id);({used:state.used,started:state.usageStarted}=readUsageWindow());updateUsage();$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');syncAccount();renderHistory();if(state.chats.length)loadChat(state.chats[0].id)};
+$('enterNimbus').onclick=()=>{const id=$('eduId').value.trim();if(!/^\S+@(bh|beaconite)\.edu\.pk$/i.test(id)){alert('Invalid Educational ID. Use an ID ending in @bh.edu.pk or @beaconite.edu.pk.');return;}state.id=id;localStorage.setItem('nimbus_id',id);({used:state.used,started:state.usageStarted}=readUsageWindow());updateUsage();$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');syncAccount();renderHistory();if(state.chats.length)loadChat(state.chats[0].id)};
 
 $('accountBtn').onclick=$('topAccount').onclick=()=>$('menuModal').classList.remove('hidden');
 $('closeMenu').onclick=()=>$('menuModal').classList.add('hidden');
 $('mobileMenu').onclick=()=>$('sidebar').classList.toggle('open');
 $('desktopSidebarToggle').onclick=()=>{$('sidebar').classList.toggle('collapsed');document.body.classList.toggle('sidebar-hidden');};
 
-$('helpBtn').onclick=()=>openInfo();$('infoBtn').onclick=()=>openInfo();
+$('helpBtn').onclick=()=>openInfo();
+$('infoBtn').onclick=()=>openInfo();
 function openInfo(){$('infoModal').classList.remove('hidden');const grid=$('resourceLinks');grid.innerHTML=RESOURCES.map(([t,u])=>`<a href="${escapeAttr(u)}" target="_blank" rel="noopener noreferrer"><b>${escapeHtml(t)}</b><small>${escapeHtml(u)}</small></a>`).join('');}
-$('closeInfo').onclick=()=>$('infoModal').classList.add('hidden');$('infoModal').addEventListener('click',e=>{if(e.target===$('infoModal'))$('infoModal').classList.add('hidden')});
+$('closeInfo').onclick=()=>$('infoModal').classList.add('hidden');
+$('infoModal').addEventListener('click',e=>{if(e.target===$('infoModal'))$('infoModal').classList.add('hidden')});
 
-$('signOut').onclick=()=>{localStorage.removeItem('nimbus_id');location.reload()};$('ownerBtn').onclick=()=>{$('menuModal').classList.add('hidden');$('ownerModal').classList.remove('hidden');};
+$('signOut').onclick=()=>{localStorage.removeItem('nimbus_id');location.reload()};
+$('ownerBtn').onclick=()=>{$('menuModal').classList.add('hidden');$('ownerModal').classList.remove('hidden');};
 $('closeOwner').onclick=()=>$('ownerModal').classList.add('hidden');
-$('ownerLogin').onclick=async()=>{const email=$('ownerEmail').value.trim();if(!email){$('ownerMsg').textContent='Enter an owner email.';return}$('ownerMsg').textContent='Checking…';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message\vert{}\vert{}'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
+$('ownerLogin').onclick=async()=>{const email=$('ownerEmail').value.trim();if(!email){$('ownerMsg').textContent='Enter an owner email.';return}$('ownerMsg').textContent='Checking…';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
 
 function init(){syncAccount();renderHistory();renderModels();if(state.id){$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');if(state.chats.length)loadChat(state.chats[0].id)}}
 init();
@@ -384,7 +406,8 @@ const PREMIUM_PUBLIC_LABEL='Nimbus 5.7 Lor';
 const PREMIUM_PUBLIC_MODEL='gpt-6-astra';
 let premiumReady=false;
 async function openPremium(){
-  $('premiumModal').classList.remove('hidden');$('premiumStatus').textContent='Checking availability…';
+  $('premiumModal').classList.remove('hidden');
+  $('premiumStatus').textContent='Checking availability…';
   try{
     if(!window.puter) throw new Error('Puter.js unavailable');
     if(!puter.auth.isSignedIn()){
@@ -409,8 +432,11 @@ async function openPremium(){
 function appendPremium(role,text){
   const el=document.createElement('div');el.className='premium-msg '+(role==='me'?'me':'ai');el.textContent=text;$('premiumMessages').appendChild(el);$('premiumMessages').scrollTop=$('premiumMessages').scrollHeight;
 }
-$('premiumModelsBtn').addEventListener('click',openPremium);$('closePremium').addEventListener('click',()=>$('premiumModal').classList.add('hidden'));$('premiumModal').addEventListener('click',e=>{if(e.target===$('premiumModal'))$('premiumModal').classList.add('hidden')});
-$('premiumComposer').addEventListener('submit',async e=>{   e.preventDefault(); const text=$('premiumInput').value.trim(); if(!text)return;
+$('premiumModelsBtn').addEventListener('click',openPremium);
+$('closePremium').addEventListener('click',()=>$('premiumModal').classList.add('hidden'));
+$('premiumModal').addEventListener('click',e=>{if(e.target===$('premiumModal'))$('premiumModal').classList.add('hidden')});
+$('premiumComposer').addEventListener('submit',async e=>{
+  e.preventDefault(); const text=$('premiumInput').value.trim(); if(!text)return;
   appendPremium('me',text); $('premiumInput').value='';
   const wait=document.createElement('div'); wait.className='premium-msg ai'; wait.innerHTML='<span class="premium-thinking"><i></i><i></i><i></i></span>'; $('premiumMessages').appendChild(wait);
   try{
