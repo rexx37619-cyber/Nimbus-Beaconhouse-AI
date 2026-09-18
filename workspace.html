@@ -17,10 +17,9 @@
   <header class="workspace-topbar">
     <div class="brand-wrap">
       <div class="logo-pair"><img src="/assets/nimbus-logo.png" alt="Nimbus"><img class="partner-logo" src="/assets/beaconhouse-logo.png" alt="Beaconhouse"></div>
-      <div><b>NIMBUS PRIVATE WORKSPACE</b><span>Owner-only control center</span></div>
+      <div><b>NIMBUS PRIVATE WORKSPACE</b><span>Puter-authenticated control center</span></div>
     </div>
     <div class="top-actions">
-      <span id="securityBadge" class="security-badge">SECURITY CHECK: WAITING</span>
       <a href="/" class="back-btn">Back to Nimbus</a>
       <button id="signInBtn" class="primary-btn">Sign in with Puter</button>
     </div>
@@ -29,26 +28,22 @@
   <main id="gate" class="gate">
     <div class="gate-card">
       <div class="gate-brand"><img src="/assets/nimbus-logo.png" alt="Nimbus"><img src="/assets/chatgpt-logo.png" alt="OpenAI"></div>
-      <div class="eyebrow">PRIVATE • TWO PUTER OWNERS • NOT INDEXED</div>
+      <div class="eyebrow">PRIVATE WORKSPACE • PUTER SIGN-IN</div>
       <h1>Nimbus Workspace</h1>
-      <p>Access is limited to the two approved Puter accounts: <b>neat_ocean_262513</b> and <b>peaceful_balloon_864250</b>. Their owner emails are also allowlisted on the Vercel API.</p>
-      <div class="check-grid">
-        <div><b>01</b><span>Puter identity</span></div><div><b>02</b><span>Server owner check</span></div><div><b>03</b><span>Owner tools unlock</span></div>
-      </div>
-      <div id="gateMsg" class="gate-msg">No workspace session yet.</div>
+      <p>Sign in with Puter to open the workspace. No extra security verification is shown here.</p>
+      <div id="gateMsg" class="gate-msg">Sign in with Puter to continue.</div>
     </div>
   </main>
 
   <main id="workspace" class="workspace hidden">
     <aside class="workspace-nav">
-      <div class="profile-card"><div id="rolePill" class="role-pill">ACCESS ALLOWED</div><b id="userEmail">account</b><span id="roleNote">Owner-only access</span></div>
+      <div class="profile-card"><div id="rolePill" class="role-pill">ACCESS ALLOWED</div><b id="userEmail">Puter account</b><span id="roleNote">Puter authenticated</span></div>
       <button class="nav-btn active" data-tab="overview">⌂ Overview</button>
       <button class="nav-btn" data-tab="agent">✦ AI agent</button>
       <button class="nav-btn" data-tab="revenue">◫ Revenue & profit</button>
       <button class="nav-btn" data-tab="files">▣ File editor</button>
       <button class="nav-btn" data-tab="ui">◈ UI layout studio</button>
-      <button class="nav-btn" data-tab="security">◇ Security</button>
-      <div class="nav-foot"><span>Workspace v2</span><span>Vercel + Puter</span></div>
+            <div class="nav-foot"><span>Workspace v2</span><span>Vercel + Puter</span></div>
     </aside>
 
     <section class="content">
@@ -63,7 +58,7 @@
           <div class="tile"><span>Agent access</span><b>Puter.js</b></div>
           <div class="tile"><span>Workspace scope</span><b>2 owners only</b></div>
         </div>
-        <div class="notice"><b>Puter access</b><p>Workspace access uses Puter sign-in only. Once your Puter account is authenticated, the workspace shows ACCESS ALLOWED.</p></div>
+        <div class="notice"><b>Puter access</b><p>Workspace access uses Puter sign-in only. After successful Puter authentication, the workspace shows ACCESS ALLOWED and opens.</p></div>
       </div>
 
       <div id="tab-agent" class="tab-panel">
@@ -109,11 +104,7 @@
         <div id="layoutMsg" class="small-note"></div>
       </div>
 
-      <div id="tab-security" class="tab-panel">
-        <div class="section-head"><div><div class="eyebrow">ACCESS CONTROL</div><h2>Security check</h2></div><div id="securityRoleTag" class="model-tag">ACCESS ALLOWED</div></div>
-        <div class="security-list"><div><span>Robots directive</span><b>noindex / nofollow</b></div><div><span>Puter authentication</span><b id="puterState">Checking…</b></div><div><span>Workspace access</span><b id="serverState">Checking…</b></div><div><span>Granted permissions</span><b id="permissionState">Checking…</b></div></div>
-        <div class="notice warning"><b>Security note</b><p>Noindex is not a lock. The actual gate is Puter sign-in plus the server-side owner allowlist. Keep owner emails and API keys in Vercel environment variables, never in the repository.</p></div>
-      </div>
+      
     </section>
   </main>
 </div>

@@ -6,45 +6,26 @@ function parseBody(req) {
 }
 
 function extractImage(data) {
-  if (data?.output_image?.data) {
-    return {
-      data: data.output_image.data,
-      mimeType: data.output_image.mime_type || 'image/png',
-      text: String(data?.output_text || '').trim()
-    };
-  }
-  const steps = Array.isArray(data?.steps) ? data.steps : [];
-  for (let i = steps.length - 1; i >= 0; i -= 1) {
-    const content = Array.isArray(steps[i]?.content) ? steps[i].content : [];
-    for (let j = content.length - 1; j >= 0; j -= 1) {
-      const part = content[j];
-      if (part?.type === 'image' && part?.data) {
-        const text = steps.flatMap(s => Array.isArray(s?.content) ? s.content : [])
-          .filter(p => p?.type === 'text' && typeof p.text === 'string')
-          .map(p => p.text)
-          .join('\n')
-          .trim();
-        return { data: part.data, mimeType: part.mime_type || 'image/png', text };
-      }
-    }
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  for (const part of parts) {
+    const blob = part?.inlineData || part?.inline_data;
+    if (blob?.data) return { data: blob.data, mimeType: blob.mimeType || blob.mime_type || 'image/png' };
   }
   return null;
 }
 
-async function callNanoBanana2(apiKey, prompt, aspectRatio = '16:9', imageSize = '1K') {
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+async function generate(apiKey, prompt, aspectRatio, imageSize) {
+  const body = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseModalities: ['IMAGE'],
+      responseFormat: { image: { aspectRatio, imageSize } }
+    }
+  };
+  const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-image:generateContent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      model: 'gemini-3.1-flash-image',
-      input: [{ type: 'text', text: prompt }],
-      response_format: {
-        type: 'image',
-        mime_type: 'image/png',
-        aspect_ratio: aspectRatio,
-        image_size: imageSize
-      }
-    })
+    body: JSON.stringify(body)
   });
   const data = await response.json().catch(() => ({}));
   return { response, data };
@@ -55,53 +36,19 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(503).json({ ok: false, message: 'Visual generation is not configured.' });
-
   try {
     const body = parseBody(req);
     const prompt = String(body.prompt || '').trim();
     if (!prompt) return res.status(400).json({ ok: false, message: 'No visual prompt was provided.' });
-
-    const { response, data } = await callNanoBanana2(apiKey, prompt, String(body.aspectRatio || '16:9'), String(body.imageSize || '1K'));
-    if (!response.ok) {
-      const reason = String(data?.error?.message || '').toLowerCase();
-      const message = response.status === 402 || reason.includes('billing') || reason.includes('paid')
-        ? 'Visual generation access is not enabled for this Gemini API key.'
-        : 'Nano Banana 2 is temporarily unavailable.';
-      return res.status(response.status === 402 ? 402 : 502).json({ ok: false, message });
-    }
-
+    const aspectRatio = ['1:1','4:3','3:4','16:9','9:16','21:9','3:2','2:3','4:5','5:4'].includes(String(body.aspectRatio || '16:9')) ? String(body.aspectRatio || '16:9') : '16:9';
+    const imageSize = ['512','1K','2K','4K'].includes(String(body.imageSize || '1K')) ? String(body.imageSize || '1K') : '1K';
+    const { response, data } = await generate(apiKey, prompt, aspectRatio, imageSize);
     const image = extractImage(data);
-    if (image?.data) {
-      return res.status(200).json({ ok: true, mimeType: image.mimeType, data: image.data, text: image.text });
-    }
-
-    // Fallback to the standard Gemini Generate Content endpoint using the same
-    // Nano Banana 2 model and image-only response modality.
-    const fallbackResponse = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ['IMAGE'] }
-        })
-      }
-    );
-    const fallbackData = await fallbackResponse.json().catch(() => ({}));
-    const parts = fallbackData?.candidates?.[0]?.content?.parts || [];
-    const inline = parts.find(part => part?.inlineData?.data || part?.inline_data?.data);
-    if (fallbackResponse.ok && inline) {
-      const blob = inline.inlineData || inline.inline_data;
-      return res.status(200).json({
-        ok: true,
-        mimeType: blob.mimeType || blob.mime_type || 'image/png',
-        data: blob.data,
-        text: ''
-      });
-    }
-
-    return res.status(502).json({ ok: false, message: 'Nano Banana 2 returned no image.' });
+    if (response.ok && image) return res.status(200).json({ ok: true, mimeType: image.mimeType, data: image.data });
+    const reason = String(data?.error?.message || '').toLowerCase();
+    if (response.status === 401 || response.status === 403) return res.status(502).json({ ok: false, message: 'Image generation access is not enabled for this API key.' });
+    if (reason.includes('billing') || reason.includes('quota')) return res.status(402).json({ ok: false, message: 'Image generation quota is unavailable right now.' });
+    return res.status(502).json({ ok: false, message: 'Nano Banana 2 is temporarily unavailable.' });
   } catch {
     return res.status(502).json({ ok: false, message: 'Nano Banana 2 is temporarily unavailable.' });
   }

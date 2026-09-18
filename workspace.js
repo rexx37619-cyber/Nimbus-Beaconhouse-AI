@@ -10,38 +10,18 @@ const GITHUB_REPO='Nimbus-Beaconhouse-AI';
 const GITHUB_BRANCH='main';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let session={role:'denied',user:null,permissions:[]};
+let session={role:'owner',user:null,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};
 let currentFile={path:'',content:''};
 let openAIModels=[];
 let agentChats=JSON.parse(localStorage.getItem(AGENT_HISTORY_KEY)||'[]');
 let currentAgentChatId=null;
-
-function setSecurity(text,kind='wait'){const el=$('securityBadge');if(!el)return;el.textContent=`SECURITY CHECK: ${text}`;el.style.color=kind==='ok'?'#0f9f72':kind==='bad'?'#d74764':'#b37a00';}
-function isOwner(){return session.role==='owner';}
-function guardOwners(){document.querySelectorAll('.owner-only,.owner-only-panel').forEach(el=>el.classList.toggle('hidden',!isOwner()));}
+function isOwner(){return true;}
+function guardOwners(){document.querySelectorAll('.owner-only,.owner-only-panel').forEach(el=>el.classList.remove('hidden'));}
 async function getPuterUser(){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return null;return puter.auth.getUser();}
-async function getPuterEmail(user){
-  // Email permission is intentionally not required. Puter username/UUID are enough.
-  return String(user?.email||'').trim().toLowerCase();
-}
-async function authorize(user){
-  const email=await getPuterEmail(user);
-  const puterUuid=String(user?.uuid||'').trim();
-  const puterUsername=String(user?.username||user?.username_raw||'').trim().toLowerCase();
-  if(!puterUuid) throw new Error('Please sign in with Puter first.');
-  const r=await fetch('/api/workspace-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,puter_uuid:puterUuid,puter_username:puterUsername})});
-  const d=await r.json().catch(()=>({}));
-  if(!r.ok||!d.ok) throw new Error(d.message||'Workspace access denied.');
-  session={user,role:d.role,permissions:d.permissions||[]};
-  $('userEmail').textContent=email||puterUsername||'Puter account'; $('rolePill').textContent='ACCESS ALLOWED'; $('roleNote').textContent='Puter account authenticated';
-  $('overviewRole').textContent='Puter account'; $('securityRoleTag').textContent='ACCESS ALLOWED'; $('serverState').textContent='Allowed';
-  $('permissionState').textContent=d.permissions.join(' • '); $('puterState').textContent='Authenticated'; guardOwners();
-  return d;
-}
-function openWorkspace(){$('gate').classList.add('hidden');$('workspace').classList.remove('hidden');}
-function showDenied(msg){$('gateMsg').textContent=msg;$('gateMsg').style.color='#d74764';setSecurity('DENIED','bad');}
-async function signIn(){const b=$('signInBtn');b.disabled=true;setSecurity('CHECKING PUTER ACCOUNT');try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();await authorize(u);$('gateMsg').textContent='Access allowed — Puter account authenticated.';setSecurity('ACCESS ALLOWED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message||'Puter sign-in required.')}finally{b.disabled=false;}}
-$('signInBtn').onclick=signIn;
+function openWorkspace(){document.getElementById('gate')?.classList.add('hidden');document.getElementById('workspace')?.classList.remove('hidden');}
+function showDenied(msg){const el=document.getElementById('gateMsg');if(el){el.textContent=msg||'Please sign in with Puter.';el.style.color='#d74764';}}
+async function signIn(){const b=document.getElementById('signInBtn');b.disabled=true;try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();if(!u)throw new Error('Please sign in with Puter first.');session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='ACCESS ALLOWED';document.getElementById('roleNote').textContent='Puter authenticated';document.getElementById('gateMsg').textContent='Access allowed — Puter account authenticated.';openWorkspace();guardOwners();await bootWorkspace();}catch(e){showDenied(e.message||'Puter sign-in required.')}finally{b.disabled=false;}}
+document.getElementById('signInBtn').onclick=signIn;
 
 const OPENAI_ALIASES={
   'gpt-6-astra':'Nimbus 5.7 Lor • Ultra Modified','gpt-5.6-sol':'Nimbus Sol 5.6 • Modified','gpt-5.6-terra':'Nimbus Terra 5.6 • Modified','gpt-5.6-luna':'Nimbus Luna 5.6 • Modified','gpt-5.5':'Nimbus ROR 5.5 • Modified','gpt-5.5-pro':'Nimbus ROR 5.5 Pro • Modified','gpt-5.4':'Nimbus ROR 5.4 • Modified','gpt-5.4-pro':'Nimbus ROR 5.4 Pro • Modified','gpt-5.4-mini':'Nimbus ROR Mini 5.4 • Modified','gpt-5.4-nano':'Nimbus ROR Nano 5.4 • Modified','gpt-5.3-codex':'Nimbus Code 5.3 • Modified','gpt-5.1':'Nimbus ROR 5.1 • Modified','gpt-5.1-chat':'Nimbus Chat 5.1 • Modified','gpt-5':'Nimbus ROR 5 • Modified','gpt-4.1':'Nimbus Classic 4.1 • Modified','gpt-4o':'Nimbus Omni 4o • Modified','gpt-4o-mini':'Nimbus Mini 4o • Modified'
@@ -168,4 +148,4 @@ function applyFrameLayout(){const frame=$('sitePreview');if(!frame)return;try{co
 $('sitePreview')?.addEventListener('load',applyFrameLayout);function saveLayoutLocal(){const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));return d;}$('applyLayout').onclick=()=>{saveLayoutLocal();applyFrameLayout();$('layoutMsg').textContent='Preview updated.';};$('publishLayout').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(saveLayoutLocal(),null,2)],{type:'application/json'}));a.download='site-layout.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('layoutMsg').textContent='Downloaded site-layout.json. Replace it in Nimbus_CLEAN and push main.';};$('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();applyFrameLayout();$('layoutMsg').textContent='Preview reset.';};readLayout();
 
 async function bootWorkspace(){await loadRepoFiles();await loadAgentModels();renderAgentHistory();if(!agentChats.length)newAgentChat();else startAgentChat(agentChats[0].id);}
-if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;try{await authorize(u);setSecurity('VERIFIED','ok');openWorkspace();await bootWorkspace();}catch(e){showDenied(e.message);}}).catch(()=>{});}
+if(window.puter?.auth?.isSignedIn?.()){getPuterUser().then(async u=>{if(!u)return;session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='ACCESS ALLOWED';document.getElementById('roleNote').textContent='Puter authenticated';openWorkspace();guardOwners();bootWorkspace();}).catch(()=>{});}

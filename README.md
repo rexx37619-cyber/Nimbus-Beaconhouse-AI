@@ -1,23 +1,13 @@
-# Nimbus — Vercel build
+# Nimbus 5.7 Lor — Image Interface + Puter-Only Workspace
 
-Current deployment target: Vercel. The repository uses root `api/` Node.js functions and static HTML/CSS/JS.
+This build is prepared for the Vercel deployment used by Nimbus.
 
-## Core environment variables
-- `GEMINI_API_KEY` — public Nimbus chat + Nano Banana 2 image generation.
-- `OWNER_EMAILS` — `haadi6228@gmail.com,jollyzmotion@gmail.com`
-- `OWNER_PUTER_USERNAMES` — optional; defaults to `neat_ocean_262513,peaceful_balloon_864250`
-- `NIMBUS_DAILY_LIMIT` — default 1500
-
-Do not add `GITHUB_TOKEN`.
-
-## Workspace
-Private workspace access is limited to the two approved Puter usernames and owner emails. There is no worker role.
-
-## Visuals
-Nano Banana 2 uses Google Gemini 3.1 Flash Image (`gemini-3.1-flash-image`) through `/api/visual`. Study-help requests can automatically receive a 16:9 visual diagram/flowchart alongside keyword-focused text.
-
-## Academic response mode
-Nimbus is instructed to provide keywords, factual points, structure, labels and visual support rather than polished submission-ready school prose. When asked to rewrite, it says the student must rephrase it themselves and then supplies keywords and structure.
-
-## Model/agent UI
-The public site and private workspace use dropdown-based model selection, code blocks with language labels, copy buttons and previous-chat history.
+Changes in this build:
+- Puter sign-in is the only workspace gate. No server-side owner allowlist is called by the workspace UI.
+- The old security-check interface is removed from the workspace navigation and gate.
+- Successful Puter authentication displays ACCESS ALLOWED and opens the workspace.
+- Nano Banana 2 visual generation uses the current Gemini 3.1 Flash Image Generate Content API, with a Puter image-generation fallback on the public site.
+- Schoolwork/diagram/flowchart requests automatically show a dedicated visual card with a loading-dot interface and then the generated image.
+- Raw [NIMBUS_VISUAL] marker text is removed from student-facing replies.
+- Normal Nimbus text is cleaned to remove Markdown ** emphasis and heading # markers.
+- Code remains in fenced language-labelled code blocks.

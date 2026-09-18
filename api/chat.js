@@ -40,6 +40,15 @@ ERROR STYLE:
 - Never expose provider errors, stack traces or API diagnostics.
 - If a model path fails, give a short neutral answer and invite the user to retry.
 `;
+
+function cleanNimbusText(text) {
+  return String(text || '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/^\s*#{1,6}\s+/gm, '')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .trim();
+}
+
 function stripVisual(text) {
   const source = String(text || '');
   const match = source.match(VISUAL_MARKER);
@@ -94,7 +103,7 @@ export default async function handler(req, res) {
         if (response.ok) {
           const raw = (data?.candidates?.[0]?.content?.parts || []).filter(p => typeof p.text === 'string').map(p => p.text).join('') || 'I’m ready. What would you like to learn?';
           const parsed = stripVisual(raw);
-          return res.status(200).json({ reply: parsed.text, visual: parsed.visual, model: body?.model || 'ror', limit: Number(process.env.NIMBUS_DAILY_LIMIT || 1500) });
+          return res.status(200).json({ reply: cleanNimbusText(parsed.text), visual: parsed.visual, model: body?.model || 'ror', limit: Number(process.env.NIMBUS_DAILY_LIMIT || 1500) });
         }
         lastError = data?.error?.message || `HTTP ${response.status}`;
         if (!(response.status === 429 || response.status >= 500)) break;
