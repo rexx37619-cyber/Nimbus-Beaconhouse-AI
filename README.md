@@ -78,3 +78,6 @@ Build command: none
 Build output directory: `.`
 
 The Pages project should detect the `functions/` directory automatically. Keep `_routes.json` in the deployed root so only `/api/*` invokes Functions.
+
+## Vercel deployment
+This version uses Vercel Functions in `api/*.js`. Set Framework Preset to Other, leave Build Command empty, and deploy the repository root.
