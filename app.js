@@ -263,7 +263,7 @@ function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
 function looksLikeSchoolWork(text){const s=String(text||'').toLowerCase();return /(homework|assignment|classwork|worksheet|study|studying|notes|revision|revise|exam|test|quiz|project|school|lesson|chapter|topic|explain|how does|why does|define|difference between|compare|biology|chemistry|physics|math|mathematics|history|geography|computer|programming|coding|python|javascript|html|css|lua|roblox|game|flowchart|diagram|concept map|process|steps)/i.test(s);}
-function makeAutoVisualPrompt(userText,answerText){return `Create one clear, student-friendly 16:9 educational infographic/diagram for this schoolwork request. Use concise keywords, short labels, arrows, icons and simple visual structure. Do not use paragraphs. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. Make it suitable for a student to study from and rephrase independently. If it is code or game-development help, visualize the logic, flow, system architecture, mechanics, or steps instead of reproducing long code.`;}
+function makeAutoVisualPrompt(userText,answerText){return `Create a polished professional 16:9 educational visual for this schoolwork request. Make it realistic, visually rich, colorful, presentation-quality, with meaningful subject imagery, icons, clear hierarchy, varied shapes, depth/lighting, clean arrows and short readable labels. Do not make a plain text-only diagram or a generic set of boxes. Use concise keywords rather than paragraphs. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. If it is code or game-development help, visualize the logic, system architecture, mechanics, or steps instead of reproducing long code.`;}
 async function generateVisual(prompt,meta={}){
   const card=createVisualCard(meta);
   try{
@@ -272,26 +272,6 @@ async function generateVisual(prompt,meta={}){
     if(r.ok&&d.ok&&d.data){
       finishVisualCard(card,d.data,d.mimeType||'image/png',meta);
       return true;
-    }
-    if(window.puter?.ai?.txt2img){
-      try{
-        const img=await puter.ai.txt2img(prompt,{provider:'gemini',model:'gemini-3.1-flash-image',ratio:{w:16,h:9}});
-        const src=typeof img==='string'?img:(img?.url||img?.src||'');
-        if(src){
-          card.bubble.querySelector('.visual-loading')?.remove();
-          const image=document.createElement('img');
-          image.className='nimbus-visual-image';
-          image.alt=`Nimbus ${meta.type||'diagram'}`;
-          image.src=src;
-          card.bubble.appendChild(image);
-          const note=document.createElement('div');
-          note.className='visual-rephrase-note';
-          note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';
-          card.bubble.appendChild(note);
-          $('messages').scrollTop=$('messages').scrollHeight;
-          return true;
-        }
-      }catch(e){console.warn('Puter visual fallback failed',e);}
     }
     failVisualCard(card);
     return false;
