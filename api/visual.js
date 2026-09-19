@@ -5,17 +5,16 @@ function parseBody(req) {
   return req.body || {};
 }
 
-function extractInteractionImage(data) {
-  if (data?.output_image?.data) {
-    return {
-      data: data.output_image.data,
-      mimeType: data.output_image.mime_type || data.output_image.mimeType || 'image/png',
-    };
-  }
-  for (const step of Array.isArray(data?.steps) ? data.steps : []) {
-    for (const block of Array.isArray(step?.content) ? step.content : []) {
-      if (block?.type === 'image' && block?.data) {
-        return { data: block.data, mimeType: block.mime_type || block.mimeType || 'image/png' };
+function extractImage(data) {
+  const parts = data?.candidates?.[0]?.content?.parts;
+  if (Array.isArray(parts)) {
+    for (const part of parts) {
+      const blob = part?.inlineData || part?.inline_data;
+      if (blob?.data) {
+        return {
+          data: blob.data,
+          mimeType: blob.mimeType || blob.mime_type || 'image/png',
+        };
       }
     }
   }
@@ -23,60 +22,107 @@ function extractInteractionImage(data) {
 }
 
 async function generateImage(apiKey, prompt, aspectRatio, imageSize) {
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+  const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-image:generateContent', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
       'x-goog-api-key': apiKey,
     },
     body: JSON.stringify({
-      model: 'gemini-3.1-flash-image',
-      input: prompt,
-      response_format: {
-        type: 'image',
-        mime_type: 'image/png',
-        aspect_ratio: aspectRatio,
-        image_size: imageSize,
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseModalities: ['IMAGE'],
+        responseFormat: {
+          image: {
+            aspectRatio,
+            imageSize,
+          },
+        },
       },
     }),
   });
+
   const data = await response.json().catch(() => ({}));
-  return { response, data, image: extractInteractionImage(data) };
+  return { response, data, image: extractImage(data) };
 }
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(503).json({ ok: false, code: 'missing_key', message: 'Visual generation is not configured.' });
+  if (!apiKey) {
+    return res.status(503).json({
+      ok: false,
+      code: 'missing_key',
+      message: 'Visual generation is not configured.',
+    });
+  }
 
   try {
     const body = parseBody(req);
     const rawPrompt = String(body.prompt || '').trim();
-    const prompt = `${rawPrompt}\n\nVisual quality direction: Make the result professional and realistic, like a high-end educational poster, infographic, or diagram designed by a professional visual designer. Use realistic subject imagery or polished 3D/illustrated elements, strong color, depth, lighting, clean composition, accurate visual hierarchy, meaningful icons, real connected flowchart structures, short readable labels, and a finished presentation-quality look. Do not produce a plain white text sheet, simple arrows with labels, generic box-only diagrams, clip-art-like minimalism, or long paragraphs. The visual itself should communicate the topic through imagery, structure, color, and spatial relationships.`;
-    if (!prompt) return res.status(400).json({ ok: false, code: 'bad_request', message: 'No visual prompt was provided.' });
-    const allowedRatios = new Set(['1:1','4:3','3:4','16:9','9:16','21:9','3:2','2:3','4:5','5:4','1:4','4:1','1:8','8:1']);
-    const aspectRatio = allowedRatios.has(String(body.aspectRatio || '16:9')) ? String(body.aspectRatio || '16:9') : '16:9';
-    const imageSize = new Set(['512','2K','2K','4K']).has(String(body.imageSize || '2K')) ? String(body.imageSize || '2K') : '2K';
+    if (!rawPrompt) {
+      return res.status(400).json({ ok: false, code: 'bad_request', message: 'No visual prompt was provided.' });
+    }
+
+    const prompt = `${rawPrompt}
+
+VISUAL QUALITY: Create a professional, realistic, polished educational visual or poster. Use rich coordinated color, realistic or high-quality 3D/illustrated subject imagery, depth, lighting, texture, meaningful icons, strong hierarchy, clean composition, accurate connected flowchart structures, and short readable labels. Make it look like a professionally designed school infographic or premium educational poster, not a plain text sheet. Avoid generic white boxes, simple arrow-and-text diagrams, clip-art minimalism, and long paragraphs. Use the image itself to communicate the topic visually.`;
+
+    const allowedRatios = new Set([
+      '1:1','4:3','3:4','16:9','9:16','21:9','3:2','2:3','4:5','5:4','1:4','4:1','1:8','8:1'
+    ]);
+    const aspectRatio = allowedRatios.has(String(body.aspectRatio || '16:9'))
+      ? String(body.aspectRatio || '16:9')
+      : '16:9';
+    const imageSize = new Set(['512','1K','2K','4K']).has(String(body.imageSize || '2K'))
+      ? String(body.imageSize || '2K')
+      : '2K';
 
     const result = await generateImage(apiKey, prompt, aspectRatio, imageSize);
     if (result.response.ok && result.image) {
-      return res.status(200).json({ ok: true, mimeType: result.image.mimeType, data: result.image.data, model: 'gemini-3.1-flash-image' });
+      return res.status(200).json({
+        ok: true,
+        mimeType: result.image.mimeType,
+        data: result.image.data,
+        model: 'gemini-3.1-flash-image',
+      });
     }
 
     const apiMessage = String(result.data?.error?.message || '');
     const lower = apiMessage.toLowerCase();
     const status = result.response.status;
+
     if (status === 401 || status === 403 || /permission|unauthorized|forbidden|not enabled|not allowed/.test(lower)) {
-      return res.status(502).json({ ok: false, code: 'model_access', message: 'Nano Banana 2 image generation is not enabled for this Gemini API key/project.' });
+      return res.status(502).json({
+        ok: false,
+        code: 'model_access',
+        message: 'Nano Banana 2 image generation is not enabled for this Gemini API key/project.',
+      });
     }
     if (status === 429 || /quota|resource exhausted|rate limit|billing|payment|limit: 0/.test(lower)) {
-      return res.status(429).json({ ok: false, code: 'quota_or_billing', message: 'Nano Banana 2 is unavailable on this Gemini API project right now.' });
+      return res.status(429).json({
+        ok: false,
+        code: 'quota_or_billing',
+        message: 'Nano Banana 2 is unavailable on this Gemini API project right now.',
+      });
     }
-    return res.status(502).json({ ok: false, code: 'provider_error', message: 'Nano Banana 2 image generation was rejected by the Gemini API.' });
+
+    return res.status(502).json({
+      ok: false,
+      code: 'provider_error',
+      message: 'Nano Banana 2 image generation was rejected by the Gemini API.',
+      detail: apiMessage.slice(0, 260),
+    });
   } catch (error) {
     console.error('Visual generation error:', error);
-    return res.status(502).json({ ok: false, code: 'server_error', message: 'The visual generator is temporarily unavailable.' });
+    return res.status(502).json({
+      ok: false,
+      code: 'server_error',
+      message: 'The visual generator is temporarily unavailable.',
+    });
   }
 }

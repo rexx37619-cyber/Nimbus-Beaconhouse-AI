@@ -4,6 +4,9 @@ const MODELS={
   'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams • Flowcharts • Visuals'}
 };
 
+const PUTER_OWNER_USERNAMES=new Set(['neat_ocean_262513','peaceful_balloon_864250']);
+const PUTER_OWNER_LABELS={neat_ocean_262513:'Haadi',peaceful_balloon_864250:'Friend'};
+
 const RESOURCES=[
   ['Beaconhouse main site','https://www.beaconhouse.net/'],
   ['About Beaconhouse','https://www.beaconhouse.net/about-us/'],
@@ -444,3 +447,69 @@ $('premiumComposer').addEventListener('submit',async e=>{
     wait.textContent=typeof msg==='string'?msg:JSON.stringify(msg,null,2);
   }catch(err){wait.textContent='Nimbus 5.7 Lor is temporarily busy. Please try again.'; console.error(err)}
 });
+
+
+function showWorkspace(user){
+  const username=String(user?.username||user?.name||'').trim();
+  $('gate').classList.add('hidden');
+  $('workspace').classList.remove('hidden');
+  $('rolePill').textContent='ACCESS ALLOWED';
+  $('roleNote').textContent='Puter authenticated';
+  $('userEmail').textContent=username?`Puter: ${PUTER_OWNER_LABELS[username]||username}`:'Puter account';
+  $('gateMsg').textContent='Access accepted.';
+}
+
+async function signInToWorkspace(){
+  const msg=$('gateMsg');
+  msg.textContent='Opening Puter sign-in…';
+  try{
+    if(!window.puter) throw new Error('Puter.js unavailable');
+    if(!puter.auth.isSignedIn()){
+      await puter.auth.signIn({attempt_temp_user_creation:false, request_auth:true});
+    }
+    const user=await puter.auth.getUser();
+    const username=String(user?.username||user?.name||'').trim();
+    if(!PUTER_OWNER_USERNAMES.has(username)){
+      msg.textContent='Puter account signed in, but this workspace is currently enabled only for the two configured owner accounts.';
+      return;
+    }
+    showWorkspace(user);
+    await loadAgentModels();
+  }catch(err){
+    console.error('Workspace sign-in failed',err);
+    msg.textContent=err?.msg||'Puter sign-in could not be completed. Please click Sign in with Puter again.';
+  }
+}
+
+async function bootWorkspace(){
+  try{
+    if(!window.puter || !puter.auth.isSignedIn()) return;
+    const user=await puter.auth.getUser();
+    const username=String(user?.username||user?.name||'').trim();
+    if(PUTER_OWNER_USERNAMES.has(username)){
+      showWorkspace(user);
+      await loadAgentModels();
+    }
+  }catch(err){ console.warn('Workspace auto-auth check failed',err); }
+}
+
+$('signInBtn')?.addEventListener('click', signInToWorkspace);
+bootWorkspace();
+
+
+async function loadAgentModels(){
+  const select=$('openaiModelSelect');
+  if(!select||!window.puter)return;
+  const desired=[
+    {label:'Nimbus 5.7 Lor • Ultra Modified',model:'openai/gpt-6-astra'},
+    {label:'Nimbus Fable 5.1 • Ultra Modified',model:'anthropic/claude-fable-5-1'}
+  ];
+  let available=[];
+  try{ available=await puter.ai.listModels(); }catch{}
+  select.innerHTML='';
+  for(const d of desired){
+    const found=available.find(m=>String(m.id||'').toLowerCase()===d.model.toLowerCase());
+    const o=document.createElement('option');
+    o.value=d.model;o.textContent=found?d.label:`${d.label} (not exposed)`;o.disabled=!found;select.appendChild(o);
+  }
+}
