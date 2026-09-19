@@ -273,27 +273,9 @@ async function generateVisual(prompt,meta={}){
       finishVisualCard(card,d.data,d.mimeType||'image/png',meta);
       return true;
     }
-    if(window.puter?.ai?.txt2img){
-      try{
-        const img=await puter.ai.txt2img(prompt,{provider:'gemini',model:'gemini-3.1-flash-image',ratio:{w:16,h:9}});
-        const src=typeof img==='string'?img:(img?.url||img?.src||'');
-        if(src){
-          card.bubble.querySelector('.visual-loading')?.remove();
-          const image=document.createElement('img');
-          image.className='nimbus-visual-image';
-          image.alt=`Nimbus ${meta.type||'diagram'}`;
-          image.src=src;
-          card.bubble.appendChild(image);
-          const note=document.createElement('div');
-          note.className='visual-rephrase-note';
-          note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';
-          card.bubble.appendChild(note);
-          $('messages').scrollTop=$('messages').scrollHeight;
-          return true;
-        }
-      }catch(e){console.warn('Puter visual fallback failed',e);}
-    }
-    failVisualCard(card);
+    const message=d?.message||'Nano Banana 2 is temporarily unavailable.';
+    const load=card.bubble.querySelector('.visual-loading');
+    if(load){load.innerHTML=`<div class="visual-fallback">${escapeHtml(message)}</div>`;load.classList.add('visual-error');}
     return false;
   }catch(e){
     console.warn('Visual generation failed',e);

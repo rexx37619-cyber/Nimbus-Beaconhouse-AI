@@ -11,3 +11,5 @@ Changes in this build:
 - Raw [NIMBUS_VISUAL] marker text is removed from student-facing replies.
 - Normal Nimbus text is cleaned to remove Markdown ** emphasis and heading # markers.
 - Code remains in fenced language-labelled code blocks.
+
+- Public visual generation uses the Gemini API key directly; no Puter sign-in is required for images.

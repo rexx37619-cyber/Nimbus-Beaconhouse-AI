@@ -20,7 +20,7 @@ function guardOwners(){document.querySelectorAll('.owner-only,.owner-only-panel'
 async function getPuterUser(){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return null;return puter.auth.getUser();}
 function openWorkspace(){document.getElementById('gate')?.classList.add('hidden');document.getElementById('workspace')?.classList.remove('hidden');}
 function showDenied(msg){const el=document.getElementById('gateMsg');if(el){el.textContent=msg||'Please sign in with Puter.';el.style.color='#d74764';}}
-async function signIn(){const b=document.getElementById('signInBtn');b.disabled=true;try{await puter.auth.signIn({request_auth:true});const u=await getPuterUser();if(!u)throw new Error('Please sign in with Puter first.');session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='ACCESS ALLOWED';document.getElementById('roleNote').textContent='Puter authenticated';document.getElementById('gateMsg').textContent='Access allowed — Puter account authenticated.';openWorkspace();guardOwners();await bootWorkspace();}catch(e){showDenied(e.message||'Puter sign-in required.')}finally{b.disabled=false;}}
+async function signIn(){const b=document.getElementById('signInBtn');b.disabled=true;try{const signResult=await puter.auth.signIn();const u=await getPuterUser().catch(()=>({username:signResult?.username||'Puter account'}));session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};document.getElementById('userEmail').textContent=u.email||u.username||'Puter account';document.getElementById('rolePill').textContent='ACCESS ALLOWED';document.getElementById('roleNote').textContent='Puter authenticated';document.getElementById('gateMsg').textContent='Access allowed — Puter account authenticated.';openWorkspace();guardOwners();await bootWorkspace();}catch(e){showDenied(e.message||'Puter sign-in required.')}finally{b.disabled=false;}}
 document.getElementById('signInBtn').onclick=signIn;
 
 const OPENAI_ALIASES={
@@ -105,7 +105,7 @@ $('agentForm').onsubmit=async e=>{
   $('agentMessages').scrollTop=$('agentMessages').scrollHeight;
   try{
     if(!window.puter)throw new Error('Puter.js did not load.');
-    if(!puter.auth.isSignedIn())await puter.auth.signIn({request_auth:true});
+    if(!puter.auth.isSignedIn())await puter.auth.signIn();
     const modelInfo=selectedAgentModel();
     if(modelInfo.kind==='image'){
       const visualPrompt=`Create one clear educational 16:9 diagram or flowchart for a student. Use concise keywords, short labels, arrows and simple icons. No long paragraphs. Topic/request: ${text}. Make it suitable for study and for the student to rephrase independently. If the request is code or game development, visualize the logic, system architecture, mechanics, or process instead of reproducing long code.`;
