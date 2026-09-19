@@ -53,11 +53,12 @@ export default async function handler(req, res) {
 
   try {
     const body = parseBody(req);
-    const prompt = String(body.prompt || '').trim();
+    const rawPrompt = String(body.prompt || '').trim();
+    const prompt = `${rawPrompt}\n\nVisual quality requirements: Create a polished professional educational infographic or poster. Use rich coordinated colors, realistic or high-quality 3D illustrative elements, depth, subtle shadows, meaningful subject imagery, clear arrows, colored nodes, icons, callout labels and strong visual hierarchy. Never output a plain white canvas with mostly text. Never make the graphic text-only. Use concise keywords, short labels and visual symbols. For flowcharts, make real connected nodes with distinct colors and directional arrows. For science topics, include recognizable subject illustrations or realistic 3D elements. For game/software topics, show actual components, systems, characters/icons, connections and flow. Make the final result look like a finished professional study poster.`;
     if (!prompt) return res.status(400).json({ ok: false, code: 'bad_request', message: 'No visual prompt was provided.' });
     const allowedRatios = new Set(['1:1','4:3','3:4','16:9','9:16','21:9','3:2','2:3','4:5','5:4','1:4','4:1','1:8','8:1']);
     const aspectRatio = allowedRatios.has(String(body.aspectRatio || '16:9')) ? String(body.aspectRatio || '16:9') : '16:9';
-    const imageSize = new Set(['512','1K','2K','4K']).has(String(body.imageSize || '1K')) ? String(body.imageSize || '1K') : '1K';
+    const imageSize = new Set(['512','2K','2K','4K']).has(String(body.imageSize || '2K')) ? String(body.imageSize || '2K') : '2K';
 
     const result = await generateImage(apiKey, prompt, aspectRatio, imageSize);
     if (result.response.ok && result.image) {

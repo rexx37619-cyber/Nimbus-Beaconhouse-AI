@@ -33,62 +33,51 @@ document.querySelectorAll('.nav-btn[data-tab]').forEach(btn=>{
   btn.addEventListener('click',()=>activateTab(btn.dataset.tab));
 });
 
-const OPENAI_ALIASES={
-  'gpt-6-astra':'Nimbus 5.7 Lor • Ultra Modified','gpt-5.6-sol':'Nimbus Sol 5.6 • Modified','gpt-5.6-terra':'Nimbus Terra 5.6 • Modified','gpt-5.6-luna':'Nimbus Luna 5.6 • Modified','gpt-5.5':'Nimbus ROR 5.5 • Modified','gpt-5.5-pro':'Nimbus ROR 5.5 Pro • Modified','gpt-5.4':'Nimbus ROR 5.4 • Modified','gpt-5.4-pro':'Nimbus ROR 5.4 Pro • Modified','gpt-5.4-mini':'Nimbus ROR Mini 5.4 • Modified','gpt-5.4-nano':'Nimbus ROR Nano 5.4 • Modified','gpt-5.3-codex':'Nimbus Code 5.3 • Modified','gpt-5.1':'Nimbus ROR 5.1 • Modified','gpt-5.1-chat':'Nimbus Chat 5.1 • Modified','gpt-5':'Nimbus ROR 5 • Modified','gpt-4.1':'Nimbus Classic 4.1 • Modified','gpt-4o':'Nimbus Omni 4o • Modified','gpt-4o-mini':'Nimbus Mini 4o • Modified'
-};
-const CLAUDE_ALIASES={'claude-fable-5-1':'Nimbus Fable 5.1 • Modified','claude-fable-5':'Nimbus Fable 5 • Modified','claude-opus-5':'Nimbus Opus 5 • Modified'};
-const NANO_MODEL={id:'nano-banana-2',provider:'gemini',kind:'image',label:'Nano Banana 2 • Visuals',sub:'Diagrams • flowcharts • concept visuals'};
-let agentModels=[];
+const WORKSPACE_MODELS=[
+  {key:'gpt6', id:'gpt-6-astra', provider:'openai', label:'Nimbus 5.7 Lor • Ultra Modified', sub:'GPT-6 Astra • workspace premium'},
+  {key:'fable51', id:'claude-fable-5-1', provider:'claude', label:'Nimbus Fable 5.1 • Ultra Modified', sub:'Claude Fable 5.1 • workspace premium'},
+  {key:'nano', id:'nano-banana-2', provider:'gemini', kind:'image', label:'Nano Banana 2 • Visuals', sub:'2K study diagrams • posters • flowcharts'}
+];
+const DEFAULT_WORKSPACE_MODEL='gpt-6-astra';
+let agentModels=[...WORKSPACE_MODELS];
+let resolvedPuterModels=new Map();
 function modelId(m){return String(m?.id||'').trim();}
 function shortId(m){return modelId(m).split('/').pop().toLowerCase();}
-function nimbusModelName(m){
-  const id=shortId(m);
-  if(m?.kind==='image') return NANO_MODEL.label;
-  if(String(m?.provider).toLowerCase()==='claude' && CLAUDE_ALIASES[id]) return CLAUDE_ALIASES[id];
-  if(String(m?.provider).toLowerCase()==='openai' && OPENAI_ALIASES[id]) return OPENAI_ALIASES[id];
-  const raw=String(m?.name||m?.id||'Model').replace(/^Claude\s*/i,'').replace(/^GPT\s*/i,'').replace(/\s+/g,' ').trim();
-  return `Nimbus ${raw} • Modified`;
-}
-function isChatProviderModel(m, provider){
-  const p=String(m?.provider||provider||'').toLowerCase();
-  const id=shortId(m);
-  if(!['openai','claude'].includes(p)) return false;
-  return !['image','live','audio','transcribe','embedding','embed','moderation','tts','realtime','speech'].some(x=>id.includes(x));
-}
-function sortModels(list, priority){
-  return [...list].sort((a,b)=>{
-    const ai=priority.indexOf(shortId(a)), bi=priority.indexOf(shortId(b));
-    if(ai!==bi) return (ai<0?999:ai)-(bi<0?999:bi);
-    return nimbusModelName(a).localeCompare(nimbusModelName(b));
-  });
-}
+function nimbusModelName(m){return m?.label||String(m?.name||m?.id||'Model');}
+function updateModelBadge(id){const m=agentModels.find(x=>x.id===String(id)||x.resolvedId===String(id));$('agentModelState').textContent=m?nimbusModelName(m):'Nimbus model';}
+function selectedModel(){return $('openaiModelSelect')?.value||DEFAULT_WORKSPACE_MODEL;}
+function selectedAgentModel(){return agentModels.find(m=>m.id===selectedModel())||agentModels[0];}
 async function loadAgentModels(){
   const select=$('openaiModelSelect');
   if(!select) return;
-  select.innerHTML='<option>Loading Nimbus models…</option>';
+  select.innerHTML='';
+  agentModels=WORKSPACE_MODELS.map(m=>({...m}));
   try{
-    let openai=[], claude=[];
-    if(window.puter?.ai?.listModels){
-      try{openai=await puter.ai.listModels('openai');}catch{openai=[];}
-      try{claude=await puter.ai.listModels('claude');}catch{claude=[];}
+    const models=window.puter?.ai?.listModels?await puter.ai.listModels():[];
+    const list=Array.isArray(models)?models:[];
+    for(const target of agentModels.filter(m=>m.kind!=='image')){
+      const candidates=list.filter(m=>{
+        const id=shortId(m); const provider=String(m.provider||'').toLowerCase();
+        return provider===target.provider && (id===target.id || id===`${target.id}:free` || id===target.id.replace(/^gpt-/,'gpt-') || (target.key==='fable51' && /fable.?5.?1/i.test(id)));
+      });
+      const free=candidates.find(m=>shortId(m).endsWith(':free') || Number(m?.cost?.input||0)===0 && Number(m?.cost?.output||0)===0);
+      const exact=candidates.find(m=>shortId(m)===target.id);
+      target.resolvedId=free?.id || exact?.id || candidates[0]?.id || null;
+      target.freeAvailable=!!free;
     }
-    openai=(openai||[]).filter(m=>isChatProviderModel(m,'openai'));
-    claude=(claude||[]).filter(m=>isChatProviderModel(m,'claude'));
-    const unique=(arr)=>{const seen=new Set();return arr.filter(m=>{const id=modelId(m);if(!id||seen.has(id))return false;seen.add(id);return true;});};
-    openai=unique(openai); claude=unique(claude);
-    agentModels=[NANO_MODEL,...sortModels(openai,['gpt-6-astra','gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-pro','gpt-5.5','gpt-5.4-pro','gpt-5.4','gpt-5.3-codex']),...sortModels(claude,['claude-fable-5-1','claude-fable-5','claude-opus-5','claude-sonnet-5','claude-opus-4-8','claude-opus-4-7','claude-opus-4-6'])];
-    select.innerHTML='';
-    const groups=[['Visual model',agentModels.filter(m=>m.kind==='image')],['OpenAI / ChatGPT',agentModels.filter(m=>String(m.provider).toLowerCase()==='openai')],['Anthropic / Claude',agentModels.filter(m=>String(m.provider).toLowerCase()==='claude')]];
-    groups.forEach(([label,items])=>{if(!items.length)return;const g=document.createElement('optgroup');g.label=label;items.forEach(m=>{const o=document.createElement('option');o.value=modelId(m);o.textContent=nimbusModelName(m);g.appendChild(o);});select.appendChild(g);});
-    if(!select.options.length){const o=document.createElement('option');o.value=NANO_MODEL.id;o.textContent=NANO_MODEL.label;select.appendChild(o);}
-    const initial=agentChats.find(c=>c.id===currentAgentChatId)?.model || agentModels.find(m=>shortId(m)==='gpt-6-astra')?.id || agentModels.find(m=>String(m.provider)==='openai')?.id || NANO_MODEL.id;
-    select.value=initial; updateModelBadge(initial);
-  }catch{select.innerHTML=`<option value="${NANO_MODEL.id}">${NANO_MODEL.label}</option>`;select.value=NANO_MODEL.id;updateModelBadge(NANO_MODEL.id);}
+  }catch{}
+  const group=document.createElement('optgroup');group.label='Workspace models';
+  for(const m of agentModels){
+    const o=document.createElement('option');o.value=m.id;o.textContent=m.label;group.appendChild(o);
+  }
+  select.appendChild(group);
+  const saved=agentChats.find(c=>c.id===currentAgentChatId)?.model||DEFAULT_WORKSPACE_MODEL;
+  select.value=agentModels.some(m=>m.id===saved)?saved:DEFAULT_WORKSPACE_MODEL;
+  updateModelBadge(select.value);
 }
-function selectedModel(){return $('openaiModelSelect')?.value||NANO_MODEL.id;}
-function selectedAgentModel(){return agentModels.find(m=>modelId(m)===selectedModel())||NANO_MODEL;}
-function updateModelBadge(id){const m=agentModels.find(x=>modelId(x)===String(id));$('agentModelState').textContent=m?nimbusModelName(m):NANO_MODEL.label;}
 $('openaiModelSelect')?.addEventListener('change',()=>{updateModelBadge(selectedModel());const c=agentChats.find(x=>x.id===currentAgentChatId);if(c){c.model=selectedModel();saveAgentChats();}});
+function getResolvedModel(target){return target?.kind==='image'?null:(target?.resolvedId||null);}
+function isFreeResolvedModel(target){return target?.kind==='image'||target?.freeAvailable===true;}
 
 function saveAgentChats(){localStorage.setItem(AGENT_HISTORY_KEY,JSON.stringify(agentChats.slice(0,30)));}
 function newAgentChat(){const id=crypto.randomUUID?crypto.randomUUID():String(Date.now());agentChats.unshift({id,title:'New private chat',model:selectedModel(),messages:[]});agentChats=agentChats.slice(0,30);saveAgentChats();renderAgentHistory();startAgentChat(id);return id;}
@@ -119,7 +108,7 @@ $('agentForm').onsubmit=async e=>{
     if(!puter.auth.isSignedIn())await puter.auth.signIn();
     const modelInfo=selectedAgentModel();
     if(modelInfo.kind==='image'){
-      const visualPrompt=`Create one clear educational 16:9 diagram or flowchart for a student. Use concise keywords, short labels, arrows and simple icons. No long paragraphs. Topic/request: ${text}. Make it suitable for study and for the student to rephrase independently. If the request is code or game development, visualize the logic, system architecture, mechanics, or process instead of reproducing long code.`;
+      const visualPrompt=`Create a premium 16:9 educational poster/infographic, not a plain text chart. Use rich color, polished graphic design, realistic or high-quality 3D illustrative visuals, depth, soft shadows, clear hierarchy, accurate subject illustrations, meaningful icons, colored nodes, clean arrows and labeled callouts. Make the composition look like a professional school science poster or polished game/system infographic. Do NOT make a white page with only text boxes. Use concise keywords and short labels, never long paragraphs. Topic/request: ${text}. If it is code or game development, visualize the actual logic, system architecture, mechanics, entities and flow using distinctive colored components and illustrative icons. Output one cohesive finished visual suitable for a student study aid.`;
       try{
         const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:visualPrompt,aspectRatio:'16:9',imageSize:'1K'})});
         const vd=await vr.json().catch(()=>({}));
@@ -128,12 +117,23 @@ $('agentForm').onsubmit=async e=>{
         else {appendAgent('ai',vd.message||'Nano Banana 2 is unavailable. Nimbus generated a local study diagram instead.');appendAgentImage(workspaceSvgFallback(text,'keywords • inputs • process • outputs','diagram'));}
       }catch{dots.remove();appendAgent('ai','Nano Banana 2 is unavailable. Nimbus generated a local study diagram instead.');appendAgentImage(workspaceSvgFallback(text,'keywords • inputs • process • outputs','diagram'));}
     }else{
+      const target=selectedAgentModel();
+      if(!target?.resolvedId){
+        dots.remove();
+        appendAgent('ai',`${target?.label||'Selected model'} is not currently exposed by Puter for this workspace account. No request was sent.`);
+        return;
+      }
+      if(!isFreeResolvedModel(target)){
+        dots.remove();
+        appendAgent('ai',`${target.label} is a premium Puter model and this workspace is configured to use free variants only. Puter did not expose a free variant for this model, so no chargeable request was sent.`);
+        return;
+      }
       const system=`You are Nimbus 5.7 Lor • Ultra Modified, a private educational workspace agent.
 STYLE: No ** bold markers. Do not use Markdown # headings. Keep responses direct.
 STUDENT WORK: For school answers, notes, assignments, essays, or paragraphs, give factual keywords, key points, structure, and concepts rather than polished submission-ready prose. If the user asks you to rewrite or rephrase an answer, say: "Please rephrase it in your own words." Then provide the information/keywords and a suggested structure, not a ready-to-submit paragraph.
 VISUALS: When a diagram, flowchart, concept map, or game/system visual is useful, provide concise keywords and a Nano Banana 2-ready visual prompt.
 CODING: Always put code in fenced Markdown blocks with a real language identifier. Explain code outside the fence.`;
-      const resp=await puter.ai.chat([{role:'system',content:system},{role:'user',content:text}],{model:selectedModel(),normalize:true,stream:false});
+      const resp=await puter.ai.chat([{role:'system',content:system},{role:'user',content:text}],{model:getResolvedModel(target),normalize:true,stream:false});
       dots.remove();
       appendAgent('ai',extractText(resp)||'No text response was returned.');
     }

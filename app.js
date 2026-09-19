@@ -270,11 +270,11 @@ function svgFallbackDataUrl(title,keywords,type='diagram'){
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
 function looksLikeSchoolWork(text){const s=String(text||'').toLowerCase();return /(homework|assignment|classwork|worksheet|study|studying|notes|revision|revise|exam|test|quiz|project|school|lesson|chapter|topic|explain|how does|why does|define|difference between|compare|biology|chemistry|physics|math|mathematics|history|geography|computer|programming|coding|python|javascript|html|css|lua|roblox|game|flowchart|diagram|concept map|process|steps)/i.test(s);}
-function makeAutoVisualPrompt(userText,answerText){return `Create one clear, student-friendly 16:9 educational infographic/diagram for this schoolwork request. Use concise keywords, short labels, arrows, icons and simple visual structure. Do not use paragraphs. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. Make it suitable for a student to study from and rephrase independently. If it is code or game-development help, visualize the logic, flow, system architecture, mechanics, or steps instead of reproducing long code.`;}
+function makeAutoVisualPrompt(userText,answerText){return `Create a polished 16:9 educational poster/infographic, not a plain text-only diagram. Use rich coordinated colors, realistic/high-quality 3D or illustrated subject visuals, depth, subtle shadows, clear hierarchy, meaningful icons, colored nodes, professional arrows, labeled callouts and a cohesive composition. Make it look like a premium school science poster or professional game/system infographic. Do not fill the image with paragraphs. Use concise keywords and short labels only. Avoid generic white boxes and avoid a text-only flowchart. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. For code or game-development help, visualize actual logic, components, systems, mechanics and flow with distinct colored elements instead of reproducing long code. Make the final graphic attractive, information-dense, accurate and presentation-ready while remaining easy for a student to study and rephrase.`;}
 async function generateVisual(prompt,meta={}){
   const card=createVisualCard(meta);
   try{
-    const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,aspectRatio:'16:9',imageSize:'1K'})});
+    const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,aspectRatio:'16:9',imageSize:'2K'})});
     const d=await r.json().catch(()=>({}));
     if(r.ok&&d.ok&&d.data){
       finishVisualCard(card,d.data,d.mimeType||'image/png',meta);
@@ -311,7 +311,7 @@ async function sendMessage(text){
     }
     let r, data;
     if(state.model==='nano-banana-2'){
-      const visualPrompt=`Create one clear student-friendly 16:9 educational diagram or flowchart for this request. Use concise keywords only, short labels, arrows, icons and no long paragraphs. Topic/request: ${text||'Study visual'}.`;
+      const visualPrompt=`Create a polished 16:9 study poster/infographic with rich coordinated colors, realistic or high-quality 3D illustrative visuals, depth, soft shadows, clear arrows, colored nodes, subject illustrations, icons and short labels. Do not create a plain text-only chart or a generic white-box flowchart. Use concise keywords only. Topic/request: ${text||'Study visual'}.`;
       const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels • arrows • key concepts'});
       if(ok) add('ai','Nano Banana 2 visual generated. Use the labels as study help and rephrase explanations in your own words.');
       consumeLocalUsage();
