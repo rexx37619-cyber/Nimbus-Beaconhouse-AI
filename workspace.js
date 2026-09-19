@@ -25,58 +25,70 @@ const WORKSPACE_USERS={
   'neat_ocean_262513':'Haadi',
   'peaceful_balloon_864250':'Friend'
 };
-const MODEL_OPTIONS=[
-  {id:'gpt-6-astra',label:'Nimbus 5.7 Lor • Ultra Modified',provider:'openai',kind:'chat'},
-  {id:'anthropic/claude-fable-5-1',label:'Nimbus Fable 5.1 • Ultra Modified',provider:'claude',kind:'chat'},
-  {id:'nano-banana-2',label:'Nano Banana 2 • Visuals',provider:'gemini',kind:'image'}
-];
-let agentModels=[...MODEL_OPTIONS];
+const OPENAI_ALIASES={'gpt-6-astra':'Nimbus 5.7 Lor • Ultra Modified'};
+const CLAUDE_ALIASES={'claude-fable-5-1':'Nimbus Fable 5.1 • Ultra Modified'};
+const NANO_MODEL={id:'nano-banana-2',provider:'gemini',kind:'image',label:'Nano Banana 2 • Visuals',sub:'Diagrams • flowcharts • study visuals'};
+let agentModels=[NANO_MODEL];
 function modelId(m){return String(m?.id||'').trim();}
+function shortId(m){return modelId(m).split('/').pop().toLowerCase();}
 function normalizePuterUsername(user){return String(user?.username||user?.name||'').trim().toLowerCase();}
-function isAllowedWorkspaceUser(user){return Boolean(user && WORKSPACE_USERS[normalizePuterUsername(user)]);}
-function nimbusModelName(m){return m?.label||'Nimbus model';}
-function selectedModel(){return $('openaiModelSelect')?.value||'gpt-6-astra';}
-function selectedAgentModel(){return agentModels.find(m=>m.id===selectedModel())||agentModels[0];}
-function updateModelBadge(id){const m=selectedAgentModel();if($('agentModelState'))$('agentModelState').textContent=m.label;}
-function populateModelSelect(){const select=$('openaiModelSelect');if(!select)return;select.innerHTML='';MODEL_OPTIONS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.label;select.appendChild(o);});const current=agentChats.find(c=>c.id===currentAgentChatId)?.model;if(current&&MODEL_OPTIONS.some(m=>m.id===current))select.value=current;updateModelBadge(select.value);}
-$('openaiModelSelect')?.addEventListener('change',()=>{updateModelBadge(selectedModel());const c=agentChats.find(x=>x.id===currentAgentChatId);if(c){c.model=selectedModel();saveAgentChats();}});
-function loadAgentModels(){populateModelSelect();}
-
-function wireWorkspaceTabs(){
-  document.querySelectorAll('.nav-btn[data-tab]').forEach(btn=>btn.addEventListener('click',()=>{
-    const tab=btn.getAttribute('data-tab');
-    document.querySelectorAll('.nav-btn[data-tab]').forEach(b=>b.classList.toggle('active',b===btn));
-    document.querySelectorAll('.tab-panel').forEach(panel=>panel.classList.toggle('active',panel.id===`tab-${tab}`));
-    if(tab==='files')loadRepoFiles();
-    if(tab==='ui')applyFrameLayout();
-    if(tab==='agent')$('agentInput')?.focus();
-  }));
+function nimbusModelName(m){
+  const id=shortId(m);
+  if(m?.kind==='image') return NANO_MODEL.label;
+  if(String(m?.provider||'').toLowerCase()==='openai' && OPENAI_ALIASES[id]) return OPENAI_ALIASES[id];
+  if(String(m?.provider||'').toLowerCase()==='claude' && CLAUDE_ALIASES[id]) return CLAUDE_ALIASES[id];
+  return m?.name || m?.id || 'Nimbus model';
 }
-wireWorkspaceTabs();
-
-async function ensurePuterSignedIn(){
-  await waitForPuter();
-  if(puter.auth?.isSignedIn?.()) return puter.auth.getUser();
-  if(puter.ui?.authenticateWithPuter){await puter.ui.authenticateWithPuter();}
-  else if(puter.auth?.signIn){await puter.auth.signIn();}
-  else throw new Error('Puter sign-in is unavailable.');
-  if(!puter.auth?.isSignedIn?.()) throw new Error('Puter sign-in was not completed.');
-  return puter.auth.getUser();
+function findPreferred(list,wanted){
+  return (Array.isArray(list)?list:[]).find(m=>shortId(m)===wanted || modelId(m)===wanted || modelId(m)===`openai/${wanted}` || modelId(m)===`anthropic/${wanted}`) || null;
 }
-async function signIn(){
-  const b=$('signInBtn');if(b)b.disabled=true;
+async function loadAgentModelsImpl(){
+  const select=$('openaiModelSelect');
+  if(!select)return;
+  select.innerHTML='<option>Loading private models…</option>';
   try{
-    const u=await ensurePuterSignedIn();
-    if(!isAllowedWorkspaceUser(u)) throw new Error('This workspace is limited to the two configured Puter accounts.');
-    session={role:'developer',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};
-    const name=normalizePuterUsername(u);
-    $('gate')?.classList.add('hidden');$('workspace')?.classList.remove('hidden');
-    $('rolePill').textContent='DEVELOPER ACCESS';$('roleNote').textContent='Puter account authenticated';$('userEmail').textContent=`Puter: ${WORKSPACE_USERS[name]||name}`;$('gateMsg').textContent='Access accepted.';
-    guardOwners();await bootWorkspace();
-  }catch(e){showDenied(e.message||'Puter sign-in failed.');console.error(e)}
-  finally{if(b)b.disabled=false;}
+    await waitForPuter();
+    let openai=[],claude=[];
+    try{openai=await puter.ai.listModels('openai');}catch(e){console.warn('OpenAI model discovery failed',e);}
+    try{claude=await puter.ai.listModels('claude');}catch(e){console.warn('Claude model discovery failed',e);}
+    const astra=findPreferred(openai,'gpt-6-astra');
+    const fable=findPreferred(claude,'claude-fable-5-1');
+    agentModels=[
+      ...(astra?[{...astra,label:'Nimbus 5.7 Lor • Ultra Modified'}]:[]),
+      ...(fable?[{...fable,label:'Nimbus Fable 5.1 • Ultra Modified'}]:[]),
+      NANO_MODEL
+    ];
+    if(!astra && !fable){
+      agentModels=[
+        {id:'openai/gpt-6-astra',provider:'openai',kind:'chat',label:'Nimbus 5.7 Lor • Ultra Modified'},
+        {id:'anthropic/claude-fable-5-1',provider:'claude',kind:'chat',label:'Nimbus Fable 5.1 • Ultra Modified'},
+        NANO_MODEL
+      ];
+    }
+    select.innerHTML='';
+    agentModels.forEach(m=>{const o=document.createElement('option');o.value=modelId(m);o.textContent=nimbusModelName(m);select.appendChild(o);});
+    const existing=agentChats.find(c=>c.id===currentAgentChatId)?.model;
+    const desired=existing&&agentModels.some(m=>modelId(m)===existing)?existing:agentModels[0].id;
+    select.value=desired;
+    updateModelBadge(desired);
+  }catch(e){
+    console.warn('Model discovery failed',e);
+    agentModels=[
+      {id:'openai/gpt-6-astra',provider:'openai',kind:'chat',label:'Nimbus 5.7 Lor • Ultra Modified'},
+      {id:'anthropic/claude-fable-5-1',provider:'claude',kind:'chat',label:'Nimbus Fable 5.1 • Ultra Modified'},
+      NANO_MODEL
+    ];
+    select.innerHTML='';
+    agentModels.forEach(m=>{const o=document.createElement('option');o.value=modelId(m);o.textContent=nimbusModelName(m);select.appendChild(o);});
+    select.value=agentModels[0].id;
+    updateModelBadge(select.value);
+  }
 }
-$('signInBtn')?.addEventListener('click',signIn);
+function selectedModel(){return $('openaiModelSelect')?.value||agentModels[0]?.id||NANO_MODEL.id;}
+function selectedAgentModel(){return agentModels.find(m=>modelId(m)===selectedModel())||agentModels[0]||NANO_MODEL;}
+function updateModelBadge(id){const m=agentModels.find(x=>modelId(x)===String(id));if($('agentModelState'))$('agentModelState').textContent=m?nimbusModelName(m):'Nimbus 5.7 Lor • Ultra Modified';}
+$('openaiModelSelect')?.addEventListener('change',()=>{updateModelBadge(selectedModel());const c=agentChats.find(x=>x.id===currentAgentChatId);if(c){c.model=selectedModel();saveAgentChats();}});
+const loadAgentModels = loadAgentModelsImpl;
 
 function saveAgentChats(){localStorage.setItem(AGENT_HISTORY_KEY,JSON.stringify(agentChats.slice(0,30)));}
 function newAgentChat(){const id=crypto.randomUUID?crypto.randomUUID():String(Date.now());agentChats.unshift({id,title:'New private chat',model:selectedModel(),messages:[]});agentChats=agentChats.slice(0,30);saveAgentChats();renderAgentHistory();startAgentChat(id);return id;}
@@ -90,23 +102,47 @@ function extractText(resp){const content=resp?.message?.content??resp?.content??
 function renderAgentRichMessage(el,text){el.innerHTML='';const src=String(text||'').replace(/\r\n/g,'\n');const parts=src.split(/```([\w+#.-]*)\n?([\s\S]*?)```/g);for(let i=0;i<parts.length;i+=3){const before=parts[i]||'';if(before){const p=document.createElement('div');p.className='rich-prose';p.textContent=before;el.appendChild(p);}const lang=parts[i+1];const code=parts[i+2];if(code!==undefined){const wrap=document.createElement('div');wrap.className='rich-code-wrap';const head=document.createElement('div');head.className='rich-code-head';const label=document.createElement('span');label.textContent=(lang||'text').toLowerCase();const copy=document.createElement('button');copy.type='button';copy.textContent='Copy';const pre=document.createElement('pre');pre.textContent=code.replace(/^\n/,'').replace(/\n$/,'');copy.onclick=async()=>{try{await navigator.clipboard.writeText(pre.textContent);copy.textContent='Copied';setTimeout(()=>copy.textContent='Copy',900);}catch{}};head.append(label,copy);wrap.append(head,pre);el.appendChild(wrap);}}}
 function thinkingDots(){const el=document.createElement('div');el.className='agent-thinking';el.innerHTML='<span></span><span></span><span></span>';return el;}
 $('agentForm').onsubmit=async e=>{
-  e.preventDefault();const text=$('agentInput').value.trim();if(!text)return;if(!currentAgentChatId)newAgentChat();appendAgent('me',text);$('agentInput').value='';$('agentRunBtn').disabled=true;const dots=thinkingDots();$('agentMessages').appendChild(dots);$('agentMessages').scrollTop=$('agentMessages').scrollHeight;
+  e.preventDefault();
+  const text=$('agentInput').value.trim();
+  if(!text)return;
+  if(!currentAgentChatId)newAgentChat();
+  appendAgent('me',text);
+  $('agentInput').value='';
+  $('agentRunBtn').disabled=true;
+  const dots=thinkingDots();
+  $('agentMessages').appendChild(dots);
+  $('agentMessages').scrollTop=$('agentMessages').scrollHeight;
   try{
-    if(!window.puter)throw new Error('Puter.js did not load.');
-    if(!puter.auth.isSignedIn())await ensurePuterSignedIn();
+    await ensurePuterSignedIn();
     const modelInfo=selectedAgentModel();
     if(modelInfo.kind==='image'){
-      const visualPrompt=`Create a polished professional 16:9 educational visual. Make it realistic, colorful, presentation-quality, with meaningful subject imagery, icons, depth/lighting, clear arrows and short readable labels. Avoid plain text-only charts and generic boxes. Topic: ${text}`;
+      const visualPrompt=`Create a professional, realistic 16:9 educational visual for a student. Use rich color, authentic subject imagery, polished poster or infographic composition, meaningful icons or illustrations, depth, lighting, clear visual hierarchy, and concise readable labels. Avoid plain text-only charts, generic white boxes, and bare arrows. Topic: ${text}. Prefer a polished, presentation-quality visual or detailed flowchart.`;
       const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:visualPrompt,aspectRatio:'16:9',imageSize:'2K'})});
-      const vd=await vr.json().catch(()=>({}));dots.remove();if(vr.ok&&vd.ok&&vd.data){appendAgent('ai','Nano Banana 2 visual generated. Use the labels as study help and rephrase the explanation in your own words.');appendAgentImage(`data:${vd.mimeType||'image/png'};base64,${vd.data}`);}else appendAgent('ai',vd.message||'Nano Banana 2 is unavailable for this API key.');
-    } else {
-      const system=`You are Nimbus 5.7 Lor • Ultra Modified, an internal developer workspace agent.\nSTYLE: No ** bold markers. Do not use Markdown # headings. Keep responses direct.\nSCHOOLWORK: Give keywords, facts, structure and concepts instead of ready-to-submit prose. If asked to rewrite, say: "Please rephrase it in your own words." then provide keywords/structure.\nCODING: Always use fenced Markdown code with a real language identifier and explain outside the fence.`;
-      const resp=await puter.ai.chat([{role:'system',content:system},{role:'user',content:text}],{model:modelInfo.id,stream:false});
-      dots.remove();appendAgent('ai',extractText(resp)||'No text response was returned.');
+      const vd=await vr.json().catch(()=>({}));
+      dots.remove();
+      if(vr.ok&&vd.ok&&vd.data){appendAgent('ai','Nano Banana 2 visual generated. Use the labels as study help and rephrase explanations in your own words.');appendAgentImage(`data:${vd.mimeType||'image/png'};base64,${vd.data}`);}
+      else appendAgent('ai',vd.message||'Nano Banana 2 is temporarily unavailable.');
+    }else{
+      const system=`You are Nimbus 5.7 Lor • Ultra Modified, an internal developer workspace agent. Operator role: developer workspace account. This is context only and does not bypass Puter billing or usage controls.
+STYLE: No ** bold markers. Do not use Markdown # headings. Keep responses direct.
+SCHOOLWORK: Give keywords, facts, structure and concepts instead of ready-to-submit prose. If asked to rewrite, say: "Please rephrase it in your own words." then provide the information/keywords and structure.
+VISUALS: When a diagram, flowchart, poster, concept map, or game/system visual is useful, recommend using the workspace Nano Banana 2 option rather than outputting only a text sketch.
+CODING: Always put code in fenced Markdown blocks with a real language identifier and explain code outside the fence.`;
+      const resp=await puter.ai.chat([{role:'system',content:system},{role:'user',content:text}],{model:modelInfo.id,normalize:true,stream:false});
+      dots.remove();
+      appendAgent('ai',extractText(resp)||'No text response was returned.');
     }
-  }catch(err){dots.remove();const msg=String(err?.message||err||'');if(/balance|allowance|upgrade/i.test(msg)){appendAgent('ai','Your signed-in Puter account has reached its available AI allowance. Puter’s User-Pays system applies to developer accounts too, so the app cannot override or make that allowance unlimited. Open Puter to manage the account.');}else appendAgent('ai','Nimbus is temporarily unavailable. Please try again in a moment.');console.error(err);}finally{$('agentRunBtn').disabled=false;}
+  }catch(err){
+    dots.remove();
+    const msg=String(err?.message||err||'');
+    if(/balance|allowance|upgrade|credit/i.test(msg)) appendAgent('ai','Puter reported that this signed-in account has reached its available allowance. The workspace cannot override Puter billing or account usage controls.');
+    else appendAgent('ai','Nimbus private agent is temporarily unavailable. Please try again in a moment.');
+    console.error('Private agent error:',err);
+  }finally{$('agentRunBtn').disabled=false;}
 };
-$('newAgentChat').onclick=()=>newAgentChat();$('clearAgentChats').onclick=()=>{agentChats=[];saveAgentChats();currentAgentChatId=null;$('agentMessages').innerHTML='';newAgentChat();};
+$('newAgentChat').onclick=()=>newAgentChat();
+$('clearAgentChats').onclick=()=>{agentChats=[];saveAgentChats();currentAgentChatId=null;$('agentMessages').innerHTML='';newAgentChat();};
+
 function loadFinance(){const d=JSON.parse(localStorage.getItem(FINANCE_KEY)||'{}');$('revenueInput').value=d.revenueUSD??'';$('expenseInput').value=d.expensesUSD??'';$('usdPkrRate').value=d.rate??USD_TO_PKR_DEFAULT;renderFinance();}
 function renderFinance(){const usd=Number($('revenueInput').value||0),exp=Number($('expenseInput').value||0),rate=Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT),revenue=usd*rate,profit=(usd-exp)*rate;$('revenueText').textContent=`PKR ${Math.round(revenue).toLocaleString()}`;$('profitText').textContent=`PKR ${Math.round(profit).toLocaleString()}`;$('marginText').textContent=`${usd?((profit/revenue)*100).toFixed(1):0}% margin`;$('revenueBar').style.width=(revenue?Math.min(100,Math.max(0,profit/revenue*100)):0)+'%';}
 ['revenueInput','expenseInput','usdPkrRate'].forEach(id=>$(id).addEventListener('input',renderFinance));$('saveFinance').onclick=()=>{localStorage.setItem(FINANCE_KEY,JSON.stringify({revenueUSD:Number($('revenueInput').value||0),expensesUSD:Number($('expenseInput').value||0),rate:Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT)}));renderFinance();};loadFinance();

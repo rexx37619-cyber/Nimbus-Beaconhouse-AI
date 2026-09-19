@@ -267,7 +267,7 @@ function makeAutoVisualPrompt(userText,answerText){return `Create a polished pro
 async function generateVisual(prompt,meta={}){
   const card=createVisualCard(meta);
   try{
-    const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,aspectRatio:'16:9',imageSize:'1K'})});
+    const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,aspectRatio:'16:9',imageSize:'2K'})});
     const d=await r.json().catch(()=>({}));
     if(r.ok&&d.ok&&d.data){
       finishVisualCard(card,d.data,d.mimeType||'image/png',meta);
