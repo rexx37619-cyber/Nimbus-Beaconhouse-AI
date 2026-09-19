@@ -1,13 +1,106 @@
-function parseBody(req){if(typeof req.body==='string'){try{return JSON.parse(req.body||'{}')}catch{return {}}}return req.body||{}}
-function extractImage(data){const parts=data?.candidates?.[0]?.content?.parts||[];for(const part of parts){const b=part?.inlineData||part?.inline_data;if(b?.data)return{data:b.data,mimeType:b.mimeType||b.mime_type||'image/png'}}return null}
-function professionalPrompt(prompt){return `Create a polished, scientifically accurate, professional educational visual for: "${prompt}".
+function parseBody(req) {
+  if (typeof req.body === 'string') {
+    try { return JSON.parse(req.body || '{}'); } catch { return {}; }
+  }
+  return req.body || {};
+}
 
-Visual quality: realistic subject imagery or a high-fidelity 3D illustration/cutaway, rich natural color, dimensional lighting, depth, realistic textures, clean white/light educational background, accurate proportions and visual relationships, refined typography, concise labels, direct leader lines/callouts, meaningful icons or illustrated objects, strong composition, presentation-ready 16:9 textbook/poster quality.
+function extractGenerateContentImage(data) {
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  for (const part of parts) {
+    const b = part?.inlineData || part?.inline_data;
+    if (b?.data) return { data: b.data, mimeType: b.mimeType || b.mime_type || 'image/png' };
+  }
+  return null;
+}
 
-For anatomy/science: show the real subject prominently with recognizable structures and a detailed cutaway or realistic illustration. For processes: show the actual objects/stages and a visually clear sequence, not generic containers. For code/game systems: visualize actual system components, interactions, states, and mechanics with meaningful illustrated elements.
+function extractInteractionImage(data) {
+  if (data?.output_image?.data) {
+    return { data: data.output_image.data, mimeType: data.output_image.mime_type || 'image/png' };
+  }
+  const steps = Array.isArray(data?.steps) ? data.steps : [];
+  for (const step of steps) {
+    if (step?.type === 'image' && step?.data) {
+      return { data: step.data, mimeType: step.mime_type || step.mimeType || 'image/png' };
+    }
+    if (step?.type === 'model_output' && Array.isArray(step.content)) {
+      for (const item of step.content) {
+        if (item?.type === 'image' && item?.data) {
+          return { data: item.data, mimeType: item.mime_type || item.mimeType || 'image/png' };
+        }
+        if (item?.inlineData?.data) {
+          return { data: item.inlineData.data, mimeType: item.inlineData.mimeType || 'image/png' };
+        }
+      }
+    }
+  }
+  return null;
+}
 
-Use short readable labels only. Do not make a plain text poster, generic three-box flowchart, empty placeholders, wireframe, flat UI mockup, or simplistic arrow-only diagram. Do not fill the image with paragraphs. Make it look like a professional educational infographic created by a skilled scientific illustrator and information designer.`}
-async function call(apiKey,prompt,size){const body={contents:[{parts:[{text:professionalPrompt(prompt)}]}],generationConfig:{responseModalities:['IMAGE'],responseFormat:{image:{aspectRatio:'16:9',imageSize:size}}}};const r=await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-image:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));return{r,d,img:extractImage(d)}}
-function escapeXml(s){return String(s).replace(/[<>&'"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c]||c))}
-function fallbackSvg(topic){const t=escapeXml(String(topic||'Study Visual').slice(0,70));return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fbff"/><stop offset="1" stop-color="#eef2ff"/></linearGradient><filter id="shadow"><feDropShadow dx="0" dy="14" stdDeviation="18" flood-opacity=".15"/></filter></defs><rect width="1600" height="900" fill="url(#bg)"/><path d="M0 110H1600" stroke="#dbe4ef"/><text x="80" y="78" font-family="Arial" font-size="22" font-weight="800" fill="#2463eb" letter-spacing="3">NIMBUS EDUCATIONAL VISUAL</text><text x="80" y="150" font-family="Arial" font-size="48" font-weight="800" fill="#172033">${t}</text><g filter="url(#shadow)"><rect x="110" y="230" width="1380" height="520" rx="34" fill="#fff" stroke="#dbe4ef" stroke-width="3"/></g><circle cx="800" cy="470" r="155" fill="#e9f5ff" stroke="#49a6ff" stroke-width="6"/><circle cx="800" cy="470" r="88" fill="#fff4dc" stroke="#f5b544" stroke-width="5"/><circle cx="800" cy="470" r="36" fill="#ff7a6e"/><path d="M655 410C530 360 420 335 300 350" stroke="#1f2937" stroke-width="3" fill="none"/><path d="M945 410C1070 360 1180 335 1300 350" stroke="#1f2937" stroke-width="3" fill="none"/><path d="M655 535C530 590 420 615 300 600" stroke="#1f2937" stroke-width="3" fill="none"/><path d="M945 535C1070 590 1180 615 1300 600" stroke="#1f2937" stroke-width="3" fill="none"/><text x="290" y="340" font-family="Arial" font-size="22" font-weight="800" fill="#111827" text-anchor="end">KEY INPUT / STRUCTURE</text><text x="1310" y="340" font-family="Arial" font-size="22" font-weight="800" fill="#111827">PROCESS / RELATION</text><text x="290" y="590" font-family="Arial" font-size="22" font-weight="800" fill="#111827" text-anchor="end">IMPORTANT FEATURE</text><text x="1310" y="590" font-family="Arial" font-size="22" font-weight="800" fill="#111827">RESULT / OUTPUT</text><text x="800" y="695" font-family="Arial" font-size="16" fill="#64748b" text-anchor="middle">Topic-specific visual preview — concise labels only</text></svg>`}
-export default async function handler(req,res){res.setHeader('Cache-Control','no-store');if(req.method!=='POST')return res.status(405).json({ok:false,message:'Method Not Allowed'});const key=process.env.GEMINI_API_KEY;if(!key)return res.status(503).json({ok:false,message:'Visual generation is not configured.'});try{const body=parseBody(req);const prompt=String(body.prompt||'').trim();if(!prompt)return res.status(400).json({ok:false,message:'No visual prompt was provided.'});for(const size of ['2K','1K']){const a=await call(key,prompt,size);if(a.r.ok&&a.img)return res.status(200).json({ok:true,mimeType:a.img.mimeType,data:a.img.data,source:'nano-banana-2'});if(a.r.status===401||a.r.status===403)break}const legacyBody={contents:[{parts:[{text:professionalPrompt(prompt)}]}],generationConfig:{responseModalities:['IMAGE'],responseFormat:{image:{aspectRatio:'16:9',imageSize:'1K'}}}};const legacy=await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-image:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(legacyBody)});const ld=await legacy.json().catch(()=>({}));const li=extractImage(ld);if(legacy.ok&&li)return res.status(200).json({ok:true,mimeType:li.mimeType,data:li.data,source:'nano-banana'});console.error('[Nimbus visual provider]',legacy.status,ld?.error?.message||'provider failure');const svg=fallbackSvg(prompt);return res.status(200).json({ok:true,fallback:true,mimeType:'image/svg+xml',data:Buffer.from(svg,'utf8').toString('base64'),source:'svg-fallback',message:'Rendered a structured visual fallback because the image provider was unavailable.'})}catch(err){console.error('[Nimbus visual exception]',err);const svg=fallbackSvg('Study Visual');return res.status(200).json({ok:true,fallback:true,mimeType:'image/svg+xml',data:Buffer.from(svg,'utf8').toString('base64'),source:'svg-fallback',message:'Rendered a structured visual fallback.'})}}
+async function callInteractions(apiKey, prompt) {
+  const payload = {
+    model: 'gemini-3.1-flash-image',
+    input: [{ type: 'text', text: prompt }],
+    response_format: {
+      type: 'image',
+      mime_type: 'image/png',
+      aspect_ratio: '16:9',
+      image_size: '2K'
+    }
+  };
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json().catch(() => ({}));
+  return { r, d, img: extractInteractionImage(d) };
+}
+
+async function callGenerateContent(apiKey, prompt) {
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseModalities: ['IMAGE'],
+      responseFormat: {
+        image: { aspectRatio: '16:9', imageSize: '2K' }
+      }
+    }
+  };
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json().catch(() => ({}));
+  return { r, d, img: extractGenerateContentImage(d) };
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return res.status(503).json({ ok: false, message: 'Visual generation is not configured.' });
+
+  try {
+    const body = parseBody(req);
+    const prompt = String(body.prompt || '').trim();
+    if (!prompt) return res.status(400).json({ ok: false, message: 'No visual prompt was provided.' });
+
+    const primary = await callInteractions(key, prompt);
+    if (primary.r.ok && primary.img) {
+      return res.status(200).json({ ok: true, mimeType: primary.img.mimeType, data: primary.img.data, source: 'nano-banana-2' });
+    }
+    console.warn('[Nimbus visual] Interactions failed', primary.r.status, primary.d?.error?.message || '');
+
+    const fallback = await callGenerateContent(key, prompt);
+    if (fallback.r.ok && fallback.img) {
+      return res.status(200).json({ ok: true, mimeType: fallback.img.mimeType, data: fallback.img.data, source: 'nano-banana-2-generate-content' });
+    }
+    console.error('[Nimbus visual] image generation failed', fallback.r.status, fallback.d?.error?.message || '');
+    return res.status(503).json({ ok: false, message: 'Visual generation is unavailable right now.' });
+  } catch (err) {
+    console.error('[Nimbus visual]', err);
+    return res.status(503).json({ ok: false, message: 'Visual generation is unavailable right now.' });
+  }
+}

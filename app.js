@@ -263,24 +263,7 @@ function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
 function looksLikeSchoolWork(text){const s=String(text||'').toLowerCase();return /(homework|assignment|classwork|worksheet|study|studying|notes|revision|revise|exam|test|quiz|project|school|lesson|chapter|topic|explain|how does|why does|define|difference between|compare|biology|chemistry|physics|math|mathematics|history|geography|computer|programming|coding|python|javascript|html|css|lua|roblox|game|flowchart|diagram|concept map|process|steps)/i.test(s);}
-function makeAutoVisualPrompt(userText,answerText){return `Create a polished professional 16:9 educational visual for this schoolwork request. Make it realistic, visually rich, colorful, presentation-quality, with meaningful subject imagery, icons, clear hierarchy, varied shapes, depth/lighting, clean arrows and short readable labels. Do not make a plain text-only diagram or a generic set of boxes. Use concise keywords rather than paragraphs. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. If it is code or game-development help, visualize the logic, system architecture, mechanics, or steps instead of reproducing long code.`;}
-async function generateVisual(prompt,meta={}){
-  const card=createVisualCard(meta);
-  try{
-    const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,aspectRatio:'16:9',imageSize:'2K'})});
-    const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok&&d.data){
-      finishVisualCard(card,d.data,d.mimeType||'image/png',meta);
-      return true;
-    }
-    failVisualCard(card);
-    return false;
-  }catch(e){
-    console.warn('Visual generation failed',e);
-    failVisualCard(card);
-    return false;
-  }
-}
+function makeAutoVisualPrompt(userText,answerText){return String(userText||'').trim();}
 
 async function sendMessage(text){
   const file=state.file;
@@ -297,8 +280,7 @@ async function sendMessage(text){
     }
     let r, data;
     if(state.model==='nano-banana-2'){
-      const visualPrompt=`Create one clear student-friendly 16:9 educational diagram or flowchart for this request. Use concise keywords only, short labels, arrows, icons and no long paragraphs. Topic/request: ${text||'Study visual'}.`;
-      const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels • arrows • key concepts'});
+      const ok=await generateVisual(text||'Study visual',{title:text||'Study visual',type:'diagram',keywords:'keywords only'});
       if(ok) add('ai','Nano Banana 2 visual generated. Use the labels as study help and rephrase explanations in your own words.');
       consumeLocalUsage();
       return;

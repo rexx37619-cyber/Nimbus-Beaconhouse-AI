@@ -8,9 +8,9 @@ const ALLOWED_USERS={
   'peaceful_balloon_864250':'Friend'
 };
 const MODEL_DEFS=[
-  {alias:'gpt-6-astra',id:'openai/gpt-6-astra',label:'Nimbus 5.7 Lor • Ultra Modified',provider:'openai',kind:'chat'},
-  {alias:'claude-fable-5-1',id:'anthropic/claude-fable-5-1',label:'Nimbus Fable 5.1 • Ultra Modified',provider:'claude',kind:'chat'},
-  {alias:'nano-banana-2',id:'nano-banana-2',label:'Nano Banana 2 • Visuals',provider:'gemini',kind:'image'}
+  {alias:'gpt-5-6-sol',id:'openai/gpt-5.6-sol',label:'Nimbus Sol 5.6 • Ultra Modified',provider:'openai',kind:'chat'},
+  {alias:'claude-fable-5',id:'anthropic/claude-fable-5',label:'Nimbus Fable 5 • Ultra Modified',provider:'claude',kind:'chat'},
+  {alias:'claude-opus-5',id:'anthropic/claude-opus-5',label:'Nimbus Opus 5 • Ultra Modified',provider:'claude',kind:'chat'}
 ];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -32,7 +32,7 @@ async function signIn(){
   const b=$('signInBtn'); if(b)b.disabled=true;
   try{
     await waitForPuter();
-    if(!puter.auth.isSignedIn()) await puter.auth.signIn({request_auth:true});
+    if(!puter.auth?.isSignedIn?.()) await puter.auth.signIn();
     const u=await puter.auth.getUser();
     if(!isAllowedUser(u)) throw new Error('This workspace is limited to the configured Puter accounts.');
     session={role:'developer',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};
@@ -60,25 +60,33 @@ function modelMatches(m,target){
 }
 async function loadAgentModels(){
   const sel=$('openaiModelSelect'); if(!sel)return;
-  agentModels=[...MODEL_DEFS];
+  for(const def of MODEL_DEFS) delete def.resolvedId;
   try{
     const [openai,claude]=await Promise.all([
       puter.ai?.listModels ? puter.ai.listModels('openai').catch(()=>[]) : [],
       puter.ai?.listModels ? puter.ai.listModels('claude').catch(()=>[]) : []
     ]);
     const live=[...(Array.isArray(openai)?openai:[]),...(Array.isArray(claude)?claude:[])];
-    for(const def of MODEL_DEFS.filter(x=>x.kind==='chat')){
+    for(const def of MODEL_DEFS){
       const m=live.find(x=>modelMatches(x,def.id));
-      if(m?.id)def.resolvedId=String(m.id);
+      def.resolvedId=m?.id ? String(m.id) : def.id;
     }
-  }catch(e){console.warn('[Nimbus workspace] model list unavailable',e)}
+  }catch(e){
+    console.warn('[Nimbus workspace] model list unavailable; using official model IDs',e);
+  }
   sel.innerHTML='';
-  for(const def of MODEL_DEFS){const o=document.createElement('option');o.value=def.alias;o.textContent=modelLabel(def);sel.appendChild(o)}
+  for(const def of MODEL_DEFS){
+    const o=document.createElement('option');
+    o.value=def.alias;
+    o.textContent=modelLabel(def);
+    sel.appendChild(o);
+  }
   const c=agentChats.find(x=>x.id===currentAgentChatId);
-  sel.value=MODEL_DEFS.some(x=>x.alias===(c?.model||''))?(c.model||'gpt-6-astra'):'gpt-6-astra';
+  sel.value=MODEL_DEFS.some(x=>x.alias===(c?.model||''))?(c.model||'gpt-5-6-sol'):'gpt-5-6-sol';
   updateModelLabel();
 }
-function selectedDef(){return MODEL_DEFS.find(x=>x.alias===($('openaiModelSelect')?.value||'gpt-6-astra'))||MODEL_DEFS[0]}
+
+function selectedDef(){return MODEL_DEFS.find(x=>x.alias===($('openaiModelSelect')?.value||'gpt-5-6-sol'))||MODEL_DEFS[0]}
 function updateModelLabel(){$('agentModelState')&&( $('agentModelState').textContent=modelLabel(selectedDef()) )}
 function resolvedModelId(def){return def.resolvedId||def.id}
 
@@ -104,10 +112,10 @@ function appendAgent(role,text,save=true){const host=$('agentMessages');if(!host
 function appendAgentImage(src){const host=$('agentMessages');if(!host||!src)return;const wrap=document.createElement('div');wrap.className='agent-image-wrap';const img=document.createElement('img');img.className='agent-generated-image';img.src=src;img.alt='Nimbus generated visual';wrap.appendChild(img);host.appendChild(wrap);host.scrollTop=host.scrollHeight;}
 function thinkingDots(){const e=document.createElement('div');e.className='agent-thinking';e.innerHTML='<span></span><span></span><span></span>';return e}
 function extractText(resp){const c=resp?.message?.content??resp?.content??resp?.text??'';if(typeof c==='string')return c;if(Array.isArray(c))return c.map(x=>typeof x==='string'?x:(x?.text||x?.content||'')).filter(Boolean).join('\n');return ''}
-function saveAgentMessage(role,text){const c=agentChats.find(x=>x.id===currentAgentChatId);if(!c)return;c.messages=c.messages||[];c.messages.push({role,text,ts:Date.now()});if(role==='me'&&(!c.title||c.title==='New private chat'))c.title=text.slice(0,44)+(text.length>44?'…':'');c.model=$('openaiModelSelect')?.value||'gpt-6-astra';saveAgentChats();renderAgentHistory()}
+function saveAgentMessage(role,text){const c=agentChats.find(x=>x.id===currentAgentChatId);if(!c)return;c.messages=c.messages||[];c.messages.push({role,text,ts:Date.now()});if(role==='me'&&(!c.title||c.title==='New private chat'))c.title=text.slice(0,44)+(text.length>44?'…':'');c.model=$('openaiModelSelect')?.value||'gpt-5-6-sol';saveAgentChats();renderAgentHistory()}
 function renderAgentHistory(){const box=$('agentHistory');if(!box)return;box.innerHTML='';for(const c of agentChats){const b=document.createElement('button');b.type='button';b.className='agent-history-item'+(c.id===currentAgentChatId?' active':'');b.textContent=c.title||'Private chat';b.addEventListener('click',()=>startAgentChat(c.id));box.appendChild(b)}}
-function startAgentChat(id){const c=agentChats.find(x=>x.id===id)||agentChats[0];if(!c)return;currentAgentChatId=c.id;const host=$('agentMessages');if(host)host.innerHTML='';for(const m of c.messages||[]){const el=document.createElement('div');el.className='agent-msg '+(m.role==='me'?'me':'ai');if(m.role==='ai')renderRich(el,m.text);else el.textContent=m.text;host?.appendChild(el)}if($('openaiModelSelect'))$('openaiModelSelect').value=MODEL_DEFS.some(x=>x.alias===c.model)?c.model:'gpt-6-astra';updateModelLabel();renderAgentHistory()}
-function newAgentChat(){const id=crypto.randomUUID?crypto.randomUUID():String(Date.now());agentChats.unshift({id,title:'New private chat',model:$('openaiModelSelect')?.value||'gpt-6-astra',messages:[]});agentChats=agentChats.slice(0,30);currentAgentChatId=id;saveAgentChats();renderAgentHistory();startAgentChat(id)}
+function startAgentChat(id){const c=agentChats.find(x=>x.id===id)||agentChats[0];if(!c)return;currentAgentChatId=c.id;const host=$('agentMessages');if(host)host.innerHTML='';for(const m of c.messages||[]){const el=document.createElement('div');el.className='agent-msg '+(m.role==='me'?'me':'ai');if(m.role==='ai')renderRich(el,m.text);else el.textContent=m.text;host?.appendChild(el)}if($('openaiModelSelect'))$('openaiModelSelect').value=MODEL_DEFS.some(x=>x.alias===c.model)?c.model:'gpt-5-6-sol';updateModelLabel();renderAgentHistory()}
+function newAgentChat(){const id=crypto.randomUUID?crypto.randomUUID():String(Date.now());agentChats.unshift({id,title:'New private chat',model:$('openaiModelSelect')?.value||'gpt-5-6-sol',messages:[]});agentChats=agentChats.slice(0,30);currentAgentChatId=id;saveAgentChats();renderAgentHistory();startAgentChat(id)}
 function ensureChat(){if(!currentAgentChatId)newAgentChat()}
 
 async function serverFallback(prompt){
@@ -119,26 +127,29 @@ async function serverFallback(prompt){
 
 async function runAgentChat(prompt){
   const def=selectedDef();
-  if(def.kind==='image'){
-    const visual=`Create a professional, realistic 16:9 educational visual for: ${prompt}. Use real subject imagery or a detailed 3D illustration, rich natural colors, depth, lighting, accurate structures, clear callout lines, concise labels, meaningful icons, and polished textbook/poster composition. Do not use a generic three-box template, plain text poster, UI wireframe, or simplistic arrow diagram.`;
-    const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:visual,aspectRatio:'16:9',imageSize:'2K'})});
-    const d=await r.json().catch(()=>({}));
-    if(r.ok&&d?.data){appendAgent('ai','Nano Banana 2 visual generated. Rephrase explanations in your own words using the labels and keywords shown.');appendAgentImage(`data:${d.mimeType||'image/png'};base64,${d.data}`);return ''}
-    throw new Error(d?.message||'Visual generation unavailable');
-  }
-  const system=`You are Nimbus 5.7 Lor • Ultra Modified, a private developer workspace agent. No ** bold markers and no Markdown # headings. For schoolwork, provide factual keywords, key points, structure and concepts rather than polished submission-ready prose. If asked to rewrite, say "Please rephrase it in your own words." and then provide information/keywords/structure. For code, always use fenced Markdown with a real language identifier and explain outside the fence.`;
+  const system=`You are Nimbus private developer workspace AI. Be direct and useful. Do not use ** bold markers or Markdown # headings in normal prose. For schoolwork, give keywords, facts, structure and concepts rather than ready-to-submit prose. If asked to rewrite, say: \"Please rephrase it in your own words.\" Then provide keywords and structure. When code is requested, always use fenced Markdown with the language identifier and explain outside the fence.`;
   try{
     await waitForPuter();
-    if(!puter.auth.isSignedIn()) await puter.auth.signIn({request_auth:true});
-    const id=resolvedModelId(def);
-    const resp=await puter.ai.chat([{role:'system',content:system},{role:'user',content:prompt}],{model:id,normalize:true,stream:false});
-    const out=extractText(resp);if(!out)throw new Error('Empty Puter response');return out;
+    if(!puter.auth.isSignedIn()) await puter.auth.signIn();
+    const modelId=resolvedModelId(def);
+    const response=await puter.ai.chat(prompt,{model:modelId});
+    const out=extractText(response);
+    if(!out) throw new Error('Empty Puter response');
+    return out;
   }catch(err){
-    const s=String(err?.message||err||'');
-    if(/balance|funding|allowance|upgrade|insufficient|puter-chat-completion|credits/i.test(s)){
-      return serverFallback(prompt);
+    const s=String(err?.message||err||'').toLowerCase();
+    console.warn('[Nimbus workspace agent] Puter request failed:',err);
+    // Gracefully use the existing Nimbus Gemini backend instead of exposing a Puter billing/provider error.
+    if(/balance|funding|allowance|upgrade|insufficient|credits|puter-chat-completion|payment|quota|unavailable|model/i.test(s)) return serverFallback(prompt);
+    // A second attempt with the same official Puter model, then backend fallback for transient provider errors.
+    try{
+      const retry=await puter.ai.chat(prompt,{model:resolvedModelId(def)});
+      const retryText=extractText(retry);
+      if(retryText) return retryText;
+    }catch(retryErr){
+      console.warn('[Nimbus workspace agent] retry failed:',retryErr);
     }
-    throw err;
+    return serverFallback(prompt);
   }
 }
 
