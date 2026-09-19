@@ -259,7 +259,14 @@ function setAgentThinking(isThinking){
 }
 
 function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2 • VISUAL</span><strong>${title}</strong><small>${type} • ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visual…</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
-function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'}`;img.src=`data:${mimeType||'image/png'};base64,${base64}`;card.bubble.querySelector('.visual-loading')?.remove();card.bubble.appendChild(img);const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';card.bubble.appendChild(note);$('messages').scrollTop=$('messages').scrollHeight;}
+function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'}`;img.src=`data:${mimeType||'image/png'};base64,${base64}`;card.bubble.querySelector('.visual-loading')?.remove();card.bubble.appendChild(img);const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent=meta.fallback?'Nano Banana 2 was unavailable, so Nimbus created a local study diagram. Use the keywords and labels as study help, then rephrase explanations in your own words.':'Use the keywords and labels as study help, then rephrase the explanation in your own words.';card.bubble.appendChild(note);$('messages').scrollTop=$('messages').scrollHeight;}
+function svgFallbackDataUrl(title,keywords,type='diagram'){
+  const items=String(keywords||'key concept • input • process • output').split(/[,•|]/).map(x=>x.trim()).filter(Boolean).slice(0,6);
+  const safe=(x)=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const nodes=items.map((x,i)=>{const y=165+i*105;return `<g><rect x="155" y="${y}" width="710" height="66" rx="18" fill="#ffffff" stroke="#cfd6e4"/><text x="510" y="${y+41}" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#1f2430">${safe(x)}</text>${i<items.length-1?`<line x1="510" y1="${y+66}" x2="510" y2="${y+101}" stroke="#6d5dfc" stroke-width="5" stroke-linecap="round"/><polygon points="510,${y+108} 501,${y+94} 519,${y+94}" fill="#6d5dfc"/>`:''}</g>`;}).join('');
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1024 576"><rect width="1024" height="576" fill="#f7f8fc"/><rect x="28" y="24" width="968" height="528" rx="28" fill="#ffffff" stroke="#e1e6ef"/><text x="60" y="78" font-family="Arial, sans-serif" font-size="16" font-weight="800" letter-spacing="2" fill="#6d5dfc">NIMBUS • STUDY ${safe(String(type).toUpperCase())}</text><text x="60" y="118" font-family="Arial, sans-serif" font-size="30" font-weight="800" fill="#1f2430">${safe(title||'Study visual')}</text>${nodes}</svg>`;
+  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+}
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
 function looksLikeSchoolWork(text){const s=String(text||'').toLowerCase();return /(homework|assignment|classwork|worksheet|study|studying|notes|revision|revise|exam|test|quiz|project|school|lesson|chapter|topic|explain|how does|why does|define|difference between|compare|biology|chemistry|physics|math|mathematics|history|geography|computer|programming|coding|python|javascript|html|css|lua|roblox|game|flowchart|diagram|concept map|process|steps)/i.test(s);}
@@ -274,13 +281,18 @@ async function generateVisual(prompt,meta={}){
       return true;
     }
     const message=d?.message||'Nano Banana 2 is temporarily unavailable.';
-    const load=card.bubble.querySelector('.visual-loading');
-    if(load){load.innerHTML=`<div class="visual-fallback">${escapeHtml(message)}</div>`;load.classList.add('visual-error');}
-    return false;
+    const fallbackUrl=svgFallbackDataUrl(meta.title||'Study visual',meta.keywords||'keywords • concept • process • result',meta.type||'diagram');
+    card.bubble.querySelector('.visual-loading')?.remove();
+    const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'} fallback`;img.src=fallbackUrl;card.bubble.appendChild(img);
+    const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent=`${message} Nimbus generated a local study diagram instead, so your visual block still works.`;card.bubble.appendChild(note);
+    return true;
   }catch(e){
     console.warn('Visual generation failed',e);
-    failVisualCard(card);
-    return false;
+    const fallbackUrl=svgFallbackDataUrl(meta.title||'Study visual',meta.keywords||'keywords • concept • process • result',meta.type||'diagram');
+    card.bubble.querySelector('.visual-loading')?.remove();
+    const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'} fallback`;img.src=fallbackUrl;card.bubble.appendChild(img);
+    const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent='Nano Banana 2 was unavailable, so Nimbus generated a local study diagram instead.';card.bubble.appendChild(note);
+    return true;
   }
 }
 
