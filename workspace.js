@@ -1,515 +1,158 @@
-const MODELS={
-  ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid • Ultra modifications'},
-  legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'},
-  'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams • Flowcharts • Visuals'}
-};
-
+const FINANCE_KEY='nimbus_workspace_finance_v3';
+const LAYOUT_KEY='nimbus_workspace_layout_v3';
+const AGENT_HISTORY_KEY='nimbus_private_agent_chats_v3';
+const DEFAULTS={accent:'#6d5dfc',accent2:'#22b8cf',radius:18,sidebar:286,density:'balanced',font:'Plus Jakarta Sans'};
+const PREMIUM_LABEL='Nimbus 5.7 Lor • Ultra Modified';
+const PREMIUM_MODEL_ID='gpt-6-astra';
+const USD_TO_PKR_DEFAULT=277.27;
+const GITHUB_OWNER='rexx37619-cyber';
+const GITHUB_REPO='Nimbus-Beaconhouse-AI';
+const GITHUB_BRANCH='main';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let session={role:'owner',user:null,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};
+let currentFile={path:'',content:''};
+let openAIModels=[];
+let agentChats=JSON.parse(localStorage.getItem(AGENT_HISTORY_KEY)||'[]');
+let currentAgentChatId=null;
+function isOwner(){return true;}
+function guardOwners(){document.querySelectorAll('.owner-only,.owner-only-panel').forEach(el=>el.classList.remove('hidden'));}
+async function getPuterUser(){if(!window.puter)throw new Error('Puter.js did not load.');if(!puter.auth.isSignedIn())return null;return puter.auth.getUser();}
+function openWorkspace(){document.getElementById('gate')?.classList.add('hidden');document.getElementById('workspace')?.classList.remove('hidden');}
+function showDenied(msg){const el=document.getElementById('gateMsg');if(el){el.textContent=msg||'Please sign in with Puter.';el.style.color='#d74764';}}
 const PUTER_OWNER_USERNAMES=new Set(['neat_ocean_262513','peaceful_balloon_864250']);
 const PUTER_OWNER_LABELS={neat_ocean_262513:'Haadi',peaceful_balloon_864250:'Friend'};
+function normalizePuterUsername(user){return String(user?.username||user?.name||'').trim().toLowerCase();}
+function isAllowedWorkspaceUser(user){return PUTER_OWNER_USERNAMES.has(normalizePuterUsername(user));}
+function showWorkspace(user){const u=normalizePuterUsername(user);document.getElementById('gate')?.classList.add('hidden');document.getElementById('workspace')?.classList.remove('hidden');document.getElementById('rolePill').textContent='ACCESS ALLOWED';document.getElementById('roleNote').textContent='Puter account authenticated';document.getElementById('userEmail').textContent=u?`Puter: ${PUTER_OWNER_LABELS[u]||u}`:'Puter account';document.getElementById('gateMsg').textContent='Access accepted.';}
+async function waitForPuter(){const started=Date.now();while(!window.puter&&Date.now()-started<10000)await new Promise(r=>setTimeout(r,100));if(!window.puter)throw new Error('Puter.js did not load. Refresh the page and try again.');}
+async function ensurePuterSignedIn(){await waitForPuter();if(puter.auth?.isSignedIn?.())return puter.auth.getUser();if(puter.ui?.authenticateWithPuter){await puter.ui.authenticateWithPuter();}else if(puter.auth?.signIn){await puter.auth.signIn();}else{throw new Error('Puter sign-in is unavailable on this page.');}if(!puter.auth?.isSignedIn?.())throw new Error('Puter sign-in was not completed.');return puter.auth.getUser();}
+async function signIn(){const b=document.getElementById('signInBtn');const msg=document.getElementById('gateMsg');if(b)b.disabled=true;if(msg)msg.textContent='Opening Puter sign-in…';try{const u=await ensurePuterSignedIn();if(!isAllowedWorkspaceUser(u)){const name=normalizePuterUsername(u);throw new Error(name?`Signed in as ${name}. This workspace is limited to the two configured Puter accounts.`:'This Puter account is not allowed for this workspace.');}session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};showWorkspace(u);guardOwners();await bootWorkspace();}catch(e){console.error('Puter workspace sign-in failed',e);showDenied(e.message||'Puter sign-in failed. Please try again.');}finally{if(b)b.disabled=false;}}
+document.getElementById('signInBtn')?.addEventListener('click',signIn);
 
-const RESOURCES=[
-  ['Beaconhouse main site','https://www.beaconhouse.net/'],
-  ['About Beaconhouse','https://www.beaconhouse.net/about-us/'],
-  ['Academics & programmes','https://www.beaconhouse.net/academic/'],
-  ['Academic archive','https://www.beaconhouse.net/academic-programs/'],
-  ['Learner Profile','https://www.beaconhouse.net/beaconhouse-learner-profile/'],
-  ['Clubs & Societies','https://www.beaconhouse.net/clubs-and-societies/'],
-  ['Access Centre','https://www.beaconhouse.net/the-access-centre/'],
-  ['Sports competitions','https://www.beaconhouse.net/sports-competition/'],
-  ['STEAM competitions','https://www.beaconhouse.net/steam-competition/'],
-  ['BISC','https://bisc.beaconhouse.net/'],
-  ['BISC About','https://bisc.beaconhouse.net/about-bisc/'],
-  ['BISC results','https://www.beaconhouse.net/results/'],
-  ['RISE competitions','https://rise.beaconhouse.net/'],
-  ['Educational trips','https://www.beaconhouse.net/education-trips/'],
-  ['International events & trips','https://www.beaconhouse.net/international-events-trips/'],
-  ['Internship programme','https://www.beaconhouse.net/internship-programme/'],
-  ['University placements & scholarships','https://www.beaconhouse.net/university-placements-scholarships/'],
-  ['Student protection & safeguarding','https://www.beaconhouse.net/child-protection/'],
-  ['PYP / IB programme','https://www.beaconhouse.net/international-baccalaureate-programs/pyp/'],
-  ['CIE A Level','https://www.beaconhouse.net/cie-a-level/'],
-  ['BEAMS','https://beams.beaconhouse.net/home/'],
-  ['BEAMS PRISM','https://beams.beaconhouse.net/prism/'],
-  ['Learner Agency Paradigm','https://lap.beaconhouse.net/about-us/'],
-  ['LAP guidelines 2026','https://lap.beaconhouse.net/guidelines-2/'],
-  ['LAP guidelines 2027','https://lap.beaconhouse.net/guidelines-ilap-2027/'],
-  ['Beaconhouse Old Students Society','https://boss.beaconhouse.net/about-us/'],
-  ['2026-27 Punjab book lists (Class 1-8 selector)','https://booklist.beaconhouse.net/punjab-booklist/'],
-  ['2026-27 Sindh & Balochistan book lists (Class 1-8 selector)','https://booklist.beaconhouse.net/sindh-balochistan-booklist/'],
-  ['2026-27 Fed/ICT book lists','https://booklist.beaconhouse.net/ict-booklist/'],
-  ['2026-27 KPK book lists','https://booklist.beaconhouse.net/kpk-booklist/'],
-  ['2026-27 TNS book lists','https://booklist.beaconhouse.net/tns-booklist/'],
-  ['2026-27 Newlands Karachi book lists','https://booklist.beaconhouse.net/newlands-booklist-khi/'],
-  ['2026-27 Newlands Islamabad book lists','https://booklist.beaconhouse.net/newlands-booklist-isb/'],
-  ['2026-27 Newlands Lahore & Multan book lists','https://booklist.beaconhouse.net/newlands-booklist-ml/'],
-  ['2026-27 Discovery Centre Karachi book lists','https://booklist.beaconhouse.net/discovery-karachi-booklist/'],
-  ['2026-27 Book List portal','https://booklist.beaconhouse.net/'],
-  ['Nimbus competition knowledge','/knowledge/beaconhouse_competitions_and_programmes.txt'],
-  ['Nimbus BEAMS/LAP knowledge','/knowledge/beams_lap_and_services.txt'],
-  ['Nimbus 2026 book-pack links','/knowledge/book_pack_2026_links.txt']
-];
-
-const USAGE_LIMIT=1500;
-const usageKey=()=>`nimbus_usage_24h_${String(state.id||'anonymous').toLowerCase()}`;
-function readUsageWindow(){
-  try{
-    const raw=localStorage.getItem(usageKey());
-    const d=raw?JSON.parse(raw):null;
-    const now=Date.now();
-    if(!d||!Number.isFinite(d.started)||now-d.started>=86400000){
-      const fresh={used:0,started:now}; localStorage.setItem(usageKey(),JSON.stringify(fresh)); return fresh;
-    }
-    return {used:Math.max(0,Number(d.used)||0),started:d.started};
-  }catch{return {used:0,started:Date.now()};}
-}
-function writeUsageWindow(d){try{localStorage.setItem(usageKey(),JSON.stringify(d));}catch{}}
-const state={
-  id:localStorage.getItem('nimbus_id')||'',
-  messages:[],
-  chats:JSON.parse(localStorage.getItem('nimbus_chats')||'[]'),
-  file:null,
-  currentChatId:null,
-  model:localStorage.getItem('nimbus_model')||'ror',
-  used:0,
-  usageStarted:Date.now()
+const OPENAI_ALIASES={
+  'gpt-6-astra':'Nimbus 5.7 Lor • Ultra Modified','gpt-5.6-sol':'Nimbus Sol 5.6 • Modified','gpt-5.6-terra':'Nimbus Terra 5.6 • Modified','gpt-5.6-luna':'Nimbus Luna 5.6 • Modified','gpt-5.5':'Nimbus ROR 5.5 • Modified','gpt-5.5-pro':'Nimbus ROR 5.5 Pro • Modified','gpt-5.4':'Nimbus ROR 5.4 • Modified','gpt-5.4-pro':'Nimbus ROR 5.4 Pro • Modified','gpt-5.4-mini':'Nimbus ROR Mini 5.4 • Modified','gpt-5.4-nano':'Nimbus ROR Nano 5.4 • Modified','gpt-5.3-codex':'Nimbus Code 5.3 • Modified','gpt-5.1':'Nimbus ROR 5.1 • Modified','gpt-5.1-chat':'Nimbus Chat 5.1 • Modified','gpt-5':'Nimbus ROR 5 • Modified','gpt-4.1':'Nimbus Classic 4.1 • Modified','gpt-4o':'Nimbus Omni 4o • Modified','gpt-4o-mini':'Nimbus Mini 4o • Modified'
 };
-({used:state.used,started:state.usageStarted}=readUsageWindow());
-
-const $=id=>document.getElementById(id);
-const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const escapeAttr=s=>escapeHtml(s).replace(/`/g,'&#96;');
-function activeModel(){return MODELS[state.model]||MODELS.ror}
-function saveChats(){localStorage.setItem('nimbus_chats',JSON.stringify(state.chats.slice(0,40)))}
-
-function renderHistory(){
-  const h=$('chatHistory'); h.innerHTML='';
-  state.chats.forEach(c=>{
-    const b=document.createElement('button');
-    b.className='history-item'+(c.id===state.currentChatId?' active':'');
-    b.textContent=c.title||'New chat';
-    b.onclick=()=>loadChat(c.id);
-    h.appendChild(b);
+const CLAUDE_ALIASES={'claude-fable-5-1':'Nimbus Fable 5.1 • Modified','claude-fable-5':'Nimbus Fable 5 • Modified','claude-opus-5':'Nimbus Opus 5 • Modified'};
+const NANO_MODEL={id:'nano-banana-2',provider:'gemini',kind:'image',label:'Nano Banana 2 • Visuals',sub:'Diagrams • flowcharts • concept visuals'};
+let agentModels=[];
+function modelId(m){return String(m?.id||'').trim();}
+function shortId(m){return modelId(m).split('/').pop().toLowerCase();}
+function nimbusModelName(m){
+  const id=shortId(m);
+  if(m?.kind==='image') return NANO_MODEL.label;
+  if(String(m?.provider).toLowerCase()==='claude' && CLAUDE_ALIASES[id]) return CLAUDE_ALIASES[id];
+  if(String(m?.provider).toLowerCase()==='openai' && OPENAI_ALIASES[id]) return OPENAI_ALIASES[id];
+  const raw=String(m?.name||m?.id||'Model').replace(/^Claude\s*/i,'').replace(/^GPT\s*/i,'').replace(/\s+/g,' ').trim();
+  return `Nimbus ${raw} • Modified`;
+}
+function isChatProviderModel(m, provider){
+  const p=String(m?.provider||provider||'').toLowerCase();
+  const id=shortId(m);
+  if(!['openai','claude'].includes(p)) return false;
+  return !['image','live','audio','transcribe','embedding','embed','moderation','tts','realtime','speech'].some(x=>id.includes(x));
+}
+function sortModels(list, priority){
+  return [...list].sort((a,b)=>{
+    const ai=priority.indexOf(shortId(a)), bi=priority.indexOf(shortId(b));
+    if(ai!==bi) return (ai<0?999:ai)-(bi<0?999:bi);
+    return nimbusModelName(a).localeCompare(nimbusModelName(b));
   });
 }
-
-function usageTimeLeft(){const left=Math.max(0,86400000-(Date.now()-state.usageStarted));const h=Math.floor(left/3600000),m=Math.floor((left%3600000)/60000);return `${h}h ${m}m`;}
-function updateUsage(used){
-  if(typeof used==='number') state.used=Math.max(0,Math.min(USAGE_LIMIT,used));
-  writeUsageWindow({used:state.used,started:state.usageStarted});
-  const pct=Math.min(100,(state.used/USAGE_LIMIT)*100);
-  $('usageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD`;
-  $('usageBar').style.width=pct+'%';
-  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD • resets in ${usageTimeLeft()}`;
-  if($('menuUsageBar')) $('menuUsageBar').style.width=pct+'%';
-}
-function consumeLocalUsage(){state.used=Math.min(USAGE_LIMIT,state.used+1);updateUsage();}
-
-function renderModels(){
-  const menu=$('modelMenu');
-  menu.innerHTML=Object.values(MODELS).map(m=>`
-    <button class="model-option ${m.id===state.model?'active':''}" data-model="${m.id}">
-      <div><b>${escapeHtml(m.label)}</b><small>${escapeHtml(m.sub)}</small></div>
-      ${m.id===state.model?'<span>✓</span>':''}
-    </button>
-  `).join('')+
-  `<div class="model-usage">
-      <div><span>Daily usage</span><b id="menuUsageText">${state.used.toLocaleString()} / 1,500 RPD</b></div>
-      <div class="usage-track"><div id="menuUsageBar" class="usage-bar" style="width:${Math.min(100,(state.used/1500)*100)}%"></div></div>
-   </div>`;
-  $('activeModelLabel').textContent=activeModel().label;
-  updateUsage();
-}
-
-function resetChat(){
-  state.messages=[]; state.currentChatId=null;
-  $('messages').innerHTML=''; $('messages').classList.remove('show');
-  $('welcome').classList.remove('hidden'); renderHistory();
-}
-
-function ensureChat(text){
-  if(state.currentChatId)return;
-  state.currentChatId=crypto.randomUUID?crypto.randomUUID():String(Date.now());
-  state.chats.unshift({id:state.currentChatId,title:text.slice(0,42)+(text.length>42?'…':''),messages:[]});
-  saveChats(); renderHistory();
-}
-
-function formatAnswer(text){
-  const src=String(text||'').replace(/\r\n/g,'\n');
-  const out=[];
-  let cursor=0;
-  const fence=/```[ \t]*([A-Za-z0-9_+.#-]+)?[ \t]*\n?([\s\S]*?)```/g;
-  let match;
-
-  while((match=fence.exec(src))!==null){
-    if(match.index>cursor) out.push({type:'text',value:src.slice(cursor,match.index)});
-    const lang=(match[1]||guessLanguage(match[2])).trim() || 'text';
-    const code=match[2].replace(/^\n/,'').replace(/\n[ \t]*$/,'');
-    out.push({type:'code',lang,code});
-    cursor=fence.lastIndex;
-  }
-
-  if(cursor<src.length) out.push({type:'text',value:src.slice(cursor)});
-  return out.length?out:[{type:'text',value:src}];
-}
-
-function guessLanguage(code){
-  const s=String(code||'').trim();
-  if(/^(<!doctype html|<html[ >])/i.test(s)) return 'html';
-  if(/^(const|let|var|function|import .* from|export |console\.)/m.test(s)) return 'javascript';
-  if(/^(def |import |from .* import |print\()/m.test(s)) return 'python';
-  if(/^(body|html|\.[\w-]+)\s*\{|@media|:[a-z-]+\s*;/m.test(s)) return 'css';
-  if(/^(local |function |print\()|\bgame\b|\bInstance\b/m.test(s)) return 'lua';
-  if(/^(SELECT|INSERT|UPDATE|DELETE|CREATE)\b/im.test(s)) return 'sql';
-  return '';
-}
-
-function plainTextToHtml(text){
-  const escaped=escapeHtml(text);
-  return escaped
-    .replace(/\*\*/g,'')
-    .replace(/`([^`]+)`/g,'<code class="inline-code">$1</code>')
-    .replace(/\n/g,'<br>');
-}
-
-function makeAiBubble(text){
-  const bubble=document.createElement('div');
-  bubble.className='message-bubble ai-bubble';
-  bubble.innerHTML=`
-    <div class="ai-head">
-      <div><div class="ai-tag">NIMBUS • ${escapeHtml(activeModel().label)}</div></div>
-    </div>
-    <div class="typing-area"></div>
-    <div class="answer-actions hidden">
-      <button data-action="copy">Copy</button>
-      <button data-action="txt">Save TXT</button>
-      <button data-action="pdf">Print / Save PDF</button>
-    </div>`;
-  bubble.dataset.rawText=String(text||'');
-  return bubble;
-}
-
-function renderMessage(role,text,fileName,scroll=true,animate=false){
-  $('welcome').classList.add('hidden'); $('messages').classList.add('show');
-  const d=document.createElement('div'); d.className='message '+role;
-  if(role==='ai'){
-    const bubble=makeAiBubble(text);
-    d.appendChild(bubble);
-    $('messages').appendChild(d);
-    const area=bubble.querySelector('.typing-area');
-    formatAnswer(text).forEach(seg=>{
-      if(seg.type==='code'){
-        const wrap=document.createElement('div'); wrap.className='code-wrap';
-        const language=(seg.lang||'text').toLowerCase();
-        wrap.innerHTML=`<div class="code-head"><span>${escapeHtml(language)}</span><button data-copy-code>Copy</button></div><pre><code>${escapeHtml(seg.code)}</code></pre>`;
-        area.appendChild(wrap);
-        wrap.querySelector('[data-copy-code]').onclick=async()=>{await navigator.clipboard.writeText(seg.code);wrap.querySelector('[data-copy-code]').textContent='Copied';setTimeout(()=>wrap.querySelector('[data-copy-code]').textContent='Copy',900)};
-      }else{
-        const p=document.createElement('div'); p.className='answer-text'; p.innerHTML=plainTextToHtml(seg.value); area.appendChild(p);
-      }
-    });
-    bubble.querySelector('.answer-actions').classList.remove('hidden');
-  }else{
-    const bubble=document.createElement('div'); bubble.className='message-bubble'; bubble.innerHTML=`${plainTextToHtml(text)}${fileName?`<div class="file-chip">📎 ${escapeHtml(fileName)}</div>`:''}`;
-    d.appendChild(bubble); $('messages').appendChild(d);
-  }
-  if(scroll)$('messages').scrollTop=$('messages').scrollHeight;
-  if(role==='ai'){
-    const actions=d.querySelector('.answer-actions');
-    if(actions){
-      actions.querySelector('[data-action="copy"]').onclick=async()=>{await navigator.clipboard.writeText(text);actions.querySelector('[data-action="copy"]').textContent='Copied';setTimeout(()=>actions.querySelector('[data-action="copy"]').textContent='Copy',900)};
-      actions.querySelector('[data-action="txt"]').onclick=()=>downloadText('nimbus-answer.txt',text);
-      actions.querySelector('[data-action="pdf"]').onclick=()=>printPdf(text);
-    }
-  }
-}
-function downloadText(filename,text){
-  const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-
-function printPdf(text){
-  const w=window.open('','_blank','width=900,height=700');
-  if(!w)return;
-  w.document.write(`<!doctype html><html><head><title>Nimbus answer</title><style>body{font-family:Arial,sans-serif;padding:42px;line-height:1.6;color:#17191d}pre{background:#111;color:#fff;padding:16px;border-radius:10px;white-space:pre-wrap}h1{font-size:20px}small{color:#777}</style></head><body><h1>Nimbus</h1><small>Beaconhouse Intelligence</small><hr><div>${plainTextToHtml(text)}</div></body></html>`);
-  w.document.close(); w.focus(); setTimeout(()=>w.print(),250);
-}
-
-function add(role,text,fileName){
-  state.messages.push({role,text,fileName:fileName||null});
-  renderMessage(role,text,fileName,true,role==='ai');
-  if(role!=='ai') persistCurrent();
-}
-
-function loadChat(id){
-  const c=state.chats.find(x=>x.id===id);if(!c)return;
-  state.currentChatId=id;state.messages=c.messages||[];$('messages').innerHTML='';
-  state.messages.forEach(m=>renderMessage(m.role,m.text,m.fileName,false,false));
-  if(state.messages.length){$('welcome').classList.add('hidden');$('messages').classList.add('show')}else{$('welcome').classList.remove('hidden');$('messages').classList.remove('show')}
-  renderHistory();
-}
-function persistCurrent(){const c=state.chats.find(x=>x.id===state.currentChatId);if(c){c.messages=state.messages;saveChats();}}
-
-
-function setAgentThinking(isThinking){
-  const panel=$('agentAssist');
-  if(!panel) return;
-  panel.classList.toggle('hidden',!isThinking);
-  if(isThinking){
-    const msg=$('messages');
-    if(msg) msg.scrollTop=msg.scrollHeight;
-  }
-}
-
-function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2 • VISUAL</span><strong>${title}</strong><small>${type} • ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visual…</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
-function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'}`;img.src=`data:${mimeType||'image/png'};base64,${base64}`;card.bubble.querySelector('.visual-loading')?.remove();card.bubble.appendChild(img);const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent=meta.fallback?'Nano Banana 2 was unavailable, so Nimbus created a local study diagram. Use the keywords and labels as study help, then rephrase explanations in your own words.':'Use the keywords and labels as study help, then rephrase the explanation in your own words.';card.bubble.appendChild(note);$('messages').scrollTop=$('messages').scrollHeight;}
-function svgFallbackDataUrl(title,keywords,type='diagram'){
-  const items=String(keywords||'key concept • input • process • output').split(/[,•|]/).map(x=>x.trim()).filter(Boolean).slice(0,6);
-  const safe=(x)=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const nodes=items.map((x,i)=>{const y=165+i*105;return `<g><rect x="155" y="${y}" width="710" height="66" rx="18" fill="#ffffff" stroke="#cfd6e4"/><text x="510" y="${y+41}" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#1f2430">${safe(x)}</text>${i<items.length-1?`<line x1="510" y1="${y+66}" x2="510" y2="${y+101}" stroke="#6d5dfc" stroke-width="5" stroke-linecap="round"/><polygon points="510,${y+108} 501,${y+94} 519,${y+94}" fill="#6d5dfc"/>`:''}</g>`;}).join('');
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1024 576"><rect width="1024" height="576" fill="#f7f8fc"/><rect x="28" y="24" width="968" height="528" rx="28" fill="#ffffff" stroke="#e1e6ef"/><text x="60" y="78" font-family="Arial, sans-serif" font-size="16" font-weight="800" letter-spacing="2" fill="#6d5dfc">NIMBUS • STUDY ${safe(String(type).toUpperCase())}</text><text x="60" y="118" font-family="Arial, sans-serif" font-size="30" font-weight="800" fill="#1f2430">${safe(title||'Study visual')}</text>${nodes}</svg>`;
-  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
-}
-function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
-function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
-function looksLikeSchoolWork(text){const s=String(text||'').toLowerCase();return /(homework|assignment|classwork|worksheet|study|studying|notes|revision|revise|exam|test|quiz|project|school|lesson|chapter|topic|explain|how does|why does|define|difference between|compare|biology|chemistry|physics|math|mathematics|history|geography|computer|programming|coding|python|javascript|html|css|lua|roblox|game|flowchart|diagram|concept map|process|steps)/i.test(s);}
-function makeAutoVisualPrompt(userText,answerText){return `Create a professional, realistic, visually rich 16:9 educational poster or flowchart. Use realistic subject imagery or polished 3D/illustrated visuals, strong color, depth, lighting, meaningful icons, accurate connected flowchart elements, clean composition, short readable labels, and a premium presentation-ready finish. Do not make a plain white text sheet, simple arrow-and-text graphic, generic box-only diagram, or long paragraph layout. The visual should communicate the topic through real imagery, color and spatial relationships. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. For code or game-development help, visualize actual logic, components, systems, mechanics and flow with distinct colored elements instead of reproducing long code. Make the final graphic attractive, information-dense, accurate and presentation-ready while remaining easy for a student to study and rephrase.`;}
-async function generateVisual(prompt,meta={}){
-  const card=createVisualCard(meta);
-  try{
-    const r=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,aspectRatio:'16:9',imageSize:'2K'})});
-    const d=await r.json().catch(()=>({}));
-    if(r.ok&&d.ok&&d.data){
-      finishVisualCard(card,d.data,d.mimeType||'image/png',meta);
-      return true;
-    }
-    const message=d?.message||'Nano Banana 2 is temporarily unavailable.';
-    const fallbackUrl=svgFallbackDataUrl(meta.title||'Study visual',meta.keywords||'keywords • concept • process • result',meta.type||'diagram');
-    card.bubble.querySelector('.visual-loading')?.remove();
-    const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'} fallback`;img.src=fallbackUrl;card.bubble.appendChild(img);
-    const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent=`${message} Nimbus generated a local study diagram instead, so your visual block still works.`;card.bubble.appendChild(note);
-    return true;
-  }catch(e){
-    console.warn('Visual generation failed',e);
-    const fallbackUrl=svgFallbackDataUrl(meta.title||'Study visual',meta.keywords||'keywords • concept • process • result',meta.type||'diagram');
-    card.bubble.querySelector('.visual-loading')?.remove();
-    const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'} fallback`;img.src=fallbackUrl;card.bubble.appendChild(img);
-    const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent='Nano Banana 2 was unavailable, so Nimbus generated a local study diagram instead.';card.bubble.appendChild(note);
-    return true;
-  }
-}
-
-async function sendMessage(text){
-  const file=state.file;
-  ensureChat(text||'Study file');
-  add('user',text||'Please analyse my attachment.',file?.name);
-  state.file=null;$('fileInput').value='';$('attachment').classList.add('hidden');$('sendBtn').disabled=true;setAgentThinking(true);$('messageInput').value='';$('messageInput').style.height='auto';
-  try{
-    if(state.used>=USAGE_LIMIT){add('ai',`Daily limit reached. Your 24-hour window resets in ${usageTimeLeft()}.`);return;}
-    let attachment=null;
-    if(file){
-      if(file.size>4*1024*1024) throw new Error('Please keep attachments below 4 MB.');
-      const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)});
-      attachment={name:file.name,mimeType:file.type||'application/octet-stream',data:dataUrl.split(',')[1]};
-    }
-    let r, data;
-    if(state.model==='nano-banana-2'){
-      const visualPrompt=`Create a professional, realistic, visually rich 16:9 educational poster or flowchart for this request: ${text||'Study visual'}. Make it presentation-ready with realistic subject imagery or polished 3D/illustrated visuals, strong color, depth, lighting, meaningful icons, accurate connected flowchart elements, clean composition and short readable labels. Do not make a plain white text sheet, simple arrow-and-text graphic, generic box-only diagram, or long paragraph layout.`;
-      const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels • arrows • key concepts'});
-      if(ok) add('ai','Nano Banana 2 visual generated. Use the labels as study help and rephrase explanations in your own words.');
-      consumeLocalUsage();
-      return;
-    }
-    r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',educational_id:state.id||'anonymous',model:state.model,attachment})});
-    data=await r.json().catch(()=>({}));
-    // The server may report a count when available; the client also maintains a 24-hour per-educational-ID window.
-    if(typeof data.used==='number' && data.used>=state.used) updateUsage(data.used);
-    if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
-    if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
-    let reply=data.reply||'Nimbus did not return a response.';
-    if(data.visual?.prompt || looksLikeSchoolWork(text) || /(flowchart|diagram|draw|image|visual|illustration|mind map|concept map|show me|make a chart)/i.test(String(text||''))){
-      const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
-      const vtitle=data.visual?.title||'Study visual';
-      const vkeywords=data.visual?.keywords||'keywords • labels • key concepts • arrows';
-      add('ai',reply);
-      const prompt=data.visual?.prompt||makeAutoVisualPrompt(text,reply);
-      try{await generateVisual(prompt,{title:vtitle,type:vtype,keywords:vkeywords});}
-      catch(e){console.warn('Visual generation failed',e);}
-    }else add('ai',reply);
-    consumeLocalUsage();
-  }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
-  finally{$('sendBtn').disabled=false;setAgentThinking(false);}
-}
-
-$('composer').addEventListener('submit',e=>{e.preventDefault();const t=$('messageInput').value.trim();if(t||state.file)sendMessage(t)});
-$('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('composer').requestSubmit()}});
-$('messageInput').addEventListener('input',()=>{const el=$('messageInput');el.style.height='auto';el.style.height=Math.min(el.scrollHeight,150)+'px'});
-$('attachBtn').onclick=()=>$('fileInput').click();
-$('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`📎 <b>${escapeHtml(f.name)}</b> · ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">×</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
-
-document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('messageInput').value=b.dataset.prompt;$('messageInput').focus()});
-$('newChat').onclick=resetChat;$('clearChat').onclick=resetChat;$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
-
-$('modelPickerBtn').addEventListener('click',e=>{
-  e.preventDefault();
-  e.stopPropagation();
-  const menu=$('modelMenu');
-  const willOpen=menu.classList.contains('hidden');
-  menu.classList.toggle('hidden',!willOpen);
-  $('modelPickerBtn').setAttribute('aria-expanded',String(willOpen));
-});
-$('modelMenu').addEventListener('click',e=>{
-  e.stopPropagation();
-  const opt=e.target.closest('[data-model]');
-  if(!opt)return;
-  state.model=opt.dataset.model;
-  localStorage.setItem('nimbus_model',state.model);
-  renderModels();
-  $('modelMenu').classList.remove('hidden');
-});
-document.addEventListener('click',e=>{
-  if(!$('modelPicker').contains(e.target)){
-    $('modelMenu').classList.add('hidden');
-    $('modelPickerBtn').setAttribute('aria-expanded','false');
-  }
-});
-
-function syncAccount(){const name='Beaconhouse student';$('accountName').textContent=name;$('accountId').textContent=state.id||'Educational ID';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.id||'Educational ID';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
-
-$('enterNimbus').onclick=()=>{const id=$('eduId').value.trim();if(!/^\S+@(bh|beaconite)\.edu\.pk$/i.test(id)){alert('Invalid Educational ID. Use an ID ending in @bh.edu.pk or @beaconite.edu.pk.');return;}state.id=id;localStorage.setItem('nimbus_id',id);({used:state.used,started:state.usageStarted}=readUsageWindow());updateUsage();$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');syncAccount();renderHistory();if(state.chats.length)loadChat(state.chats[0].id)};
-
-$('accountBtn').onclick=$('topAccount').onclick=()=>$('menuModal').classList.remove('hidden');
-$('closeMenu').onclick=()=>$('menuModal').classList.add('hidden');
-$('mobileMenu').onclick=()=>$('sidebar').classList.toggle('open');
-$('desktopSidebarToggle').onclick=()=>{$('sidebar').classList.toggle('collapsed');document.body.classList.toggle('sidebar-hidden');};
-
-$('helpBtn').onclick=()=>openInfo();
-$('infoBtn').onclick=()=>openInfo();
-function openInfo(){$('infoModal').classList.remove('hidden');const grid=$('resourceLinks');grid.innerHTML=RESOURCES.map(([t,u])=>`<a href="${escapeAttr(u)}" target="_blank" rel="noopener noreferrer"><b>${escapeHtml(t)}</b><small>${escapeHtml(u)}</small></a>`).join('');}
-$('closeInfo').onclick=()=>$('infoModal').classList.add('hidden');
-$('infoModal').addEventListener('click',e=>{if(e.target===$('infoModal'))$('infoModal').classList.add('hidden')});
-
-$('signOut').onclick=()=>{localStorage.removeItem('nimbus_id');location.reload()};
-$('ownerBtn').onclick=()=>{$('menuModal').classList.add('hidden');$('ownerModal').classList.remove('hidden');};
-$('closeOwner').onclick=()=>$('ownerModal').classList.add('hidden');
-$('ownerLogin').onclick=async()=>{const email=$('ownerEmail').value.trim();if(!email){$('ownerMsg').textContent='Enter an owner email.';return}$('ownerMsg').textContent='Checking…';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
-
-function init(){syncAccount();renderHistory();renderModels();if(state.id){$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');if(state.chats.length)loadChat(state.chats[0].id)}}
-init();
-
-
-// Public Premium Models — Nimbus 5.7 Lor via Puter.js
-const PREMIUM_PUBLIC_LABEL='Nimbus 5.7 Lor';
-const PREMIUM_PUBLIC_MODEL='gpt-6-astra';
-let premiumReady=false;
-async function openPremium(){
-  $('premiumModal').classList.remove('hidden');
-  $('premiumStatus').textContent='Checking availability…';
-  try{
-    if(!window.puter) throw new Error('Puter.js unavailable');
-    if(!puter.auth.isSignedIn()){
-      await puter.auth.signIn({request_auth:true});
-    }
-    const models=await puter.ai.listModels();
-    const exact=models.find(m=>String(m.id||'').toLowerCase()===PREMIUM_PUBLIC_MODEL);
-    premiumReady=Boolean(exact);
-    if(exact){
-      $('premiumStatus').textContent='Available';
-    }else{
-      $('premiumStatus').textContent='Not currently exposed by Puter';
-      const providers=[...new Set(models.map(m=>m.provider).filter(Boolean))].join(', ');
-      appendPremium('ai',`Nimbus 5.7 Lor is enabled as the premium label, but Puter is not currently exposing ${PREMIUM_PUBLIC_MODEL} to this app. Available providers: ${providers||'unknown'}.`);
-    }
-  }catch(e){
-    premiumReady=false;
-    $('premiumStatus').textContent='Sign-in required';
-    appendPremium('ai','Please sign in to Puter to use Nimbus 5.7 Lor.');
-  }
-}
-function appendPremium(role,text){
-  const el=document.createElement('div');el.className='premium-msg '+(role==='me'?'me':'ai');el.textContent=text;$('premiumMessages').appendChild(el);$('premiumMessages').scrollTop=$('premiumMessages').scrollHeight;
-}
-$('premiumModelsBtn').addEventListener('click',openPremium);
-$('closePremium').addEventListener('click',()=>$('premiumModal').classList.add('hidden'));
-$('premiumModal').addEventListener('click',e=>{if(e.target===$('premiumModal'))$('premiumModal').classList.add('hidden')});
-$('premiumComposer').addEventListener('submit',async e=>{
-  e.preventDefault(); const text=$('premiumInput').value.trim(); if(!text)return;
-  appendPremium('me',text); $('premiumInput').value='';
-  const wait=document.createElement('div'); wait.className='premium-msg ai'; wait.innerHTML='<span class="premium-thinking"><i></i><i></i><i></i></span>'; $('premiumMessages').appendChild(wait);
-  try{
-    if(!window.puter) throw new Error('Puter.js unavailable');
-    if(!puter.auth.isSignedIn()) await puter.auth.signIn({request_auth:true});
-    const models=await puter.ai.listModels();
-    const exact=models.find(m=>String(m.id||'').toLowerCase()===PREMIUM_PUBLIC_MODEL);
-    if(!exact){wait.textContent='Nimbus 5.7 Lor is not currently available through Puter for this account.';return;}
-    const response=await puter.ai.chat(text,{model:exact.id,reasoning_effort:'minimal',stream:false});
-    const msg=response?.message?.content??response?.content??response;
-    wait.textContent=typeof msg==='string'?msg:JSON.stringify(msg,null,2);
-  }catch(err){wait.textContent='Nimbus 5.7 Lor is temporarily busy. Please try again.'; console.error(err)}
-});
-
-
-function showWorkspace(user){
-  const username=String(user?.username||user?.name||'').trim();
-  $('gate').classList.add('hidden');
-  $('workspace').classList.remove('hidden');
-  $('rolePill').textContent='ACCESS ALLOWED';
-  $('roleNote').textContent='Puter authenticated';
-  $('userEmail').textContent=username?`Puter: ${PUTER_OWNER_LABELS[username]||username}`:'Puter account';
-  $('gateMsg').textContent='Access accepted.';
-}
-
-async function signInToWorkspace(){
-  const msg=$('gateMsg');
-  msg.textContent='Opening Puter sign-in…';
-  try{
-    if(!window.puter) throw new Error('Puter.js unavailable');
-    if(!puter.auth.isSignedIn()){
-      await puter.auth.signIn({attempt_temp_user_creation:false, request_auth:true});
-    }
-    const user=await puter.auth.getUser();
-    const username=String(user?.username||user?.name||'').trim();
-    if(!PUTER_OWNER_USERNAMES.has(username)){
-      msg.textContent='Puter account signed in, but this workspace is currently enabled only for the two configured owner accounts.';
-      return;
-    }
-    showWorkspace(user);
-    await loadAgentModels();
-  }catch(err){
-    console.error('Workspace sign-in failed',err);
-    msg.textContent=err?.msg||'Puter sign-in could not be completed. Please click Sign in with Puter again.';
-  }
-}
-
-async function bootWorkspace(){
-  try{
-    if(!window.puter || !puter.auth.isSignedIn()) return;
-    const user=await puter.auth.getUser();
-    const username=String(user?.username||user?.name||'').trim();
-    if(PUTER_OWNER_USERNAMES.has(username)){
-      showWorkspace(user);
-      await loadAgentModels();
-    }
-  }catch(err){ console.warn('Workspace auto-auth check failed',err); }
-}
-
-$('signInBtn')?.addEventListener('click', signInToWorkspace);
-bootWorkspace();
-
-
 async function loadAgentModels(){
   const select=$('openaiModelSelect');
-  if(!select||!window.puter)return;
-  const desired=[
-    {label:'Nimbus 5.7 Lor • Ultra Modified',model:'openai/gpt-6-astra'},
-    {label:'Nimbus Fable 5.1 • Ultra Modified',model:'anthropic/claude-fable-5-1'}
-  ];
-  let available=[];
-  try{ available=await puter.ai.listModels(); }catch{}
-  select.innerHTML='';
-  for(const d of desired){
-    const found=available.find(m=>String(m.id||'').toLowerCase()===d.model.toLowerCase());
-    const o=document.createElement('option');
-    o.value=d.model;o.textContent=found?d.label:`${d.label} (not exposed)`;o.disabled=!found;select.appendChild(o);
-  }
+  if(!select) return;
+  select.innerHTML='<option>Loading Nimbus models…</option>';
+  try{
+    let openai=[], claude=[];
+    if(window.puter?.ai?.listModels){
+      try{openai=await puter.ai.listModels('openai');}catch{openai=[];}
+      try{claude=await puter.ai.listModels('claude');}catch{claude=[];}
+    }
+    openai=(openai||[]).filter(m=>isChatProviderModel(m,'openai'));
+    claude=(claude||[]).filter(m=>isChatProviderModel(m,'claude'));
+    const unique=(arr)=>{const seen=new Set();return arr.filter(m=>{const id=modelId(m);if(!id||seen.has(id))return false;seen.add(id);return true;});};
+    openai=unique(openai); claude=unique(claude);
+    agentModels=[NANO_MODEL,...sortModels(openai,['gpt-6-astra','gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-pro','gpt-5.5','gpt-5.4-pro','gpt-5.4','gpt-5.3-codex']),...sortModels(claude,['claude-fable-5-1','claude-fable-5','claude-opus-5','claude-sonnet-5','claude-opus-4-8','claude-opus-4-7','claude-opus-4-6'])];
+    select.innerHTML='';
+    const groups=[['Visual model',agentModels.filter(m=>m.kind==='image')],['OpenAI / ChatGPT',agentModels.filter(m=>String(m.provider).toLowerCase()==='openai')],['Anthropic / Claude',agentModels.filter(m=>String(m.provider).toLowerCase()==='claude')]];
+    groups.forEach(([label,items])=>{if(!items.length)return;const g=document.createElement('optgroup');g.label=label;items.forEach(m=>{const o=document.createElement('option');o.value=modelId(m);o.textContent=nimbusModelName(m);g.appendChild(o);});select.appendChild(g);});
+    if(!select.options.length){const o=document.createElement('option');o.value=NANO_MODEL.id;o.textContent=NANO_MODEL.label;select.appendChild(o);}
+    const initial=agentChats.find(c=>c.id===currentAgentChatId)?.model || agentModels.find(m=>shortId(m)==='gpt-6-astra')?.id || agentModels.find(m=>String(m.provider)==='openai')?.id || NANO_MODEL.id;
+    select.value=initial; updateModelBadge(initial);
+  }catch{select.innerHTML=`<option value="${NANO_MODEL.id}">${NANO_MODEL.label}</option>`;select.value=NANO_MODEL.id;updateModelBadge(NANO_MODEL.id);}
 }
+function selectedModel(){return $('openaiModelSelect')?.value||NANO_MODEL.id;}
+function selectedAgentModel(){return agentModels.find(m=>modelId(m)===selectedModel())||NANO_MODEL;}
+function updateModelBadge(id){const m=agentModels.find(x=>modelId(x)===String(id));$('agentModelState').textContent=m?nimbusModelName(m):NANO_MODEL.label;}
+$('openaiModelSelect')?.addEventListener('change',()=>{updateModelBadge(selectedModel());const c=agentChats.find(x=>x.id===currentAgentChatId);if(c){c.model=selectedModel();saveAgentChats();}});
+
+function saveAgentChats(){localStorage.setItem(AGENT_HISTORY_KEY,JSON.stringify(agentChats.slice(0,30)));}
+function newAgentChat(){const id=crypto.randomUUID?crypto.randomUUID():String(Date.now());agentChats.unshift({id,title:'New private chat',model:selectedModel(),messages:[]});agentChats=agentChats.slice(0,30);saveAgentChats();renderAgentHistory();startAgentChat(id);return id;}
+function renderAgentHistory(){const box=$('agentHistory');if(!box)return;box.innerHTML='';agentChats.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='agent-history-item'+(c.id===currentAgentChatId?' active':'');b.textContent=c.title||'Private chat';b.onclick=()=>startAgentChat(c.id);box.appendChild(b);});}
+function startAgentChat(id){const c=agentChats.find(x=>x.id===id)||agentChats[0];if(!c){newAgentChat();return;}currentAgentChatId=c.id;$('agentMessages').innerHTML='';(c.messages||[]).forEach(m=>renderSavedAgentMessage(m.role,m.text));if($('openaiModelSelect')){$('openaiModelSelect').value=c.model||selectedModel();updateModelBadge($('openaiModelSelect').value);}renderAgentHistory();}
+function renderSavedAgentMessage(role,text){const el=document.createElement('div');el.className='agent-msg '+(role==='me'?'me':'ai');if(role==='ai')renderAgentRichMessage(el,text);else el.textContent=text;$('agentMessages').appendChild(el);}
+function saveCurrentAgentMessage(role,text){const c=agentChats.find(x=>x.id===currentAgentChatId);if(!c)return;c.messages.push({role,text});if(role==='me'&&c.title==='New private chat')c.title=text.slice(0,44)+(text.length>44?'…':'');c.model=selectedModel();saveAgentChats();renderAgentHistory();}
+function appendAgent(role,text,save=true){const el=document.createElement('div');el.className='agent-msg '+(role==='me'?'me':'ai');if(role==='ai')renderAgentRichMessage(el,text);else el.textContent=text;$('agentMessages').appendChild(el);$('agentMessages').scrollTop=$('agentMessages').scrollHeight;if(save)saveCurrentAgentMessage(role,text);return el;}
+
+function appendAgentImage(img){const host=$('agentMessages');if(!host)return;const wrap=document.createElement('div');wrap.className='agent-image-wrap';const image=img instanceof HTMLImageElement?img:document.createElement('img');if(!(img instanceof HTMLImageElement)){if(typeof img==='string')image.src=img;else if(img?.src)image.src=img.src;else return;}image.alt='Nano Banana 2 generated visual';image.className='agent-generated-image';wrap.appendChild(image);host.appendChild(wrap);host.scrollTop=host.scrollHeight;}
+function extractText(resp){const content=resp?.message?.content??resp?.content??resp?.text??'';if(typeof content==='string')return content;if(Array.isArray(content))return content.map(p=>typeof p==='string'?p:(p?.text||p?.content||'')).filter(Boolean).join('\n');return ''}
+function renderAgentRichMessage(el,text){el.innerHTML='';const src=String(text||'').replace(/\r\n/g,'\n');const parts=src.split(/```([\w+#.-]*)\n?([\s\S]*?)```/g);for(let i=0;i<parts.length;i+=3){const before=parts[i]||'';if(before){const p=document.createElement('div');p.className='rich-prose';p.textContent=before;el.appendChild(p);}const lang=parts[i+1];const code=parts[i+2];if(code!==undefined){const wrap=document.createElement('div');wrap.className='rich-code-wrap';const head=document.createElement('div');head.className='rich-code-head';const label=document.createElement('span');label.textContent=(lang||'text').toLowerCase();const copy=document.createElement('button');copy.type='button';copy.textContent='Copy';const pre=document.createElement('pre');pre.textContent=code.replace(/^\n/,'').replace(/\n$/,'');copy.onclick=async()=>{try{await navigator.clipboard.writeText(pre.textContent);copy.textContent='Copied';setTimeout(()=>copy.textContent='Copy',900);}catch{}};head.append(label,copy);wrap.append(head,pre);el.appendChild(wrap);}}}
+function thinkingDots(){const el=document.createElement('div');el.className='agent-thinking';el.innerHTML='<span></span><span></span><span></span>';return el;}
+$('agentForm').onsubmit=async e=>{
+  e.preventDefault();
+  const text=$('agentInput').value.trim();
+  if(!text)return;
+  if(!currentAgentChatId)newAgentChat();
+  appendAgent('me',text);
+  $('agentInput').value='';
+  $('agentRunBtn').disabled=true;
+  const dots=thinkingDots();
+  $('agentMessages').appendChild(dots);
+  $('agentMessages').scrollTop=$('agentMessages').scrollHeight;
+  try{
+    if(!window.puter)throw new Error('Puter.js did not load.');
+    if(!puter.auth.isSignedIn())await puter.auth.signIn({request_auth:true});
+    const modelInfo=selectedAgentModel();
+    if(modelInfo.kind==='image'){
+      const visualPrompt=`Create one clear educational 16:9 diagram or flowchart for a student. Use concise keywords, short labels, arrows and simple icons. No long paragraphs. Topic/request: ${text}. Make it suitable for study and for the student to rephrase independently. If the request is code or game development, visualize the logic, system architecture, mechanics, or process instead of reproducing long code.`;
+      try{
+        const vr=await fetch('/api/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:visualPrompt,aspectRatio:'16:9',imageSize:'1K'})});
+        const vd=await vr.json().catch(()=>({}));
+        dots.remove();
+        if(vr.ok&&vd.ok&&vd.data){appendAgent('ai','Nano Banana 2 visual generated. Use the keywords and labels shown, then rephrase explanations in your own words.');appendAgentImage(`data:${vd.mimeType||'image/png'};base64,${vd.data}`);}
+        else appendAgent('ai',vd.message||'Nano Banana 2 is temporarily unavailable. Please try again.');
+      }catch{dots.remove();appendAgent('ai','Nano Banana 2 is temporarily unavailable. Please try again.');}
+    }else{
+      const system=`You are Nimbus 5.7 Lor • Ultra Modified, a private educational workspace agent.
+STYLE: No ** bold markers. Do not use Markdown # headings. Keep responses direct.
+STUDENT WORK: For school answers, notes, assignments, essays, or paragraphs, give factual keywords, key points, structure, and concepts rather than polished submission-ready prose. If the user asks you to rewrite or rephrase an answer, say: "Please rephrase it in your own words." Then provide the information/keywords and a suggested structure, not a ready-to-submit paragraph.
+VISUALS: When a diagram, flowchart, concept map, or game/system visual is useful, provide concise keywords and a Nano Banana 2-ready visual prompt.
+CODING: Always put code in fenced Markdown blocks with a real language identifier. Explain code outside the fence.`;
+      const resp=await puter.ai.chat([{role:'system',content:system},{role:'user',content:text}],{model:selectedModel(),normalize:true,stream:false});
+      dots.remove();
+      appendAgent('ai',extractText(resp)||'No text response was returned.');
+    }
+  }catch(err){
+    dots.remove();
+    appendAgent('ai','Nimbus is temporarily unavailable. Please try again in a moment.');
+    console.error(err);
+  }finally{$('agentRunBtn').disabled=false;}
+};
+$('newAgentChat').onclick=()=>newAgentChat();$('clearAgentChats').onclick=()=>{agentChats=[];saveAgentChats();currentAgentChatId=null;$('agentMessages').innerHTML='';newAgentChat();};
+
+function loadFinance(){const d=JSON.parse(localStorage.getItem(FINANCE_KEY)||'{}');$('revenueInput').value=d.revenueUSD??'';$('expenseInput').value=d.expensesUSD??'';$('usdPkrRate').value=d.rate??USD_TO_PKR_DEFAULT;renderFinance();}
+function renderFinance(){const usd=Number($('revenueInput').value||0),exp=Number($('expenseInput').value||0),rate=Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT),revenue=usd*rate,profit=(usd-exp)*rate;$('revenueText').textContent=`PKR ${Math.round(revenue).toLocaleString()}`;$('profitText').textContent=`PKR ${Math.round(profit).toLocaleString()}`;$('marginText').textContent=`${usd?((profit/revenue)*100).toFixed(1):0}% margin`;$('revenueBar').style.width=(revenue?Math.min(100,Math.max(0,profit/revenue*100)):0)+'%';}
+['revenueInput','expenseInput','usdPkrRate'].forEach(id=>$(id).addEventListener('input',renderFinance));$('saveFinance').onclick=()=>{localStorage.setItem(FINANCE_KEY,JSON.stringify({revenueUSD:Number($('revenueInput').value||0),expensesUSD:Number($('expenseInput').value||0),rate:Number($('usdPkrRate').value||USD_TO_PKR_DEFAULT)}));renderFinance();};loadFinance();
+
+async function loadRepoFiles(){if(!isOwner())return;try{const r=await fetch('/api/project-files');const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Could not sync important repo files.');$('fileSelect').innerHTML=(d.files||[]).map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');$('fileCount').textContent=`${(d.files||[]).length} important repo files`;$('fileMsg').textContent=`Synced from ${d.owner}/${d.repo} @ ${d.branch}`;}catch(e){$('fileMsg').textContent=e.message||'Could not sync repo files.';}}
+async function loadFile(path){const safe=String(path||'').replace(/^\/+/, '');if(!safe||safe.includes('..'))throw new Error('Invalid file path.');const r=await fetch('/api/project-file?path='+encodeURIComponent(safe));const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Could not load file.');currentFile={path:d.path,content:d.content};$('fileEditor').value=d.content;$('fileMsg').textContent=`Loaded ${d.path}`;}
+$('loadFile').onclick=async()=>{try{await loadFile($('fileSelect').value);}catch(e){$('fileMsg').textContent=e.message||'Could not load file.';}};$('refreshFiles').onclick=loadRepoFiles;$('saveFile').onclick=()=>{const path=currentFile.path||$('fileSelect').value;const content=$('fileEditor').value;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8'}));a.download=path.split('/').pop();a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('fileMsg').textContent=`Downloaded ${path}. Replace it in Nimbus_CLEAN, then git add, commit and push.`;};
+
+function readLayout(){const d=JSON.parse(localStorage.getItem(LAYOUT_KEY)||'null')||DEFAULTS;$('accentInput').value=d.accent||DEFAULTS.accent;$('radiusInput').value=d.radius||DEFAULTS.radius;$('sidebarInput').value=d.sidebar||DEFAULTS.sidebar;$('densityInput').value=d.density||DEFAULTS.density;return d;}
+function getLayout(){return{accent:$('accentInput').value||DEFAULTS.accent,accent2:DEFAULTS.accent2,radius:Number($('radiusInput').value||18),sidebar:Number($('sidebarInput').value||286),density:$('densityInput').value||'balanced',font:DEFAULTS.font};}
+function applyFrameLayout(){const frame=$('sitePreview');if(!frame)return;try{const doc=frame.contentDocument;if(!doc)return;const d=getLayout();doc.documentElement.style.setProperty('--nimbus-accent',d.accent);doc.documentElement.style.setProperty('--nimbus-accent-2',d.accent2);doc.documentElement.style.setProperty('--nimbus-radius',d.radius+'px');doc.body.dataset.nimbusDensity=d.density;doc.body.style.fontFamily=`"${d.font}",Inter,system-ui,sans-serif`;doc.getElementById('__nimbus_preview_badge')?.remove();const badge=doc.createElement('div');badge.id='__nimbus_preview_badge';badge.textContent='LIVE UI PREVIEW';Object.assign(badge.style,{position:'fixed',right:'12px',top:'12px',zIndex:'2147483647',padding:'6px 9px',borderRadius:'999px',background:d.accent,color:'#fff',font:'800 10px Arial'});doc.body.appendChild(badge);}catch(e){console.warn(e);}}
+$('sitePreview')?.addEventListener('load',applyFrameLayout);function saveLayoutLocal(){const d=getLayout();localStorage.setItem(LAYOUT_KEY,JSON.stringify(d));return d;}$('applyLayout').onclick=()=>{saveLayoutLocal();applyFrameLayout();$('layoutMsg').textContent='Preview updated.';};$('publishLayout').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(saveLayoutLocal(),null,2)],{type:'application/json'}));a.download='site-layout.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);$('layoutMsg').textContent='Downloaded site-layout.json. Replace it in Nimbus_CLEAN and push main.';};$('resetLayout').onclick=()=>{localStorage.removeItem(LAYOUT_KEY);readLayout();applyFrameLayout();$('layoutMsg').textContent='Preview reset.';};readLayout();
+
+async function bootWorkspace(){await loadRepoFiles();await loadAgentModels();renderAgentHistory();if(!agentChats.length)newAgentChat();else startAgentChat(agentChats[0].id);}
+(async()=>{try{await waitForPuter();if(!puter.auth?.isSignedIn?.())return;const u=await puter.auth.getUser();if(isAllowedWorkspaceUser(u)){session={role:'owner',user:u,permissions:['premium_agent','previous_chats','revenue','profit','file_editor','ui_editor','visuals']};showWorkspace(u);guardOwners();await bootWorkspace();}}catch(e){console.warn('Workspace auto-auth check failed',e);}})();
