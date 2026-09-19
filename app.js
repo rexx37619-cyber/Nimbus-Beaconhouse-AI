@@ -299,7 +299,7 @@ async function sendMessage(text){
     if(state.model==='nano-banana-2'){
       const visualPrompt=`Create one clear student-friendly 16:9 educational diagram or flowchart for this request. Use concise keywords only, short labels, arrows, icons and no long paragraphs. Topic/request: ${text||'Study visual'}.`;
       const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels • arrows • key concepts'});
-      if(ok) add('ai','Nano Banana 2 visual generated. Use the labels as study help and rephrase explanations in your own words.');
+      if(ok) add('ai','Visual generated. Use the labels as study help and rephrase explanations in your own words.');
       consumeLocalUsage();
       return;
     }
