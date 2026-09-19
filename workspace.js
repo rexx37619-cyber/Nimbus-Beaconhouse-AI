@@ -19,6 +19,7 @@ let agentModels=[...MODEL_DEFS];
 let agentChats=[];
 let currentAgentChatId=null;
 let currentFile={path:'',content:''};
+const PUTER_BALANCE_BLOCK_KEY='nimbus_puter_balance_blocked_v1';
 
 function safeJson(v,f){try{return JSON.parse(v)}catch{return f}}
 function normalizeUsername(u){return String(u?.username||'').trim().toLowerCase()}
@@ -128,22 +129,26 @@ async function serverFallback(prompt){
 async function runAgentChat(prompt){
   const def=selectedDef();
   const system=`You are Nimbus private developer workspace AI. Be direct and useful. Do not use ** bold markers or Markdown # headings in normal prose. For schoolwork, give keywords, facts, structure and concepts rather than ready-to-submit prose. If asked to rewrite, say: \"Please rephrase it in your own words.\" Then provide keywords and structure. When code is requested, always use fenced Markdown with the language identifier and explain outside the fence.`;
+  // Once Puter reports an account funding/allowance block, stop calling it for the rest of this browser session.
+  // This prevents the native Puter low-balance modal from reappearing on every message while keeping the Gemini fallback working.
+  if (sessionStorage.getItem(PUTER_BALANCE_BLOCK_KEY) === '1') return serverFallback(prompt);
   try{
     await waitForPuter();
     if(!puter.auth.isSignedIn()) await puter.auth.signIn();
     const modelId=resolvedModelId(def);
-    const response=await puter.ai.chat(prompt,{model:modelId});
+    const response=await puter.ai.chat(prompt,{model:modelId, normalize:true});
     const out=extractText(response);
     if(!out) throw new Error('Empty Puter response');
     return out;
   }catch(err){
     const s=String(err?.message||err||'').toLowerCase();
     console.warn('[Nimbus workspace agent] Puter request failed:',err);
-    // Gracefully use the existing Nimbus Gemini backend instead of exposing a Puter billing/provider error.
-    if(/balance|funding|allowance|upgrade|insufficient|credits|puter-chat-completion|payment|quota|unavailable|model/i.test(s)) return serverFallback(prompt);
-    // A second attempt with the same official Puter model, then backend fallback for transient provider errors.
+    if(/balance|funding|allowance|upgrade|insufficient|credits|puter-chat-completion|payment|quota|unavailable|model/i.test(s)) {
+      sessionStorage.setItem(PUTER_BALANCE_BLOCK_KEY,'1');
+      return serverFallback(prompt);
+    }
     try{
-      const retry=await puter.ai.chat(prompt,{model:resolvedModelId(def)});
+      const retry=await puter.ai.chat(prompt,{model:resolvedModelId(def), normalize:true});
       const retryText=extractText(retry);
       if(retryText) return retryText;
     }catch(retryErr){

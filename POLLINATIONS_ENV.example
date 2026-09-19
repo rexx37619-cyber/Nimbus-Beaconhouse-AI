@@ -1,0 +1,3 @@
+# Optional server-side Pollinations key for public image fallback.
+# Add in Vercel Production environment variables, not Git.
+POLLINATIONS_API_KEY=

@@ -5,6 +5,10 @@ function parseBody(req) {
   return req.body || {};
 }
 
+function toDataUrl(buf, mime='image/png') {
+  return `data:${mime};base64,${Buffer.from(buf).toString('base64')}`;
+}
+
 function extractGenerateContentImage(data) {
   const parts = data?.candidates?.[0]?.content?.parts || [];
   for (const part of parts) {
@@ -37,6 +41,19 @@ function extractInteractionImage(data) {
   return null;
 }
 
+async function callPollinations(apiKey, prompt) {
+  const url = `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}?model=nanobanana-2&width=1536&height=864`;
+  const r = await fetch(url, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${apiKey}` }
+  });
+  if (!r.ok) return { ok: false, status: r.status };
+  const mime = r.headers.get('content-type') || 'image/png';
+  const bytes = await r.arrayBuffer();
+  if (!bytes.byteLength) return { ok: false, status: 204 };
+  return { ok: true, mimeType: mime.split(';')[0], data: Buffer.from(bytes).toString('base64') };
+}
+
 async function callInteractions(apiKey, prompt) {
   const payload = {
     model: 'gemini-3.1-flash-image',
@@ -62,9 +79,7 @@ async function callGenerateContent(apiKey, prompt) {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
       responseModalities: ['IMAGE'],
-      responseFormat: {
-        image: { aspectRatio: '16:9', imageSize: '2K' }
-      }
+      responseFormat: { image: { aspectRatio: '16:9', imageSize: '2K' } }
     }
   };
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent', {
@@ -79,28 +94,35 @@ async function callGenerateContent(apiKey, prompt) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return res.status(503).json({ ok: false, message: 'Visual generation is not configured.' });
+  const body = parseBody(req);
+  const prompt = String(body.prompt || '').trim();
+  if (!prompt) return res.status(400).json({ ok: false, message: 'No visual prompt was provided.' });
 
+  // Keep the original prompt as much as possible; do not inject style instructions.
+  // The user requested a direct image request, not a generated template.
+  const pollinationsKey = process.env.POLLINATIONS_API_KEY;
+  if (pollinationsKey) {
+    try {
+      const p = await callPollinations(pollinationsKey, prompt);
+      if (p.ok) return res.status(200).json({ ok: true, mimeType: p.mimeType, data: p.data, source: 'pollinations' });
+    } catch (e) {
+      console.warn('[Nimbus visual] Pollinations fallback failed:', e?.message || e);
+    }
+  }
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) return res.status(503).json({ ok: false, message: 'Visual generation is unavailable right now.' });
   try {
-    const body = parseBody(req);
-    const prompt = String(body.prompt || '').trim();
-    if (!prompt) return res.status(400).json({ ok: false, message: 'No visual prompt was provided.' });
-
-    const primary = await callInteractions(key, prompt);
+    const primary = await callInteractions(geminiKey, prompt);
     if (primary.r.ok && primary.img) {
       return res.status(200).json({ ok: true, mimeType: primary.img.mimeType, data: primary.img.data, source: 'nano-banana-2' });
     }
-    console.warn('[Nimbus visual] Interactions failed', primary.r.status, primary.d?.error?.message || '');
-
-    const fallback = await callGenerateContent(key, prompt);
+    const fallback = await callGenerateContent(geminiKey, prompt);
     if (fallback.r.ok && fallback.img) {
       return res.status(200).json({ ok: true, mimeType: fallback.img.mimeType, data: fallback.img.data, source: 'nano-banana-2-generate-content' });
     }
-    console.error('[Nimbus visual] image generation failed', fallback.r.status, fallback.d?.error?.message || '');
-    return res.status(503).json({ ok: false, message: 'Visual generation is unavailable right now.' });
   } catch (err) {
     console.error('[Nimbus visual]', err);
-    return res.status(503).json({ ok: false, message: 'Visual generation is unavailable right now.' });
   }
+  return res.status(503).json({ ok: false, message: 'Visual generation is unavailable right now.' });
 }
