@@ -13,3 +13,6 @@ Changes in this build:
 - Code remains in fenced language-labelled code blocks.
 
 - Public visual generation uses the Gemini API key directly; no Puter sign-in is required for images.
+
+## Visual generation
+Nano Banana 2 uses the Gemini API key server-side. The primary model is `gemini-3.1-flash-image` through the Interactions API, with a GenerateContent fallback and a legacy `gemini-2.5-flash-image` fallback. Image generation requires a Gemini API project/key with access to the image model; it is not a Puter-login feature.
