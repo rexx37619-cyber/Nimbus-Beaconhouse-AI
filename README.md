@@ -1,12 +1,19 @@
-# Nimbus final corrected Vercel build
+# Nimbus 5.7 Lor — Image Interface + Puter-Only Workspace
 
-This build keeps the stable Nimbus UI and professional visual card interface, while fixing the private workspace agent and button wiring.
+This build is prepared for the Vercel deployment used by Nimbus.
 
-Key fixes:
-- Puter sign-in is bound directly to the visible button and uses the documented user-action sign-in flow.
-- Workspace access is limited to Puter usernames `neat_ocean_262513` and `peaceful_balloon_864250`.
-- Workspace agent uses `puter.ai.listModels()` robustly and calls `puter.ai.chat(..., { normalize: true })` so OpenAI/Anthropic responses are normalized.
-- Workspace navigation and controls initialize independently so one failed component cannot disable all buttons.
-- Public Nano Banana 2 image generation uses the server-side Gemini API only; normal students are not asked to sign into Puter for visuals.
-- Gemini image generation tries the current Interactions API for `gemini-3.1-flash-image`, then Generate Content compatibility fallbacks, then a topic-specific SVG fallback.
-- Public visual prompts are professional, realistic, rich, colorful and presentation-ready rather than plain arrow/text diagrams.
+Changes in this build:
+- Puter sign-in is the only workspace gate. No server-side owner allowlist is called by the workspace UI.
+- The old security-check interface is removed from the workspace navigation and gate.
+- Successful Puter authentication displays ACCESS ALLOWED and opens the workspace.
+- Nano Banana 2 visual generation uses the current Gemini 3.1 Flash Image Generate Content API, with a Puter image-generation fallback on the public site.
+- Schoolwork/diagram/flowchart requests automatically show a dedicated visual card with a loading-dot interface and then the generated image.
+- Raw [NIMBUS_VISUAL] marker text is removed from student-facing replies.
+- Normal Nimbus text is cleaned to remove Markdown ** emphasis and heading # markers.
+- Code remains in fenced language-labelled code blocks.
+
+Final stabilization notes:
+- Workspace Puter agent resolves live model objects and silently falls back to /api/chat if Puter returns a balance/allowance error.
+- Workspace access permits only Puter usernames neat_ocean_262513 and peaceful_balloon_864250.
+- Public/workspace Nano Banana visuals use Gemini server-side; Puter image generation is not used for ordinary Nimbus visuals.
+- Visual endpoint uses Gemini Interactions API first, then Generate Content compatibility fallbacks, then a topic-aware SVG fallback.

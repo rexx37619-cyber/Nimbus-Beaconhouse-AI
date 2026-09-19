@@ -1,6 +1,6 @@
 const MODEL_CHAINS = {
   ror: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'],
-  legacy: ['gemini-3.1-flash-lite']
+  legacy: ['gemini-3.5-flash-lite', 'gemini-2.5-flash-lite']
 };
 const VISUAL_MARKER = /\[NIMBUS_VISUAL\]([\s\S]*?)\[\/NIMBUS_VISUAL\]/i;
 const SYSTEM = `
@@ -77,7 +77,7 @@ function stripVisual(text) {
 async function requestGemini(model, apiKey, parts) {
   return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: 'user', parts }], generationConfig: { thinkingConfig: { thinkingLevel: 'minimal' }, maxOutputTokens: 2200 } })
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: 'user', parts }], generationConfig: { maxOutputTokens: 2200 } })
   });
 }
 export default async function handler(req, res) {
