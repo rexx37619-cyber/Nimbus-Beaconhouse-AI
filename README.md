@@ -20,3 +20,6 @@ Final stabilization notes:
 
 
 Main-site automatic visual update: image generation is hidden from the model dropdown. Nimbus 3.1 Lor Image (gemini-3.1-flash-lite-image) auto-triggers only for genuine academic/educational questions. Greetings, casual chat, and Beaconhouse-specific questions do not trigger visuals. The visual API uses Google's official Interactions API, 16:9, 1K.
+
+
+Final automatic visual fix: educational messages now render the Nimbus 3.1 Lor Image card and call /api/visual; greetings and Beaconhouse queries are excluded.

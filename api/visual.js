@@ -35,7 +35,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'gemini-3.1-flash-lite-image',
         input: prompt,
-        response_format: { type: 'image', aspect_ratio: '16:9', image_size: '1K' }
+        response_format: { type: 'image', mime_type: 'image/png', aspect_ratio: '16:9', image_size: '1K' }
       })
     });
     const data = await response.json().catch(() => ({}));
