@@ -1,5 +1,8 @@
 {
   "name": "nimbus-beaconhouse-ai",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@google/genai": "^1.16.0"
+  }
 }

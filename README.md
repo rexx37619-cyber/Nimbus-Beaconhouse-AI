@@ -23,3 +23,6 @@ Main-site automatic visual update: image generation is hidden from the model dro
 
 
 Final automatic visual fix: educational messages now render the Nimbus 3.1 Lor Image card and call /api/visual; greetings and Beaconhouse queries are excluded.
+
+
+Image generation now uses the official @google/genai SDK with models gemini-3.1-flash-lite-image (1K) and gemini-3.1-flash-image (2K) as a compatibility fallback, matching Google's current documented generateContent flow.
