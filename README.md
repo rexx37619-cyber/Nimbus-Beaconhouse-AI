@@ -26,3 +26,6 @@ Final automatic visual fix: educational messages now render the Nimbus 3.1 Lor I
 
 
 Image generation now uses the official @google/genai SDK with models gemini-3.1-flash-lite-image (1K) and gemini-3.1-flash-image (2K) as a compatibility fallback, matching Google's current documented generateContent flow.
+
+
+Image API hotfix: the Gemini Interactions image response now explicitly requests JPEG because the current endpoint rejects image/png for response_format.mime_type.

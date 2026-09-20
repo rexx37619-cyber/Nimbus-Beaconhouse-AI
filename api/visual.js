@@ -14,7 +14,7 @@ function extractGeneratedContentImage(response) {
     const data = part?.inlineData?.data || part?.inline_data?.data;
     if (data) return {
       data,
-      mimeType: part?.inlineData?.mimeType || part?.inline_data?.mime_type || 'image/png'
+      mimeType: part?.inlineData?.mimeType || part?.inline_data?.mime_type || 'image/jpeg'
     };
   }
   return null;
@@ -25,7 +25,7 @@ function extractInteractionImage(interaction) {
   if (direct) {
     return {
       data: direct,
-      mimeType: interaction.output_image.mime_type || 'image/png'
+      mimeType: interaction.output_image.mime_type || 'image/jpeg'
     };
   }
 
@@ -37,7 +37,7 @@ function extractInteractionImage(interaction) {
       if (block?.type === 'image' && data) {
         return {
           data,
-          mimeType: block.mime_type || block.mimeType || 'image/png'
+          mimeType: block.mime_type || block.mimeType || 'image/jpeg'
         };
       }
     }
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
         input: prompt,
         response_format: {
           type: 'image',
-          mime_type: 'image/png',
+          mime_type: 'image/jpeg',
           aspect_ratio: '16:9',
           image_size: '2K'
         }
