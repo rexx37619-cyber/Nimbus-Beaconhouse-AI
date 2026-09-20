@@ -6,78 +6,47 @@ function parseBody(req) {
 }
 
 function extractImage(data) {
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  for (const part of parts) {
-    const b = part?.inlineData || part?.inline_data;
-    if (b?.data) {
-      return {
-        data: b.data,
-        mimeType: b.mimeType || b.mime_type || 'image/png'
-      };
+  const direct = data?.output_image?.data || data?.outputImage?.data;
+  if (direct) return { data: direct, mimeType: data?.output_image?.mime_type || data?.outputImage?.mimeType || 'image/png' };
+  const steps = Array.isArray(data?.steps) ? data.steps : [];
+  for (const step of steps) {
+    const content = Array.isArray(step?.content) ? step.content : [];
+    for (const item of content) {
+      if ((item?.type === 'image' || item?.type === 'output_image') && item?.data) return { data: item.data, mimeType: item.mime_type || item.mimeType || 'image/png' };
+      if (item?.inline_data?.data || item?.inlineData?.data) return { data: item.inline_data?.data || item.inlineData?.data, mimeType: item.inline_data?.mime_type || item.inlineData?.mimeType || 'image/png' };
     }
   }
   return null;
 }
 
-async function generateImage(apiKey, prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${encodeURIComponent(apiKey)}`;
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      responseModalities: ['IMAGE'],
-      responseFormat: {
-        image: { aspectRatio: '16:9' }
-      }
-    }
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  const data = await response.json().catch(() => ({}));
-  return { response, data, image: extractImage(data) };
-}
-
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
-  }
-
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(503).json({ ok: false, message: 'Visual generation is not configured.' });
-  }
-
+  if (!apiKey) return res.status(503).json({ ok: false, message: 'Diagram generation is not configured.' });
   try {
     const body = parseBody(req);
     const prompt = String(body.prompt || '').trim();
-    if (!prompt) {
-      return res.status(400).json({ ok: false, message: 'No visual prompt was provided.' });
-    }
+    if (!prompt) return res.status(400).json({ ok: false, message: 'No diagram request was provided.' });
 
-    // Deliberately pass the user's requested visual prompt directly to Gemini 2.5 Flash Image.
-    const result = await generateImage(apiKey, prompt);
-
-    if (result.response.ok && result.image) {
-      return res.status(200).json({
-        ok: true,
-        mimeType: result.image.mimeType,
-        data: result.image.data,
-        source: 'gemini-2.5-flash-image'
-      });
-    }
-
-    const providerMessage = result.data?.error?.message || '';
-    console.error('[Nimbus visual] Gemini 2.5 Flash Image failed:', result.response.status, providerMessage);
-    return res.status(503).json({
-      ok: false,
-      message: 'Visual generation is temporarily unavailable.'
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        model: 'gemini-3.1-flash-lite-image',
+        input: prompt,
+        response_format: { type: 'image', aspect_ratio: '16:9', image_size: '1K' }
+      })
     });
+    const data = await response.json().catch(() => ({}));
+    const image = extractImage(data);
+    if (response.ok && image) {
+      return res.status(200).json({ ok: true, mimeType: image.mimeType, data: image.data, source: 'gemini-3.1-flash-lite-image', modelLabel: 'Nimbus 3.1 Lor Image' });
+    }
+    console.error('[Nimbus 3.1 Lor Image] provider error', response.status, data?.error?.message || 'No image returned');
+    return res.status(503).json({ ok: false, message: 'Diagram generation is temporarily unavailable.' });
   } catch (err) {
-    console.error('[Nimbus visual]', err);
-    return res.status(503).json({ ok: false, message: 'Visual generation is temporarily unavailable.' });
+    console.error('[Nimbus 3.1 Lor Image]', err);
+    return res.status(503).json({ ok: false, message: 'Diagram generation is temporarily unavailable.' });
   }
 }

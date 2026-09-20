@@ -17,3 +17,6 @@ Final stabilization notes:
 - Workspace access permits only Puter usernames neat_ocean_262513 and peaceful_balloon_864250.
 - Public/workspace Nano Banana visuals use Gemini server-side; Puter image generation is not used for ordinary Nimbus visuals.
 - Visual endpoint uses Gemini Interactions API first, then Generate Content compatibility fallbacks, then a topic-aware SVG fallback.
+
+
+Main-site automatic visual update: image generation is hidden from the model dropdown. Nimbus 3.1 Lor Image (gemini-3.1-flash-lite-image) auto-triggers only for genuine academic/educational questions. Greetings, casual chat, and Beaconhouse-specific questions do not trigger visuals. The visual API uses Google's official Interactions API, 16:9, 1K.
