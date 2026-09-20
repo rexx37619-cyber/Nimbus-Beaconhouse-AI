@@ -7,41 +7,49 @@ function parseBody(req) {
   return req.body || {};
 }
 
-function extractImage(response) {
+function extractGeneratedContentImage(response) {
   const parts = response?.candidates?.[0]?.content?.parts;
   if (!Array.isArray(parts)) return null;
   for (const part of parts) {
-    if (part?.inlineData?.data) {
-      return {
-        data: part.inlineData.data,
-        mimeType: part.inlineData.mimeType || 'image/png'
-      };
+    const data = part?.inlineData?.data || part?.inline_data?.data;
+    if (data) return {
+      data,
+      mimeType: part?.inlineData?.mimeType || part?.inline_data?.mime_type || 'image/png'
+    };
+  }
+  return null;
+}
+
+function extractInteractionImage(interaction) {
+  const direct = interaction?.output_image?.data;
+  if (direct) {
+    return {
+      data: direct,
+      mimeType: interaction.output_image.mime_type || 'image/png'
+    };
+  }
+
+  const steps = Array.isArray(interaction?.steps) ? interaction.steps : [];
+  for (const step of steps) {
+    if (step?.type !== 'model_output' || !Array.isArray(step.content)) continue;
+    for (const block of step.content) {
+      const data = block?.data || block?.inlineData?.data || block?.inline_data?.data;
+      if (block?.type === 'image' && data) {
+        return {
+          data,
+          mimeType: block.mime_type || block.mimeType || 'image/png'
+        };
+      }
     }
   }
   return null;
 }
 
-async function generateWithSdk(apiKey, model, prompt, imageSize = '1K') {
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      responseModalities: ['IMAGE'],
-      responseFormat: {
-        image: {
-          aspectRatio: '16:9',
-          imageSize
-        }
-      }
-    }
-  });
-
-  const image = extractImage(response);
-  if (!image) {
-    throw new Error(`No inline image returned by ${model}`);
-  }
-  return image;
+function safeProviderMessage(err) {
+  const text = String(err?.message || err || 'Unknown provider error');
+  return text
+    .replace(/AIza[0-9A-Za-z_-]+/g, '[redacted-key]')
+    .slice(0, 320);
 }
 
 export default async function handler(req, res) {
@@ -52,46 +60,127 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(503).json({ ok: false, message: 'Gemini image API key is not configured.' });
+    return res.status(503).json({
+      ok: false,
+      code: 'MISSING_GEMINI_API_KEY',
+      message: 'Gemini image generation is not configured.'
+    });
   }
 
   try {
     const body = parseBody(req);
     const prompt = String(body.prompt || '').trim();
     if (!prompt) {
-      return res.status(400).json({ ok: false, message: 'No diagram request was provided.' });
+      return res.status(400).json({ ok: false, code: 'EMPTY_PROMPT', message: 'No visual request was provided.' });
     }
 
-    // Official Google GenAI SDK path. Lite first, then full Flash Image for compatibility.
-    const attempts = [
-      { model: 'gemini-3.1-flash-lite-image', size: '1K', label: 'Nimbus 3.1 Lor Image' },
-      { model: 'gemini-3.1-flash-image', size: '2K', label: 'Nimbus 3.1 Lor Image' }
-    ];
+    const ai = new GoogleGenAI({ apiKey });
+    let firstError = null;
 
-    let lastError = null;
-    for (const attempt of attempts) {
-      try {
-        const image = await generateWithSdk(apiKey, attempt.model, prompt, attempt.size);
+    // Official current Google image-generation path for Nano Banana 2.
+    try {
+      const interaction = await ai.interactions.create({
+        model: 'gemini-3.1-flash-image',
+        input: prompt,
+        response_format: {
+          type: 'image',
+          mime_type: 'image/png',
+          aspect_ratio: '16:9',
+          image_size: '2K'
+        }
+      });
+
+      const image = extractInteractionImage(interaction);
+      if (image) {
         return res.status(200).json({
           ok: true,
           mimeType: image.mimeType,
           data: image.data,
-          source: attempt.model,
-          modelLabel: attempt.label
+          source: 'gemini-3.1-flash-image',
+          modelLabel: 'Nimbus 3.1 Lor Image'
         });
-      } catch (err) {
-        lastError = err;
-        console.warn(`[Nimbus Visual] ${attempt.model} failed:`, err?.message || err);
       }
+      firstError = new Error('Interactions API returned no image output.');
+    } catch (err) {
+      firstError = err;
+      console.warn('[Nimbus Visual] Interactions image attempt failed:', safeProviderMessage(err));
     }
 
-    console.error('[Nimbus Visual] All official Gemini SDK image attempts failed:', lastError?.message || lastError);
+    // Official legacy Generate Content compatibility path.
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-image',
+        contents: prompt,
+        config: {
+          responseModalities: ['IMAGE'],
+          responseFormat: {
+            image: {
+              aspectRatio: '16:9',
+              imageSize: '2K'
+            }
+          }
+        }
+      });
+
+      const image = extractGeneratedContentImage(response);
+      if (image) {
+        return res.status(200).json({
+          ok: true,
+          mimeType: image.mimeType,
+          data: image.data,
+          source: 'gemini-3.1-flash-image-generateContent',
+          modelLabel: 'Nimbus 3.1 Lor Image'
+        });
+      }
+      firstError = firstError || new Error('Generate Content returned no image output.');
+    } catch (err) {
+      console.warn('[Nimbus Visual] Generate Content compatibility attempt failed:', safeProviderMessage(err));
+      firstError = firstError || err;
+    }
+
+    // Stable legacy image-model compatibility route.
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: prompt,
+        config: {
+          responseModalities: ['IMAGE'],
+          responseFormat: {
+            image: {
+              aspectRatio: '16:9'
+            }
+          }
+        }
+      });
+
+      const image = extractGeneratedContentImage(response);
+      if (image) {
+        return res.status(200).json({
+          ok: true,
+          mimeType: image.mimeType,
+          data: image.data,
+          source: 'gemini-2.5-flash-image',
+          modelLabel: 'Nimbus 3.1 Lor Image'
+        });
+      }
+    } catch (err) {
+      console.warn('[Nimbus Visual] 2.5 compatibility attempt failed:', safeProviderMessage(err));
+      firstError = firstError || err;
+    }
+
+    const providerHint = safeProviderMessage(firstError);
+    console.error('[Nimbus Visual] Image generation failed:', providerHint);
     return res.status(503).json({
       ok: false,
-      message: 'Diagram generation is temporarily unavailable.'
+      code: 'GEMINI_IMAGE_NO_OUTPUT',
+      message: `Gemini did not return an image. ${providerHint}`
     });
   } catch (err) {
-    console.error('[Nimbus Visual] Handler failed:', err);
-    return res.status(503).json({ ok: false, message: 'Diagram generation is temporarily unavailable.' });
+    console.error('[Nimbus Visual] Handler failed:', safeProviderMessage(err));
+    return res.status(500).json({
+      ok: false,
+      code: 'VISUAL_HANDLER_ERROR',
+      message: 'The visual service could not complete the request.'
+    });
   }
 }
