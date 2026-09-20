@@ -29,3 +29,7 @@ Image generation now uses the official @google/genai SDK with models gemini-3.1-
 
 
 Image API hotfix: the Gemini Interactions image response now explicitly requests JPEG because the current endpoint rejects image/png for response_format.mime_type.
+
+## Visual generation
+
+Public educational visuals are generated locally by `api/visual.js` as polished 16:9 SVG study diagrams. This avoids image-model quota failures and does not require Puter authentication. Topic-aware templates are included for heart circulation, photosynthesis, respiration/gas exchange, plant cells, and a general academic flow diagram.
