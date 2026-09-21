@@ -1,0 +1,51 @@
+NIMBUS VISUAL ENGINE UPGRADE
+============================
+
+Recommended no-cost path for Nimbus public science visuals:
+Cloudflare Workers AI + FLUX.1 schnell.
+
+Why:
+- Nimbus stays hosted on Vercel.
+- The image request goes server-to-server from /api/visual.
+- Cloudflare Workers AI currently provides a free daily allocation of 10,000 Neurons on the Free plan.
+- FLUX.1 schnell is a text-to-image model available through the Workers AI REST API.
+- If Cloudflare is unavailable, /api/visual can optionally fall back to Gemini 3.1 Flash Image when GEMINI_API_KEY has image access.
+
+DO NOT commit a real token or API key to GitHub.
+Use Vercel Environment Variables for production.
+
+LOCAL POWERSHELL (session only)
+-------------------------------
+$env:CLOUDFLARE_ACCOUNT_ID="YOUR_CLOUDFLARE_ACCOUNT_ID"
+$env:CLOUDFLARE_API_TOKEN="YOUR_CLOUDFLARE_WORKERS_AI_TOKEN"
+
+OPTIONAL: verify that they are set without printing secrets
+------------------------------------------------------------
+if ($env:CLOUDFLARE_ACCOUNT_ID) { "Account ID set" } else { "Account ID missing" }
+if ($env:CLOUDFLARE_API_TOKEN) { "API token set" } else { "API token missing" }
+
+VERCEL PRODUCTION VARIABLES
+---------------------------
+CLOUDFLARE_ACCOUNT_ID = your Cloudflare Account ID
+CLOUDFLARE_API_TOKEN = your Cloudflare Workers AI API token
+
+Create the token from Cloudflare Workers AI -> Use REST API.
+The current Cloudflare REST guide says the token needs Workers AI Read + Workers AI Edit permissions.
+
+MEMORY UPGRADE
+--------------
+Nimbus now sends the last 12 messages from the current chat to /api/chat.
+Each chat keeps its own conversation memory in the browser's local storage.
+The AI only receives the active chat's recent context; starting a new chat starts fresh.
+AI messages are now persisted too, so re-opening a chat does not lose Nimbus replies.
+
+SCIENCE VISUAL AUTO-TRIGGER
+---------------------------
+Science explanations automatically request one visual when the prompt asks to explain,
+describe, compare, define, give a function, explain a process, or similar.
+Non-science school questions no longer trigger the visual engine merely because they are homework.
+
+SECRET NOTE
+-----------
+This file contains placeholders only. If you keep a real token in a local text file,
+keep that file outside Git and never paste the real secret into chat.
