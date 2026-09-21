@@ -127,6 +127,59 @@ function looksLikeScience(text) {
   return /\b(science|biology|chemistry|physics|ecosystem|food chain|food web|habitat|adaptation|cell|tissue|organ|skeleton|joint|muscle|respiration|respiratory|digestion|photosynthesis|reproduction|forces?|motion|energy transfer|electricity|circuit|acid|base|particle|matter|mixture|solution|density|pressure|heat|temperature|light|sound|magnet|atom|molecule|nutrition|gas exchange|diffusion|asthma)\b/i.test(s);
 }
 
+async function fetchBeaconhouseLive(userText) {
+  const q = String(userText || '').toLowerCase();
+  const pages = [
+    ['Beaconhouse main', 'https://www.beaconhouse.net/'],
+    ['Academics', 'https://www.beaconhouse.net/academic/'],
+    ['Clubs and Societies', 'https://www.beaconhouse.net/clubs-and-societies/'],
+    ['Sports competitions', 'https://www.beaconhouse.net/sports-competition/'],
+    ['STEAM competitions', 'https://www.beaconhouse.net/steam-competition/'],
+    ['Results', 'https://www.beaconhouse.net/results/'],
+    ['BISC', 'https://bisc.beaconhouse.net/'],
+    ['RISE', 'https://rise.beaconhouse.net/'],
+    ['BEAMS', 'https://beams.beaconhouse.net/home/'],
+    ['LAP 2026', 'https://lap.beaconhouse.net/guidelines-2/'],
+    ['LAP ILAP 2027', 'https://lap.beaconhouse.net/guidelines-ilap-2027/'],
+    ['Book lists', 'https://booklist.beaconhouse.net/']
+  ];
+
+  const ranked = pages.map(([name,url]) => {
+    const hay = (name + ' ' + url).toLowerCase();
+    let score = 0;
+    for (const token of q.split(/\W+/).filter(Boolean)) if (hay.includes(token)) score += 1;
+    if (/bisc/.test(q) && /bisc/.test(hay)) score += 8;
+    if (/beams/.test(q) && /beams/.test(hay)) score += 8;
+    if (/lap|ilap|learner agency/.test(q) && /lap/.test(hay)) score += 8;
+    if (/book.?list|books/.test(q) && /booklist/.test(hay)) score += 8;
+    if (/academic|curriculum|school/.test(q) && /academic/.test(hay)) score += 5;
+    if (/sport|competition/.test(q) && /competition|results/.test(hay)) score += 4;
+    return {name,url,score};
+  }).sort((a,b)=>b.score-a.score).slice(0,4);
+
+  const out = [];
+  for (const {name,url} of ranked) {
+    try {
+      const r = await fetch(url, { headers: { 'user-agent': 'Nimbus-Beaconhouse-AI/1.0' } });
+      if (!r.ok) continue;
+      const html = await r.text();
+      const text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (text) out.push('[' + name + '] ' + text.slice(0, 5000) + '\nURL: ' + url);
+    } catch (_) {}
+  }
+  return out.join('\n\n');
+}
+
 function looksLikeBeaconhouse(text) {
   const s = String(text || '').toLowerCase();
   return /\b(beaconhouse|bh\.edu\.pk|beams|bisc|rise|lap|boss|book ?list|booklist|learner profile|access centre|steam competition|sports competition)\b/i.test(s);
@@ -233,6 +286,7 @@ export default async function handler(req, res) {
     const scienceQuery = looksLikeScience(userText);
     const scienceExplanation = isScienceExplanation(userText);
     const beaconhouseQuery = looksLikeBeaconhouse(userText);
+      const beaconhouseLive = beaconhouseQuery ? await fetchBeaconhouseLive(userText) : "";
 
     const requestedAttachment = body?.attachment;
     const parts = [];
@@ -249,7 +303,7 @@ export default async function handler(req, res) {
       for (const ragModel of chain) {
         const rag = await requestScienceRag(apiKey, ragModel, userText, memoryText);
         if (rag?.text) {
-          const parsedText = beaconhouseQuery ? `${rag.text}\n${BEACONHOUSE_CONTEXT}` : rag.text;
+          const parsedText = beaconhouseQuery ? `${rag.text}\n${BEACONHOUSE_CONTEXT}\n${beaconhouseLive}` : rag.text;
           const finalReply = cleanNimbusText(parsedText);
           return res.status(200).json({
             reply: finalReply + sourceNote(rag.sources),
@@ -267,7 +321,7 @@ export default async function handler(req, res) {
     let lastError = null;
     for (const model of chain) {
       try {
-        const systemText = `${BASE_SYSTEM}\n${beaconhouseQuery ? BEACONHOUSE_CONTEXT : ''}`;
+        const systemText = `${BASE_SYSTEM}\n${beaconhouseQuery ? BEACONHOUSE_CONTEXT : ''}\n${beaconhouseLive || ''}`;
         const response = await requestGemini(model, apiKey, parts, systemText);
         const data = await response.json();
         if (response.ok) {
