@@ -6,3 +6,6 @@ __pycache__/
 knowledge/nimbus_science_store.txt
 
 NIMBUS_VISUAL_SECRETS.txt
+
+.vercel
+.env*

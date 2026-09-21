@@ -14,7 +14,7 @@ function imagePrompt(prompt){
 
 async function generateGemini(apiKey,model,prompt,aspectRatio,imageSize){
   const ai=new GoogleGenAI({apiKey});
-  const interaction=await ai.interactions.create({model,input:imagePrompt(prompt),response_format:{type:'image',mime_type:'image/png',aspect_ratio:aspectRatio,image_size:imageSize},store:false});
+  const interaction=await ai.interactions.create({model,input:imagePrompt(prompt),response_format:{type:'image',mime_type:'image/jpeg',aspect_ratio:aspectRatio,image_size:imageSize},store:false});
   const image=interaction?.output_image;
   if(image?.data)return {data:image.data,mimeType:image.mime_type||image.mimeType||'image/png',model};
   return null;
