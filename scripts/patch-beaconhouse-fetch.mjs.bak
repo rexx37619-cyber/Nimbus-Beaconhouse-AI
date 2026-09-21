@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs';
+import fs from 'node:fs';
 
 const file = 'api/chat.js';
 if (!fs.existsSync(file)) throw new Error(`Missing ${file}. Run this from Nimbus_CLEAN.`);
@@ -85,7 +85,7 @@ async function fetchOfficialBeaconhouseContext(query){
   const pages=await Promise.all(urls.map(async url=>({url,text:await fetchBeaconhousePage(url)})));
   const usable=pages.filter(p=>p.text).slice(0,5);
   if(!usable.length) return '';
-  return '\nBEACONHOUSE LIVE OFFICIAL PAGE TEXT (retrieved at request time):\n' + usable.map(p => '[' + p.url + ']\n' + p.text).join('\n\n');
+  return '\\nBEACONHOUSE LIVE OFFICIAL PAGE TEXT (retrieved at request time):\\n'+usable.map(p=>`[${p.url}]\\n${p.text}`).join('\\n\\n');
 }
 `;
 s = s.replace(insertBefore, helper + '\n' + insertBefore);
