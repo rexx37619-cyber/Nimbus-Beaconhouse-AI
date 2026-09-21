@@ -1,0 +1,8 @@
+Nimbus Grade 7 Science source layer
+
+Source level: Grade 7 / Lower Secondary Science
+Use: source-grounded retrieval with Gemini File Search
+Answer style: keywords, key functions, key facts, simple answer structure, original wording
+Visual style: high-quality scientific diagrams with concise labels
+
+The complete uploaded PDFs are intentionally not copied into the repository. Run scripts/create-grade7-science-store.mjs with the local PDF files to build the persistent retrieval store, then set NIMBUS_SCIENCE_STORE in Vercel.

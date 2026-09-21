@@ -2,7 +2,10 @@
   "name": "nimbus-beaconhouse-ai",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "@google/genai": "^2.23.0"
+    "@google/genai": "2.23.0"
   }
 }

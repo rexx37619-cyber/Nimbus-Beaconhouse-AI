@@ -1,0 +1,10 @@
+Nimbus Grade 7 Science + Visual Upgrade
+
+1. api/chat.js: adds Gemini File Search RAG for Grade 7 science when NIMBUS_SCIENCE_STORE is configured. Answers use simple Grade 7 keywords, key functions, facts and structure, with concise source notes when File Search provides citations.
+2. api/visual.js: switches image generation to Gemini 3.1 Flash Image through the Interactions API with 16:9/2K output and a science-specific prompt; retains a local SVG fallback.
+3. app.js: strengthens automatic science-visual prompting, displays File Search source notes, and adds the current Class 7 Sindh & Balochistan Beaconhouse book-list link.
+4. scripts/create-grade7-science-store.mjs: creates a persistent Gemini File Search store and indexes the user's local PDF copies.
+5. knowledge/official_links.txt: refreshed with official Beaconhouse and 2026-27 book-list links.
+6. SCIENCE_BOOK_SETUP.md: exact setup, Vercel environment variable and testing instructions.
+
+The full textbook PDFs are deliberately not copied into the repository. The website retrieves relevant source chunks from the File Search store instead of shipping a full copyrighted book inside JavaScript.
