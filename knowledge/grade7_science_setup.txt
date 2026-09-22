@@ -1,9 +1,7 @@
-NIMBUS GRADE 7 SCIENCE SOURCE SETUP
-
-Source: user-supplied Lower Secondary Grade 7 science PDF parts.
-
-Runtime retrieval:
-- Gemini File Search store name is supplied by the NIMBUS_SCIENCE_STORE environment variable.
-- Keep the PDFs in the File Search store; do not paste the full textbook into public frontend JavaScript.
-- Grade 7 science answers should preserve source concepts/terminology, explain them in simpler original wording, and emphasize keywords, key functions, facts, relationships, and answer structure.
-- When the user asks for an explanation of a science concept, Nimbus can automatically request one topic-specific visual.
+GRADE 7 SCIENCE SOURCE MODE
+- Primary source: Gemini File Search store configured with NIMBUS_SCIENCE_STORE.
+- Source files: the two user-supplied Lower Secondary Grade 7 science PDF parts.
+- Keep answers at Beaconhouse Grade 7 level.
+- Use keywords, concise facts, definitions, sequences, labels, comparisons and key functions when asked.
+- Paraphrase in Nimbus's own words; do not reproduce long textbook passages.
+- For science explanations, return a related visual request when appropriate.
