@@ -23,16 +23,27 @@ const BEACONHOUSE_OFFICIAL_LINKS = [
   ['LAP','https://lap.beaconhouse.net/about-us/'],
   ['LAP guidelines','https://lap.beaconhouse.net/guidelines-2/'],
   ['BOSS','https://boss.beaconhouse.net/about-us/'],
+  ['LAP home','https://lap.beaconhouse.net/'],
+  ['LAP 2026 guidelines','https://lap.beaconhouse.net/guidelines-2/'],
+  ['LAP ILAP 2027 guidelines','https://lap.beaconhouse.net/guidelines-ilap-2027/'],
+  ['RISE','https://rise.beaconhouse.net/'],
+  ['BEAMS sign-in','https://beams.beaconhouse.net/home/'],
+  ['BEAMS PRISM','https://beams.beaconhouse.net/prism/'],
+  ['BISC','https://bisc.beaconhouse.net/'],
   ['Beaconhouse book-list portal','https://booklist.beaconhouse.net/'],
-  ['2026–27 Sindh & Balochistan book lists','https://booklist.beaconhouse.net/sindh-balochistan-booklist/'],
+  ['Sindh & Balochistan Class 7 book list','https://booklist.beaconhouse.net/booklist/2025/sindh-balochistan/class7/'],
   ['Class 7 Sindh & Balochistan book list','https://booklist.beaconhouse.net/booklist/2025/sindh-balochistan/class7/'],
   ['2026–27 Punjab book lists','https://booklist.beaconhouse.net/punjab-booklist/'],
-  ['2026–27 KPK book lists','https://booklist.beaconhouse.net/kpk-booklist/'],
-  ['2026–27 ICT book lists','https://booklist.beaconhouse.net/ict-booklist/']
+  ['KPK book lists 2026–27','https://booklist.beaconhouse.net/kpk-booklists/'],
+  ['Fed / ICT book lists 2026–27','https://booklist.beaconhouse.net/ict-booklists/']
 ];
 
 const BEACONHOUSE_CONTEXT = `
 Beaconhouse public-information grounding:
+- For public Beaconhouse facts, rely only on the allowlisted official URLs below and any fetched text supplied by this server.
+- Never infer current event dates, eligibility, winners, fees, campuses, or registration status from the URL name alone.
+- If the official page text is not available or does not support the requested fact, say that the current official page does not provide enough information instead of guessing.
+- Prefer exact current page wording for programme names and dates, but explain it in simple student-friendly language.
 When a question is specifically about Beaconhouse, use only the official public references listed below. Do not claim access to private school systems, BEAMS accounts, grades, attendance, student records, passwords, or internal documents. Do not invent campus-specific rules. Treat current book-list pages as regional/campus-specific public references.
 ${BEACONHOUSE_OFFICIAL_LINKS.map(([name,url]) => `- ${name}: ${url}`).join('\n')}
 `;
@@ -127,59 +138,6 @@ function looksLikeScience(text) {
   return /\b(science|biology|chemistry|physics|ecosystem|food chain|food web|habitat|adaptation|cell|tissue|organ|skeleton|joint|muscle|respiration|respiratory|digestion|photosynthesis|reproduction|forces?|motion|energy transfer|electricity|circuit|acid|base|particle|matter|mixture|solution|density|pressure|heat|temperature|light|sound|magnet|atom|molecule|nutrition|gas exchange|diffusion|asthma)\b/i.test(s);
 }
 
-async function fetchBeaconhouseLive(userText) {
-  const q = String(userText || '').toLowerCase();
-  const pages = [
-    ['Beaconhouse main', 'https://www.beaconhouse.net/'],
-    ['Academics', 'https://www.beaconhouse.net/academic/'],
-    ['Clubs and Societies', 'https://www.beaconhouse.net/clubs-and-societies/'],
-    ['Sports competitions', 'https://www.beaconhouse.net/sports-competition/'],
-    ['STEAM competitions', 'https://www.beaconhouse.net/steam-competition/'],
-    ['Results', 'https://www.beaconhouse.net/results/'],
-    ['BISC', 'https://bisc.beaconhouse.net/'],
-    ['RISE', 'https://rise.beaconhouse.net/'],
-    ['BEAMS', 'https://beams.beaconhouse.net/home/'],
-    ['LAP 2026', 'https://lap.beaconhouse.net/guidelines-2/'],
-    ['LAP ILAP 2027', 'https://lap.beaconhouse.net/guidelines-ilap-2027/'],
-    ['Book lists', 'https://booklist.beaconhouse.net/']
-  ];
-
-  const ranked = pages.map(([name,url]) => {
-    const hay = (name + ' ' + url).toLowerCase();
-    let score = 0;
-    for (const token of q.split(/\W+/).filter(Boolean)) if (hay.includes(token)) score += 1;
-    if (/bisc/.test(q) && /bisc/.test(hay)) score += 8;
-    if (/beams/.test(q) && /beams/.test(hay)) score += 8;
-    if (/lap|ilap|learner agency/.test(q) && /lap/.test(hay)) score += 8;
-    if (/book.?list|books/.test(q) && /booklist/.test(hay)) score += 8;
-    if (/academic|curriculum|school/.test(q) && /academic/.test(hay)) score += 5;
-    if (/sport|competition/.test(q) && /competition|results/.test(hay)) score += 4;
-    return {name,url,score};
-  }).sort((a,b)=>b.score-a.score).slice(0,4);
-
-  const out = [];
-  for (const {name,url} of ranked) {
-    try {
-      const r = await fetch(url, { headers: { 'user-agent': 'Nimbus-Beaconhouse-AI/1.0' } });
-      if (!r.ok) continue;
-      const html = await r.text();
-      const text = html
-        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-        .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/&amp;/gi, '&')
-        .replace(/&quot;/gi, '"')
-        .replace(/&#39;/gi, "'")
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (text) out.push('[' + name + '] ' + text.slice(0, 5000) + '\nURL: ' + url);
-    } catch (_) {}
-  }
-  return out.join('\n\n');
-}
-
 function looksLikeBeaconhouse(text) {
   const s = String(text || '').toLowerCase();
   return /\b(beaconhouse|bh\.edu\.pk|beams|bisc|rise|lap|boss|book ?list|booklist|learner profile|access centre|steam competition|sports competition)\b/i.test(s);
@@ -216,13 +174,58 @@ async function requestGemini(model, apiKey, parts, systemText) {
   });
 }
 
-async function requestScienceRag(apiKey, model, userText, memoryText) {
+
+const BEACONHOUSE_FETCHABLE = BEACONHOUSE_OFFICIAL_LINKS.map(([name,url]) => ({name,url}));
+
+function selectBeaconhousePages(query) {
+  const q=String(query||'').toLowerCase();
+  const scores=new Map(BEACONHOUSE_FETCHABLE.map((x,i)=>[i,0]));
+  for (const [i,item] of BEACONHOUSE_FETCHABLE.entries()) {
+    const hay=`${item.name} ${item.url}`.toLowerCase();
+    for (const term of ['bisc','beams','lap','rise','boss','prism','book','academic','competition','steam','sports','learner']) {
+      if (q.includes(term) && hay.includes(term)) scores.set(i,scores.get(i)+3);
+    }
+    if (q.includes('book') && hay.includes('booklist')) scores.set(i,scores.get(i)+6);
+    if (q.includes('class 7') && hay.includes('class7')) scores.set(i,scores.get(i)+8);
+  }
+  return [...scores.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([i])=>BEACONHOUSE_FETCHABLE[i]);
+}
+
+function htmlToText(html) {
+  return String(html||'')
+    .replace(/<script[\s\S]*?<\/script>/gi,' ')
+    .replace(/<style[\s\S]*?<\/style>/gi,' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi,' ')
+    .replace(/<[^>]+>/g,' ')
+    .replace(/&nbsp;/gi,' ')
+    .replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/gi,"'")
+    .replace(/\s+/g,' ').trim();
+}
+
+async function fetchBeaconhouseEvidence(query) {
+  const pages=selectBeaconhousePages(query);
+  const results=[];
+  await Promise.all(pages.map(async page=>{
+    try {
+      const ctrl=new AbortController();
+      const timer=setTimeout(()=>ctrl.abort(),4500);
+      const r=await fetch(page.url,{headers:{'User-Agent':'Nimbus-Beaconhouse-AI/1.0'},signal:ctrl.signal});
+      clearTimeout(timer);
+      if(!r.ok)return;
+      const text=htmlToText(await r.text()).slice(0,7000);
+      if(text)results.push(`[Official page: ${page.name}\nURL: ${page.url}\n${text}]`);
+    } catch (_) {}
+  }));
+  return results.join('\n\n');
+}
+
+async function requestScienceRag(apiKey, model, userText, memoryText, beaconhouseEvidence='') {
   if (!SCIENCE_STORE_NAME) return null;
   try {
     const ai = new GoogleGenAI({ apiKey });
     const interaction = await ai.interactions.create({
       model,
-      system_instruction: `${BASE_SYSTEM}\n${SCIENCE_SYSTEM}\n${BEACONHOUSE_CONTEXT}`,
+      system_instruction: `${BASE_SYSTEM}\n${SCIENCE_SYSTEM}\n${BEACONHOUSE_CONTEXT}${beaconhouseEvidence ? `\nLIVE OFFICIAL BEACONHOUSE PAGE EVIDENCE:\n${beaconhouseEvidence}` : ''}`,
       input: memoryText,
       tools: [{ type: 'file_search', file_search_store_names: [SCIENCE_STORE_NAME] }],
       generation_config: { temperature: 0.2, maxOutputTokens: 1800 },
@@ -286,7 +289,7 @@ export default async function handler(req, res) {
     const scienceQuery = looksLikeScience(userText);
     const scienceExplanation = isScienceExplanation(userText);
     const beaconhouseQuery = looksLikeBeaconhouse(userText);
-      const beaconhouseLive = beaconhouseQuery ? await fetchBeaconhouseLive(userText) : "";
+    const beaconhouseEvidence = beaconhouseQuery ? await fetchBeaconhouseEvidence(userText) : '';
 
     const requestedAttachment = body?.attachment;
     const parts = [];
@@ -301,9 +304,9 @@ export default async function handler(req, res) {
 
     if (scienceQuery && !requestedAttachment) {
       for (const ragModel of chain) {
-        const rag = await requestScienceRag(apiKey, ragModel, userText, memoryText);
+        const rag = await requestScienceRag(apiKey, ragModel, userText, memoryText, beaconhouseEvidence);
         if (rag?.text) {
-          const parsedText = beaconhouseQuery ? `${rag.text}\n${BEACONHOUSE_CONTEXT}\n${beaconhouseLive}` : rag.text;
+          const parsedText = beaconhouseQuery ? `${rag.text}\n${BEACONHOUSE_CONTEXT}` : rag.text;
           const finalReply = cleanNimbusText(parsedText);
           return res.status(200).json({
             reply: finalReply + sourceNote(rag.sources),
@@ -321,7 +324,7 @@ export default async function handler(req, res) {
     let lastError = null;
     for (const model of chain) {
       try {
-        const systemText = `${BASE_SYSTEM}\n${beaconhouseQuery ? BEACONHOUSE_CONTEXT : ''}\n${beaconhouseLive || ''}`;
+        const systemText = `${BASE_SYSTEM}\n${beaconhouseQuery ? BEACONHOUSE_CONTEXT : ''}${beaconhouseEvidence ? `\nLIVE OFFICIAL BEACONHOUSE PAGE EVIDENCE:\n${beaconhouseEvidence}` : ''}`;
         const response = await requestGemini(model, apiKey, parts, systemText);
         const data = await response.json();
         if (response.ok) {
