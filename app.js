@@ -33,7 +33,6 @@ const RESOURCES=[
   ['Beaconhouse Old Students Society','https://boss.beaconhouse.net/about-us/'],
   ['2026-27 Punjab book lists (Class 1-8 selector)','https://booklist.beaconhouse.net/punjab-booklist/'],
   ['2026-27 Sindh & Balochistan book lists (Class 1-8 selector)','https://booklist.beaconhouse.net/sindh-balochistan-booklist/'],
-  ['Class 7 Sindh & Balochistan book list','https://booklist.beaconhouse.net/booklist/2025/sindh-balochistan/class7/'],
   ['2026-27 Fed/ICT book lists','https://booklist.beaconhouse.net/ict-booklist/'],
   ['2026-27 KPK book lists','https://booklist.beaconhouse.net/kpk-booklist/'],
   ['2026-27 TNS book lists','https://booklist.beaconhouse.net/tns-booklist/'],
@@ -236,7 +235,7 @@ function printPdf(text){
 function add(role,text,fileName){
   state.messages.push({role,text,fileName:fileName||null});
   renderMessage(role,text,fileName,true,role==='ai');
-  persistCurrent();
+  if(role!=='ai') persistCurrent();
 }
 
 function loadChat(id){
@@ -259,13 +258,12 @@ function setAgentThinking(isThinking){
   }
 }
 
-function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NIMBUS • SMART SCIENCE VISUAL</span><strong>${title}</strong><small>${type} • ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visual…</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
+function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2 • VISUAL</span><strong>${title}</strong><small>${type} • ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visual…</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
 function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'}`;img.src=`data:${mimeType||'image/png'};base64,${base64}`;card.bubble.querySelector('.visual-loading')?.remove();card.bubble.appendChild(img);const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';card.bubble.appendChild(note);$('messages').scrollTop=$('messages').scrollHeight;}
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
-function looksLikeScience(text){const s=String(text||'').toLowerCase();return /\b(science|biology|chemistry|physics|ecosystem|food chain|food web|habitat|adaptation|cell|tissue|organ|skeleton|joint|muscle|respiration|respiratory|digestion|photosynthesis|reproduction|forces?|motion|energy transfer|electricity|circuit|acid|base|particle|matter|mixture|solution|density|pressure|heat|temperature|light|sound|magnet|atom|molecule|nutrition|gas exchange|diffusion|asthma)\b/i.test(s);}
-function looksLikeScienceExplanation(text){const s=String(text||'').toLowerCase();return looksLikeScience(s)&&/\b(explain|explanation|how does|how do|why does|why do|describe|what is|what are|how it works|function|functions|difference between|compare|process|steps|structure|role of)\b/i.test(s);}
-function makeAutoVisualPrompt(userText,answerText){return `Create a high-quality 16:9 Grade 7 educational science visual. Choose the most useful scientific visual form for the topic: a realistic anatomical cutaway for body structures, a clean physical/laboratory setup for experiments, a staged process with real objects for processes, or a comparison plate for differences. Do NOT make a generic four-box infographic, text poster, flowchart template, empty grid, or decorative card. Use a strong central subject, dimensional depth, subtle school-textbook lighting, scientifically accurate relationships, minimal concise labels, leader lines/arrows only when they clarify the structure, and a polished artistic composition. Use only the facts in the provided answer context. Do not invent unsupported structures. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,2800)}.`;}
+function looksLikeSchoolWork(text){const s=String(text||'').toLowerCase();return /(homework|assignment|classwork|worksheet|study|studying|notes|revision|revise|exam|test|quiz|project|school|lesson|chapter|topic|explain|how does|why does|define|difference between|compare|biology|chemistry|physics|math|mathematics|history|geography|computer|programming|coding|python|javascript|html|css|lua|roblox|game|flowchart|diagram|concept map|process|steps)/i.test(s);}
+function makeAutoVisualPrompt(userText,answerText){return `Create a polished professional 16:9 educational visual for this schoolwork request. Make it realistic, visually rich, colorful, presentation-quality, with meaningful subject imagery, icons, clear hierarchy, varied shapes, depth/lighting, clean arrows and short readable labels. Do not make a plain text-only diagram or a generic set of boxes. Use concise keywords rather than paragraphs. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. If it is code or game-development help, visualize the logic, system architecture, mechanics, or steps instead of reproducing long code.`;}
 async function generateVisual(prompt,meta={}){
   const card=createVisualCard(meta);
   try{
@@ -305,28 +303,22 @@ async function sendMessage(text){
       consumeLocalUsage();
       return;
     }
-    const memoryHistory=state.messages.slice(-12).map(m=>({role:m.role,text:String(m.text||'').slice(0,6000)}));
-    r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',educational_id:state.id||'anonymous',model:state.model,attachment,history:memoryHistory})});
+    r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',educational_id:state.id||'anonymous',model:state.model,attachment})});
     data=await r.json().catch(()=>({}));
     // The server may report a count when available; the client also maintains a 24-hour per-educational-ID window.
     if(typeof data.used==='number' && data.used>=state.used) updateUsage(data.used);
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
     let reply=data.reply||'Nimbus did not return a response.';
-    const explicitVisualRequest=/(\bflowchart\b|\bdiagram\b|\bdraw\b|\bimage\b|\bvisual\b|\billustration\b|\bmind map\b|\bconcept map\b|\bshow me\b|\bmake a chart\b)/i.test(String(text||''));
-    if(data.visual?.prompt || data.auto_visual || explicitVisualRequest){
+    if(data.visual?.prompt || looksLikeSchoolWork(text) || /(flowchart|diagram|draw|image|visual|illustration|mind map|concept map|show me|make a chart)/i.test(String(text||''))){
       const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
       const vtitle=data.visual?.title||'Study visual';
       const vkeywords=data.visual?.keywords||'keywords • labels • key concepts • arrows';
-      const sourceNote=Array.isArray(data.sources)&&data.sources.length?`\n\nSource: ${data.sources.slice(0,3).map(s=>s.pageNumber?`${s.fileName} • p. ${s.pageNumber}`:s.fileName).join(' | ')}`:'';
-      add('ai',reply+sourceNote);
+      add('ai',reply);
       const prompt=data.visual?.prompt||makeAutoVisualPrompt(text,reply);
       try{await generateVisual(prompt,{title:vtitle,type:vtype,keywords:vkeywords});}
       catch(e){console.warn('Visual generation failed',e);}
-    }else{
-      const sourceNote=Array.isArray(data.sources)&&data.sources.length?`\n\nSource: ${data.sources.slice(0,3).map(s=>s.pageNumber?`${s.fileName} • p. ${s.pageNumber}`:s.fileName).join(' | ')}`:'';
-      add('ai',reply+sourceNote);
-    }
+    }else add('ai',reply);
     consumeLocalUsage();
   }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
   finally{$('sendBtn').disabled=false;setAgentThinking(false);}

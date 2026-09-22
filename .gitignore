@@ -3,9 +3,3 @@ node_modules/
 .env.*
 __pycache__/
 *.pyc
-knowledge/nimbus_science_store.txt
-
-NIMBUS_VISUAL_SECRETS.txt
-
-.vercel
-.env*

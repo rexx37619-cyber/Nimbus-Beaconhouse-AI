@@ -1,0 +1,11 @@
+{
+  "remoteName": "origin",
+  "projects": [
+    {
+      "id": "prj_RY6W20KHnGmMLNZX66lr0yTWQf74",
+      "name": "nimbus-beaconhouse-ai",
+      "directory": ".",
+      "orgId": "team_0na0VMBuZadgbZcHLwDrudDs"
+    }
+  ]
+}
