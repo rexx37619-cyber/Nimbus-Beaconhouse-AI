@@ -1,12 +1,9 @@
-Nimbus Grade 7 Science response rules
+NIMBUS GRADE 7 SCIENCE SOURCE SETUP
 
-- Use the indexed Grade 7 science PDFs as the primary source when relevant.
-- Explain in simple original wording.
-- Educational questions use only these labels:
-  Keywords:
-  Answer structure:
-  Key facts:
-- Do not add Key function(s) unless the student explicitly asks what a structure does, its function, role, or purpose.
-- Greetings, casual conversation, jokes, thanks, and Beaconhouse-specific questions do not use the academic labels.
-- Never output placeholder phrases such as "topic-based study points", "retry the same question", or "short structured response unavailable".
-- Visual generation is separate from the text response and is not modified by this patch.
+Source: user-supplied Lower Secondary Grade 7 science PDF parts.
+
+Runtime retrieval:
+- Gemini File Search store name is supplied by the NIMBUS_SCIENCE_STORE environment variable.
+- Keep the PDFs in the File Search store; do not paste the full textbook into public frontend JavaScript.
+- Grade 7 science answers should preserve source concepts/terminology, explain them in simpler original wording, and emphasize keywords, key functions, facts, relationships, and answer structure.
+- When the user asks for an explanation of a science concept, Nimbus can automatically request one topic-specific visual.
