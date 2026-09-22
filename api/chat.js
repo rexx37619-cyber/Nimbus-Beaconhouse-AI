@@ -1,8 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
 
 const MODELS = {
-  ror: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'],
-  legacy: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']
+  // Primary: Gemini 3.5 Flash-Lite. Fast production fallbacks keep Nimbus responsive if one endpoint/quota path is unavailable.
+  ror: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite'],
+  legacy: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite']
 };
 
 const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
@@ -61,7 +62,7 @@ SPEED:
 - Keep routine answers concise unless the student asks for depth.
 
 ACADEMIC OUTPUT:
-- For schoolwork, return keywords, concise facts, definitions, sequences, labels, comparisons, and answer structure.
+- For schoolwork, return concise study structure: Keywords, Key facts, and Answer structure. Add Key function(s) only when the question asks what something does/its purpose.
 - Do NOT write a ready-to-submit paragraph for the student.
 - Never include a "Key function(s)" section unless the student explicitly asks for a function or purpose.
 - For rewrite requests, say exactly: "You have to rephrase it on your own." Then give only keywords, facts and structure.
@@ -107,7 +108,9 @@ function looksEducational(text) {
 }
 
 function shouldVisualize(text) {
-  return /\b(explain|explanation|describe|how does|how do|why does|why do|difference between|compare|define|definition|teach|lesson|notes|study|concept|process|steps|sequence|diagram|label|example|class 7|grade 7)\b/i.test(text) && looksEducational(text);
+  // Automatic visuals are science-only. Beaconhouse, greetings, ordinary chat, and non-science homework do not auto-generate images.
+  if (!looksLikeScience(text)) return false;
+  return /\b(explain|explanation|describe|how does|how do|why does|why do|difference between|compare|define|definition|teach|lesson|notes|study|concept|process|steps|sequence|diagram|label|example|class 7|grade 7)\b/i.test(text);
 }
 
 function visualFor(text, answer) {
@@ -155,7 +158,7 @@ async function callGemini(ai, model, body, useFileSearch) {
   const userText = String(body?.message || '').trim() || 'Hello!';
   const science = looksLikeScience(userText);
   const educational = looksEducational(userText);
-  const system = `${BASE_SYSTEM}\n${BEACONHOUSE_KNOWLEDGE}\n${science ? '\nSOURCE MODE: When the Grade 7 science File Search tool returns relevant material, use it as the primary source. If the source does not contain enough information, say so instead of inventing source-specific details.' : ''}`;
+  const system = `${BASE_SYSTEM}\n${BEACONHOUSE_KNOWLEDGE}\n${science ? '\nSOURCE MODE: When the Grade 7 science File Search tool returns relevant material, use it as the primary source. If the source does not contain enough information, say so instead of inventing source-specific details.\nIf File Search is unavailable, answer from general knowledge and clearly avoid inventing textbook-specific details.' : ''}`;
 
   const config = {
     systemInstruction: system,
@@ -178,6 +181,21 @@ async function callGemini(ai, model, body, useFileSearch) {
   return ai.models.generateContent({ model, contents: buildContents(body), config });
 }
 
+
+async function callWithScienceFallback(ai, model, body) {
+  const science = looksLikeScience(String(body?.message || ''));
+  if (!science || !SCIENCE_STORE_NAME) {
+    return callGemini(ai, model, body, false);
+  }
+  try {
+    return await callGemini(ai, model, body, true);
+  } catch (err) {
+    // A broken/missing File Search store must never turn a normal science answer into the generic busy message.
+    console.warn('[Nimbus science RAG] File Search unavailable; retrying without File Search:', err?.message || err);
+    return callGemini(ai, model, body, false);
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ reply: 'Method Not Allowed' });
 
@@ -196,7 +214,7 @@ export default async function handler(req, res) {
 
     for (const model of chain) {
       try {
-        response = await callGemini(ai, model, body, wantsScience);
+        response = await callWithScienceFallback(ai, model, body);
         usedModel = model;
         break;
       } catch (err) {
@@ -209,8 +227,7 @@ export default async function handler(req, res) {
     if (!response) return res.status(200).json({ reply: 'Nimbus is temporarily busy. Please try again in a moment.' });
 
     const answer = cleanText(extractText(response) || 'I’m ready. What would you like to learn?');
-    const educational = looksEducational(userText);
-    const autoVisual = shouldVisualize(userText);
+      const autoVisual = shouldVisualize(userText);
 
     return res.status(200).json({
       reply: answer,

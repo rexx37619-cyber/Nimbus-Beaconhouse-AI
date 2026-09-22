@@ -1,6 +1,7 @@
-NIMBUS — CURATED BEACONHOUSE PUBLIC LINKS
+NIMBUS — BEACONHOUSE OFFICIAL PUBLIC LINKS
+
+Core
 https://www.beaconhouse.net/
-https://www.beaconhouse.net/about-us/
 https://www.beaconhouse.net/academic/
 https://www.beaconhouse.net/events/
 https://www.beaconhouse.net/international-events-trips/
@@ -13,18 +14,21 @@ https://www.beaconhouse.net/beaconhouse-learner-profile/
 https://www.beaconhouse.net/the-access-centre/
 https://www.beaconhouse.net/university-placements-scholarships/
 https://www.beaconhouse.net/internship-programme/
-https://www.beaconhouse.net/child-protection/
-https://www.beaconhouse.net/international-baccalaureate-programs/pyp/
-https://www.beaconhouse.net/cie-a-level/
+
+Student / competition platforms
 https://bisc.beaconhouse.net/
 https://bisc.beaconhouse.net/about-bisc/
 https://rise.beaconhouse.net/
 https://beams.beaconhouse.net/home/
 https://beams.beaconhouse.net/prism/
-https://boss.beaconhouse.net/about-us/
 https://lap.beaconhouse.net/about-us/
 https://lap.beaconhouse.net/guidelines-2/
 https://lap.beaconhouse.net/guidelines-ilap-2027/
+https://lap.beaconhouse.net/nlc/
+https://boss.beaconhouse.net/
+https://boss.beaconhouse.net/about-us/
+
+Book lists
 https://booklist.beaconhouse.net/
 https://booklist.beaconhouse.net/punjab-booklist/
 https://booklist.beaconhouse.net/sindh-balochistan-booklist/
@@ -35,3 +39,9 @@ https://booklist.beaconhouse.net/newlands-booklist-khi/
 https://booklist.beaconhouse.net/newlands-booklist-isb/
 https://booklist.beaconhouse.net/newlands-booklist-ml/
 https://booklist.beaconhouse.net/discovery-karachi-booklist/
+
+Grounding rules
+- Use only these official public links for Beaconhouse-specific factual grounding unless the user asks to research a different source.
+- Do not invent current schedules, winners, campus records, private BEAMS information, or exact campus book lists.
+- For current book lists, direct the user to the relevant official regional/campus portal unless the exact page data is present.
+- Do not claim Nimbus is officially owned or endorsed by Beaconhouse.
