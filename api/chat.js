@@ -1,11 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 
 const MODEL_CHAINS = {
-  // Fast primary path. 3.5 Flash-Lite is the current GA fast/cost-efficient model.
-  // 2.5 Flash-Lite is the compatibility fallback so a transient 429/5xx does not
-  // surface a 'temporarily busy' response to students.
-  ror: ['gemini-3.5-flash-lite', 'gemini-2.5-flash-lite'],
-  legacy: ['gemini-2.5-flash-lite']
+  ror: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'],
+  legacy: ['gemini-3.1-flash-lite']
 };
 const VISUAL_MARKER = /\[NIMBUS_VISUAL\]([\s\S]*?)\[\/NIMBUS_VISUAL\]/i;
 const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
@@ -59,16 +56,18 @@ CODING:
 - Examples: python, javascript, html, css, lua, java, cpp, csharp, powershell, json.
 - Explain the code outside the fence.
 ACADEMIC OUTPUT MODE:
-- For school answers, notes, assignments, essays, or paragraph-writing requests, do NOT write a ready-to-submit paragraph. Give study material only.
-- Use ONLY these sections when appropriate: Keywords, Key function(s), Answer structure, Key fact(s). Do not add an extra explanation paragraph.
-- Keywords: compact terms only, not sentences.
-- Key function(s): use only when the question asks what a structure/process does; keep it to short fragments.
-- Answer structure: 2–4 very short ordered fragments or labels that show how the student should organize their own answer.
-- Key fact(s): each fact must contain 4–8 content words, not a full polished sentence. Shuffle the word order slightly so the student must rephrase it in their own words.
-- Keep Grade 7 science wording simple enough for a Beaconhouse student.
-- Use the indexed textbook as the primary source when it contains the topic, then add only a small amount of clearly model-generated supporting knowledge when useful. Never pretend model-generated facts came from the textbook.
-- Do not copy long passages from the textbook. Paraphrase in your own words.
-- If the student asks for a rewrite, say exactly: "You have to rephrase it on your own." Then give only keywords, short structure, 4–8-word shuffled key facts, and a diagram plan.
+- Only use the structured school-answer format when the user's message is actually an educational/study question. Do NOT use it for greetings, casual chat, jokes, thank-yous, general conversation, or Beaconhouse-specific information requests.
+- For an educational question, return exactly these three labels and meaningful content: 
+  Keywords: [topic-specific terms, not placeholders]
+  Answer structure: [the logical structure/steps the student should use]
+  Key facts: [important facts/definitions/relationships]
+- NEVER include a "Key function(s)" section. Use only Keywords, Answer structure, and Key facts for educational questions.
+- Do not output placeholder phrases such as "topic-based study points", "retry the same question", or "short structured response unavailable". If you cannot answer, say briefly that the information is unavailable rather than inventing a template.
+- Keep educational answers simple and specific enough for a Grade 7 Beaconhouse student when the topic is Grade 7.
+- Do not write ready-to-submit paragraphs for schoolwork. Give useful study material that the student can rephrase in their own words.
+- Do not copy long passages from a textbook. Paraphrase in your own words.
+- For a source-grounded science question, do not invent missing details. Say when the indexed source does not contain enough information.
+- If the student asks for a rewrite, say exactly: "You have to rephrase it on your own." Then provide only information, keywords, structure, key facts, and a diagram plan.
 VISUALS:
 - When a diagram, labelled scientific structure, process, flowchart, or concept map would genuinely help, add exactly one [NIMBUS_VISUAL] block at the end.
 - Inside it use four plain lines only: type: diagram|flowchart|keywords, title: ..., keywords: ..., prompt: ...
@@ -87,7 +86,7 @@ GRADE 7 SCIENCE SOURCE MODE:
 - When File Search returns relevant material, treat it as the primary source for science answers.
 - Preserve the source's concepts and terminology, but explain in simpler original wording.
 - Prefer keywords, definitions, functions, examples, labelled relationships and short cause/effect sequences over long prose.
-- For anatomy or systems, use "Key function(s)" only when the question is about what a structure does.
+- Never add a function section; use the three-label educational format only.
 - Never invent a textbook page number or citation. Use citations supplied by File Search only.
 `;
 
@@ -154,6 +153,38 @@ function collectFileSources(interaction) {
   return out.filter((s, i, arr) => arr.findIndex(x => x.fileName === s.fileName && x.source === s.source && x.pageNumber === s.pageNumber) === i);
 }
 
+function looksLikeGreeting(text) {
+  const s = String(text || '').trim().toLowerCase().replace(/[!?.,]+$/g, '');
+  return /^(hi|hello|hey|yo|sup|wassup|good morning|good afternoon|good evening|thanks|thank you|ok|okay|bye|good night)$/.test(s);
+}
+
+function looksLikeAcademicQuestion(text) {
+  if (looksLikeGreeting(text) || looksLikeBeaconhouse(text)) return false;
+  const s = String(text || '').toLowerCase();
+  const academic = /\b(explain|define|definition|describe|difference|compare|contrast|how does|how do|why does|why do|what is|what are|what causes|how works|how it works|steps|process|structure|function|role|purpose|keywords?|notes?|summary|summarize|assignment|homework|exam|revision|study|biology|chemistry|physics|science|maths|mathematics|english|grammar|literature|history|geography|computer|ict|ecosystem|cell|respiration|joint|skeleton|muscle|photosynthesis|electricity|circuit|fraction|equation|algebra|essay|report|article)\b/i;
+  return academic.test(s);
+}
+
+function stripAcademicFunctionSection(text) {
+  return String(text || '')
+    .replace(/(^|\n)\s*(?:Key function\(s\)|Key functions?|Function|Functions)\s*:\s*[^\n]*/gi, '$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function enforceAcademicLabels(text, userText) {
+  const raw = cleanNimbusText(text);
+  let out = stripAcademicFunctionSection(raw);
+  // If the model returned the old three/four-label skeleton, force a retry-friendly neutral message instead of showing placeholders.
+  if (/topic-based study points|retry the same question|short structured response unavailable/i.test(out)) {
+    return 'I need a little more detail to answer that accurately. Please ask the study question again with the topic or concept named.';
+  }
+  // Normalize the label spelling when the model used variants.
+  out = out.replace(/Key fact\(s\)\s*:/gi, 'Key facts:');
+  // If the model gave a normal answer without the required labels, do not wrap casual chat. For academic questions, ask the model to format it on the next call is preferred; this fallback keeps the response useful.
+  return out;
+}
+
 async function requestGemini(model, apiKey, parts, systemText) {
   return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
@@ -161,7 +192,7 @@ async function requestGemini(model, apiKey, parts, systemText) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemText }] },
       contents: [{ role: 'user', parts }],
-      generationConfig: { thinkingConfig: { thinkingLevel: 'minimal' }, maxOutputTokens: 900 }
+      generationConfig: { thinkingConfig: { thinkingLevel: 'minimal' }, maxOutputTokens: 2200 }
     })
   });
 }
@@ -173,9 +204,9 @@ async function requestScienceRag(apiKey, model, userText, memoryText) {
     const interaction = await ai.interactions.create({
       model,
       system_instruction: `${BASE_SYSTEM}\n${SCIENCE_SYSTEM}\n${BEACONHOUSE_CONTEXT}`,
-      input: academicCompactPrompt(userText, memoryText, 'The indexed book is the preferred source when relevant.'),
+      input: memoryText,
       tools: [{ type: 'file_search', file_search_store_names: [SCIENCE_STORE_NAME] }],
-      generation_config: { maxOutputTokens: 900, thinking_level: 'minimal' },
+      generation_config: { temperature: 0.2, maxOutputTokens: 1800 },
       store: false
     });
     const raw = interaction?.output_text || '';
@@ -218,63 +249,6 @@ function autoScienceVisual(userText, answerText) {
   };
 }
 
-
-function academicCompactPrompt(userText, memoryText, sourceHint='') {
-  return `${memoryText}
-
-STUDENT OUTPUT CONTRACT:
-- Give study material only; never a ready-to-submit paragraph.
-- Output only the useful sections below, in this order, and omit sections that do not apply:
-  Keywords: short terms
-  Key function(s): short fragments only when relevant
-  Answer structure: 2-4 short ordered fragments
-  Key fact(s): 4-8 content words per fact, with word order slightly shuffled
-- A Key fact must NOT be a polished sentence. Example style only: "downward diaphragm contracts air".
-- The student must rephrase the material themselves.
-- Use the indexed Grade 7 science book first when relevant. Add a small amount of your own general knowledge only where helpful, and never label model knowledge as book content.
-- Keep it simple, accurate, and fast.
-- Do not mention internal models, API errors, retries, providers, or backend systems.
-${sourceHint}
-Current student request: ${userText}`;
-}
-
-function enforceShuffledKeyFacts(text) {
-  const lines = String(text || '').split(/\r?\n/);
-  let inFacts = false;
-  return lines.map(line => {
-    const trimmed = line.trim();
-    const factHeader = trimmed.match(/^key fact\(?s?\)?:\s*(.*)$/i);
-    if (factHeader) {
-      inFacts = true;
-      const inline = factHeader[1].trim();
-      if (!inline) return 'Key fact(s):';
-      return `Key fact(s):\n- ${shuffleFactWords(inline)}`;
-    }
-    if (inFacts && /^(Keywords?|Key function|Answer structure|Source):/i.test(trimmed)) {
-      inFacts = false;
-      return line;
-    }
-    if (inFacts && trimmed) {
-      const prefix = trimmed.replace(/^[-•\d.)\s]+/, '').replace(/[.?!]+$/,'');
-      if (!prefix) return line;
-      return `- ${shuffleFactWords(prefix)}`;
-    }
-    return line;
-  }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-function shuffleFactWords(value) {
-  let words = String(value || '').split(/\s+/).map(w => w.replace(/^[^\w]+|[^\w]+$/g, '')).filter(Boolean);
-  if (words.length > 8) words = words.slice(0, 8);
-  if (words.length >= 4) {
-    for (let i = words.length - 1; i > 0; i--) {
-      const j = (words.join('').length + i * 17) % (i + 1);
-      [words[i], words[j]] = [words[j], words[i]];
-    }
-  }
-  return words.join(' ');
-}
-
 function sourceNote(sources) {
   if (!Array.isArray(sources) || !sources.length) return '';
   const labels = sources.slice(0, 3).map(s => s.pageNumber ? `${s.fileName} • p. ${s.pageNumber}` : s.fileName);
@@ -284,7 +258,7 @@ function sourceNote(sources) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ reply: 'Method Not Allowed' });
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(200).json({ reply: 'Keywords: Nimbus study mode\nAnswer structure: question → key points → rephrase\nKey fact(s): add your own study words', transient: true });
+  if (!apiKey) return res.status(200).json({ reply: 'Nimbus is temporarily busy. Please try again in a moment.' });
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const userText = String(body?.message || '').trim() || 'Hello!';
@@ -293,6 +267,7 @@ export default async function handler(req, res) {
     const scienceQuery = looksLikeScience(userText);
     const scienceExplanation = isScienceExplanation(userText);
     const beaconhouseQuery = looksLikeBeaconhouse(userText);
+    const academicQuestion = looksLikeAcademicQuestion(userText);
 
     const requestedAttachment = body?.attachment;
     const parts = [];
@@ -301,7 +276,7 @@ export default async function handler(req, res) {
       if (!supported.includes(requestedAttachment.mimeType)) return res.status(400).json({ message: 'Supported attachments: PDF, PNG, JPG, WEBP and TXT.' });
       parts.push({ inlineData: { mimeType: requestedAttachment.mimeType, data: requestedAttachment.data } });
     }
-    parts.push({ text: requestedAttachment?.name ? academicCompactPrompt(userText, memoryText, `Analyse the attached file ${requestedAttachment.name} for useful evidence.`) : academicCompactPrompt(userText, memoryText) });
+    parts.push({ text: requestedAttachment?.name ? `${memoryText}\n\nPlease analyse the attached file \"${requestedAttachment.name}\" and help the student.` : memoryText });
 
     const chain = MODEL_CHAINS[body?.model] || MODEL_CHAINS.ror;
 
@@ -310,7 +285,7 @@ export default async function handler(req, res) {
         const rag = await requestScienceRag(apiKey, ragModel, userText, memoryText);
         if (rag?.text) {
           const parsedText = beaconhouseQuery ? `${rag.text}\n${BEACONHOUSE_CONTEXT}` : rag.text;
-          const finalReply = enforceShuffledKeyFacts(cleanNimbusText(parsedText));
+          const finalReply = academicQuestion ? enforceAcademicLabels(parsedText, userText) : cleanNimbusText(parsedText);
           return res.status(200).json({
             reply: finalReply + sourceNote(rag.sources),
             visual: rag.visual || (scienceExplanation ? autoScienceVisual(userText, finalReply) : null),
@@ -327,13 +302,13 @@ export default async function handler(req, res) {
     let lastError = null;
     for (const model of chain) {
       try {
-        const systemText = `${BASE_SYSTEM}\n${beaconhouseQuery ? BEACONHOUSE_CONTEXT : ''}`;
+        const systemText = `${BASE_SYSTEM}\n${beaconhouseQuery ? BEACONHOUSE_CONTEXT : ''}\nREQUEST CLASSIFICATION: ${academicQuestion ? 'EDUCATIONAL QUESTION — use Keywords / Answer structure / Key facts.' : 'NORMAL CONVERSATION — do not use school-answer labels.'}`;
         const response = await requestGemini(model, apiKey, parts, systemText);
         const data = await response.json();
         if (response.ok) {
           const raw = (data?.candidates?.[0]?.content?.parts || []).filter(p => typeof p.text === 'string').map(p => p.text).join('') || 'I’m ready. What would you like to learn?';
           const parsed = stripVisual(raw);
-          const finalReply = enforceShuffledKeyFacts(cleanNimbusText(parsed.text));
+          const finalReply = academicQuestion ? enforceAcademicLabels(parsed.text, userText) : cleanNimbusText(parsed.text);
           return res.status(200).json({
             reply: finalReply,
             visual: parsed.visual || (scienceExplanation ? autoScienceVisual(userText, finalReply) : null),
@@ -344,25 +319,19 @@ export default async function handler(req, res) {
           });
         }
         lastError = data?.error?.message || `HTTP ${response.status}`;
-        if (!(response.status === 408 || response.status === 429 || response.status >= 500)) break;
+        if (!(response.status === 429 || response.status >= 500)) break;
       } catch (e) { lastError = e?.message || 'network error'; }
     }
-    console.warn('Nimbus upstream path exhausted; returning a neutral retry-safe response.', lastError);
-    return res.status(200).json({
-      reply: 'Keywords: topic-based study points\nAnswer structure: retry the same question\nKey fact(s): short study response unavailable',
-      model: body?.model || 'ror',
-      limit: Number(process.env.NIMBUS_DAILY_LIMIT || 1500),
-      grounded: false,
-      transient: true
-    });
+    console.error('Nimbus upstream error', lastError);
+    if (looksLikeGreeting(userText)) {
+      return res.status(200).json({ reply: 'Hi! What would you like help with?' });
+    }
+    return res.status(200).json({ reply: 'Nimbus is temporarily busy. Please try again in a moment.' });
   } catch (e) {
-    console.warn('Nimbus function recovered from an upstream exception.', e?.message || e);
-    return res.status(200).json({
-      reply: 'Keywords: study topic\nAnswer structure: key points → functions → fact\nKey fact(s): rephrase these words yourself',
-      model: body?.model || 'ror',
-      limit: Number(process.env.NIMBUS_DAILY_LIMIT || 1500),
-      grounded: false,
-      transient: true
-    });
+    console.error('Nimbus function error', e);
+    if (looksLikeGreeting(userText)) {
+      return res.status(200).json({ reply: 'Hi! What would you like help with?' });
+    }
+    return res.status(200).json({ reply: 'Nimbus is temporarily busy. Please try again in a moment.' });
   }
 }
