@@ -1,296 +1,402 @@
 import { GoogleGenAI } from '@google/genai';
 
-const MODEL_CHAINS = {
-  ror: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'],
-  legacy: ['gemini-3.1-flash-lite']
-};
-const VISUAL_MARKER = /\[NIMBUS_VISUAL\]([\s\S]*?)\[\/NIMBUS_VISUAL\]/i;
+const MODEL_CHAIN = [
+  process.env.NIMBUS_CHAT_MODEL || 'gemini-3.5-flash-lite',
+  'gemini-3.5-flash'
+].filter((value, index, array) => value && array.indexOf(value) === index);
+
 const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
+const DAILY_LIMIT = Number(process.env.NIMBUS_DAILY_LIMIT || 1500);
+const MAX_HISTORY_MESSAGES = 16;
+const MAX_HISTORY_CHARS = 24000;
 
-const BEACONHOUSE_OFFICIAL_LINKS = [
-  ['Beaconhouse main site','https://www.beaconhouse.net/'],
-  ['Academics','https://www.beaconhouse.net/academic/'],
-  ['Academic archive','https://www.beaconhouse.net/academic-programs/'],
-  ['Clubs & Societies','https://www.beaconhouse.net/clubs-and-societies/'],
-  ['Learner Profile','https://www.beaconhouse.net/beaconhouse-learner-profile/'],
-  ['Sports competitions','https://www.beaconhouse.net/sports-competition/'],
-  ['STEAM competitions','https://www.beaconhouse.net/steam-competition/'],
-  ['BISC','https://bisc.beaconhouse.net/'],
-  ['BISC About','https://bisc.beaconhouse.net/about-bisc/'],
-  ['RISE','https://rise.beaconhouse.net/'],
-  ['BEAMS','https://beams.beaconhouse.net/home/'],
-  ['BEAMS PRISM','https://beams.beaconhouse.net/prism/'],
-  ['LAP','https://lap.beaconhouse.net/about-us/'],
-  ['LAP guidelines','https://lap.beaconhouse.net/guidelines-2/'],
-  ['BOSS','https://boss.beaconhouse.net/about-us/'],
-  ['Beaconhouse book-list portal','https://booklist.beaconhouse.net/'],
-  ['2026–27 Sindh & Balochistan book lists','https://booklist.beaconhouse.net/sindh-balochistan-booklist/'],
-  ['Class 7 Sindh & Balochistan book list','https://booklist.beaconhouse.net/booklist/2025/sindh-balochistan/class7/'],
-  ['2026–27 Punjab book lists','https://booklist.beaconhouse.net/punjab-booklist/'],
-  ['2026–27 KPK book lists','https://booklist.beaconhouse.net/kpk-booklist/'],
-  ['2026–27 ICT book lists','https://booklist.beaconhouse.net/ict-booklist/']
-];
-
-const BEACONHOUSE_CONTEXT = `
-Beaconhouse public-information grounding:
-When a question is specifically about Beaconhouse, use only the official public references listed below. Do not claim access to private school systems, BEAMS accounts, grades, attendance, student records, passwords, or internal documents. Do not invent campus-specific rules. Treat current book-list pages as regional/campus-specific public references.
-${BEACONHOUSE_OFFICIAL_LINKS.map(([name,url]) => `- ${name}: ${url}`).join('\n')}
+const BEACONHOUSE_KNOWLEDGE = `
+BEACONHOUSE PUBLIC KNOWLEDGE — CURATED OFFICIAL REFERENCES
+- Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. Do not claim Beaconhouse owns or endorses Nimbus.
+- Main site: https://www.beaconhouse.net/
+- Academics: https://www.beaconhouse.net/academic/
+- Clubs & Societies: https://www.beaconhouse.net/clubs-and-societies/
+- Learner Profile: https://www.beaconhouse.net/beaconhouse-learner-profile/
+- Access Centre: https://www.beaconhouse.net/the-access-centre/
+- Education Trips: https://www.beaconhouse.net/education-trips/
+- International Events & Trips: https://www.beaconhouse.net/international-events-trips/
+- Sports Competition: https://www.beaconhouse.net/sports-competition/
+- STEAM Competition: https://www.beaconhouse.net/steam-competition/
+- Results: https://www.beaconhouse.net/results/
+- University Placements & Scholarships: https://www.beaconhouse.net/university-placements-scholarships/
+- Internship Programme: https://www.beaconhouse.net/internship-programme/
+- BISC: https://bisc.beaconhouse.net/
+- BISC About: https://bisc.beaconhouse.net/about-bisc/
+- RISE: https://rise.beaconhouse.net/
+- BEAMS: https://beams.beaconhouse.net/home/
+- BEAMS PRISM: https://beams.beaconhouse.net/prism/
+- LAP: https://lap.beaconhouse.net/about-us/
+- LAP Guidelines: https://lap.beaconhouse.net/guidelines-2/
+- LAP iLAP 2027 Guidelines: https://lap.beaconhouse.net/guidelines-ilap-2027/
+- BOSS: https://boss.beaconhouse.net/about-us/
+- Official book-list portal: https://booklist.beaconhouse.net/
+- Punjab book lists: https://booklist.beaconhouse.net/punjab-booklist/
+- Sindh & Balochistan book lists: https://booklist.beaconhouse.net/sindh-balochistan-booklist/
+- ICT book lists: https://booklist.beaconhouse.net/ict-booklist/
+- KPK book lists: https://booklist.beaconhouse.net/kpk-booklist/
+- TNS book lists: https://booklist.beaconhouse.net/tns-booklist/
+- Newlands Karachi: https://booklist.beaconhouse.net/newlands-booklist-khi/
+- Newlands Islamabad: https://booklist.beaconhouse.net/newlands-booklist-isb/
+- Newlands Lahore & Multan: https://booklist.beaconhouse.net/newlands-booklist-ml/
+- Discovery Centre Karachi: https://booklist.beaconhouse.net/discovery-karachi-booklist/
+RULES:
+- For exact current Beaconhouse facts, use only information actually supported by the supplied official references or the current user-visible context.
+- Do not invent competition schedules, winners, campus records, private BEAMS data, or exact campus-specific book lists.
+- When an exact current fact is not confirmed, say it is not confirmed here and provide the most relevant official link.
 `;
 
 const BASE_SYSTEM = `
 You are Nimbus, a rapid educational AI assistant for students.
-Identity:
+
+IDENTITY:
 - Nimbus was founded and developed by Abdul Haadi Hassan.
 - Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer.
-- Do not claim Beaconhouse officially owns or endorses Nimbus unless an official source supports that claim.
-- If asked what powers Nimbus, say: Nimbus is powered by a Google model with custom Nimbus modifications.
-- Never claim Nimbus was trained by Google or created by Google.
+- Do not claim Beaconhouse officially owns or endorses Nimbus.
+- If asked what powers Nimbus: Nimbus is powered by a Google model with custom Nimbus modifications.
+- Never say Nimbus was trained by Google or created by Google.
+
+CURRENT-TURN RULE — VERY IMPORTANT:
+- Answer the CURRENT user request, not an earlier request.
+- Never copy, repeat, or recycle a previous answer merely because the topic is similar.
+- If the current request is different, give a genuinely different answer focused on the current request.
+- Use previous turns only to understand references such as “it”, “this”, “the diaphragm”, or “the previous example”.
+- Do not treat an old user message as the new request.
+
 STYLE:
-- Be useful, direct, friendly and quick.
-- In normal prose, never use double-asterisk bold markers.
-- Do not use Markdown heading syntax with # characters in normal prose.
-- Plain paragraphs, short labels, numbered steps and simple bullets are preferred.
-- Never write filler like "Connecting to Nimbus" or "waiting for the backend".
-CODING:
-- When code is requested, ALWAYS put every code sample in fenced Markdown with a real language identifier.
-- Examples: python, javascript, html, css, lua, java, cpp, csharp, powershell, json.
-- Explain the code outside the fence.
-ACADEMIC OUTPUT MODE:
-- For school answers, notes, assignments, essays, or paragraph-writing requests, give keywords, factual points, definitions, sequences, labels, and structure only. Do not write a ready-to-submit paragraph for the student.
-- For Grade 7 science questions, prefer this compact structure when relevant:
-  Keywords: ...
-  Key function(s): ...
-  Key fact(s): ...
-  Answer structure: ...
-- Keep explanations simple enough for a Grade 7 Beaconhouse student.
-- Do not copy long passages from a textbook. Paraphrase in your own words.
-- For a source-grounded science question, do not invent missing details. Say when the indexed source does not contain enough information.
-- If the student asks for a rewrite, say exactly: "You have to rephrase it on your own." Then provide only information, keywords, structure, key facts, and a diagram plan.
-VISUALS:
-- When a diagram, labelled scientific structure, process, flowchart, or concept map would genuinely help, add exactly one [NIMBUS_VISUAL] block at the end.
-- Inside it use four plain lines only: type: diagram|flowchart|keywords, title: ..., keywords: ..., prompt: ...
-- Keep labels concise and scientifically meaningful.
-PRIVACY:
-- Never ask for passwords.
-- Never claim private school-system access.
-ERROR STYLE:
-- Never expose provider errors, stack traces or API diagnostics.
-- If a model path fails, give a short neutral answer and invite the student to retry.
+- Answer directly and naturally.
+- Keep the answer useful and reasonably concise.
+- Avoid backend diagnostics, provider names, error dumps, or loading narration.
+- Do not use Markdown heading syntax with # and do not use **bold** markers in normal prose.
+- For schoolwork, prefer keywords, concise facts, definitions, sequences, comparisons, labels, and answer structure.
+- Do not provide polished ready-to-submit student paragraphs.
+- For rewrites say: "You have to rephrase it on your own." Then give keywords/facts/structure.
+- For Grade 7 science, use simple Beaconhouse Grade 7 language and the supplied source when available.
+- Paraphrase rather than reproducing long textbook passages.
+
+BEACONHOUSE:
+- Beaconhouse questions are normal information questions, not science-visual questions.
+- Do not generate a science visual merely because a Beaconhouse question contains words such as science, competition, class, book, academic, or program.
+
+MEMORY:
+- Use the supplied active-chat history as context.
+- A new chat is a separate conversation.
+- Never invent facts about the student that are not in the active chat.
 `;
 
-const SCIENCE_SYSTEM = `
-GRADE 7 SCIENCE SOURCE MODE:
-- A persistent Gemini File Search store may contain the two user-supplied Lower Secondary Grade 7 science PDF parts.
-- When File Search returns relevant material, treat it as the primary source for science answers.
-- Preserve the source's concepts and terminology, but explain in simpler original wording.
-- Prefer keywords, definitions, functions, examples, labelled relationships and short cause/effect sequences over long prose.
-- For anatomy or systems, use "Key function(s)" only when the question is about what a structure does.
-- Never invent a textbook page number or citation. Use citations supplied by File Search only.
-`;
-
-function cleanNimbusText(text) {
+function cleanText(text) {
   return String(text || '')
-    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*\*(.*?)\*\*/gs, '$1')
     .replace(/^\s*#{1,6}\s+/gm, '')
-    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/\[NIMBUS_VISUAL\][\s\S]*?\[\/NIMBUS_VISUAL\]/gi, '')
     .trim();
 }
 
-function stripVisual(text) {
-  const source = String(text || '');
-  const match = source.match(VISUAL_MARKER);
-  if (!match) {
-    const openIndex = source.indexOf('[NIMBUS_VISUAL]');
-    if (openIndex !== -1) {
-      const block = source.slice(openIndex + '[NIMBUS_VISUAL]'.length).trim();
-      const lines = block.split(/\n+/).map(s => s.trim()).filter(Boolean);
-      const visual = {};
-      for (const line of lines) {
-        const i = line.indexOf(':');
-        if (i > -1) visual[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-      }
-      return { text: source.slice(0, openIndex).trim(), visual: Object.keys(visual).length ? visual : null };
+function normalizeRole(item) {
+  const raw = String(
+    item?.role ?? item?.sender ?? item?.type ?? (item?.isUser === true ? 'user' : '')
+  ).toLowerCase().trim();
+
+  if (raw === 'assistant' || raw === 'model' || raw === 'ai' || raw === 'nimbus') return 'model';
+  return 'user';
+}
+
+function normalizeMessageText(item) {
+  return String(
+    item?.content ?? item?.text ?? item?.message ?? item?.parts?.map?.(part => part?.text || '').join(' ') ?? ''
+  ).trim();
+}
+
+function compactHistory(history, currentUserText) {
+  if (!Array.isArray(history)) return [];
+
+  const cleaned = [];
+  for (const item of history) {
+    const text = normalizeMessageText(item);
+    if (!text) continue;
+
+    const role = normalizeRole(item);
+
+    // If the frontend already included the current user turn in history,
+    // remove only that trailing copy. We add the current turn exactly once below.
+    if (role === 'user' && text === currentUserText) {
+      const nextMeaningful = cleaned.length ? cleaned[cleaned.length - 1] : null;
+      // Keep an identical older user message, but remove a copy that is effectively
+      // the current submitted turn when it is the final item in the incoming array.
+      // The final pass below also handles this case deterministically.
     }
-    return { text: source, visual: null };
+
+    cleaned.push({ role, text });
   }
-  const lines = match[1].trim().split(/\n+/).map(s => s.trim()).filter(Boolean);
-  const visual = {};
-  for (const line of lines) {
-    const i = line.indexOf(':');
-    if (i > -1) visual[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+
+  // Drop a trailing user copy of the current request. This prevents
+  // [current user] + [current user] from being sent when the frontend already
+  // stores the message before calling /api/chat.
+  while (
+    cleaned.length &&
+    cleaned[cleaned.length - 1].role === 'user' &&
+    cleaned[cleaned.length - 1].text === currentUserText
+  ) {
+    cleaned.pop();
   }
-  return { text: source.replace(match[0], '').trim(), visual };
+
+  // Merge consecutive turns of the same role into one content item. This makes
+  // histories from different frontend formats behave consistently.
+  const merged = [];
+  for (const item of cleaned) {
+    const last = merged[merged.length - 1];
+    if (last && last.role === item.role) {
+      last.text = `${last.text}\n${item.text}`.trim();
+    } else {
+      merged.push({ ...item });
+    }
+  }
+
+  // Keep the newest turns and enforce a character budget.
+  const recent = merged.slice(-MAX_HISTORY_MESSAGES);
+  const result = [];
+  let totalChars = 0;
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const item = recent[i];
+    if (totalChars + item.text.length > MAX_HISTORY_CHARS) break;
+    result.unshift(item);
+    totalChars += item.text.length;
+  }
+
+  // Gemini conversations should begin with a user turn.
+  while (result.length && result[0].role === 'model') result.shift();
+
+  return result.map(item => ({
+    role: item.role,
+    parts: [{ text: item.text }]
+  }));
+}
+
+function buildContents(body, currentUserText) {
+  const history = compactHistory(body?.history || body?.messages || [], currentUserText);
+  history.push({ role: 'user', parts: [{ text: currentUserText }] });
+  return history;
+}
+
+function isCasualMessage(text) {
+  return /^(?:hi|hi nimbus|hello|hello nimbus|hey|hey nimbus|good morning|good afternoon|good evening|good night|thanks|thank you|thx|ok|okay|k|bye|goodbye|yo|how are you|how are u|who are you|what can you do|tell me a joke)[!.?\s]*$/i.test(String(text || '').trim());
+}
+
+function isBeaconhouseQuestion(text) {
+  const s = String(text || '').toLowerCase();
+  return /\bbeaconhouse\b|\bbisc\b|\bbeams\b|\bprism\b|\brise\b|\blap\b|\bboss\b|\bbook\s*list\b|\bbooklist\b|\bcampus\b|\badmission|\badmissions\b|\bschool program|\bschool programme|\bcompetition\b|\blearner profile\b|\baccess centre\b|\bclubs?\s+(?:and|&)\s+societies\b/i.test(s);
 }
 
 function looksLikeScience(text) {
-  const s = String(text || '').toLowerCase();
-  return /\b(science|biology|chemistry|physics|ecosystem|food chain|food web|habitat|adaptation|cell|tissue|organ|skeleton|joint|muscle|respiration|respiratory|digestion|photosynthesis|reproduction|forces?|motion|energy transfer|electricity|circuit|acid|base|particle|matter|mixture|solution|density|pressure|heat|temperature|light|sound|magnet|atom|molecule|nutrition|gas exchange|diffusion|asthma)\b/i.test(s);
+  return /\b(science|biology|chemistry|physics|ecosystem|food chain|food web|habitat|adaptation|cell|tissue|organs?|skeleton|joints?|muscles?|respiration|breathing|lungs?|heart|circulation|digestion|enzymes?|photosynthesis|reproduction|forces?|energy|electricity|circuit|atom|molecule|matter|acid|base|reaction|planet|solar system|rock|fossil|climate|weather|light|sound|wave|magnet|heat|temperature|density|pressure|friction|gravity|evaporation|condensation|diffusion|aerobic|anaerobic)\b/i.test(String(text || ''));
 }
 
-function looksLikeBeaconhouse(text) {
-  const s = String(text || '').toLowerCase();
-  return /\b(beaconhouse|bh\.edu\.pk|beams|bisc|rise|lap|boss|book ?list|booklist|learner profile|access centre|steam competition|sports competition)\b/i.test(s);
+function hasEducationalIntent(text) {
+  const s = String(text || '').trim();
+  return /\b(explain|explanation|describe|what is|what are|define|definition|how does|how do|why does|why do|what does|what do|difference between|compare|comparison|function of|purpose of|types? of|how it works|how does it work|teach me|learn about|lesson|concept|process|steps?|sequence|diagram|label(?:led)?|example|class\s*7|grade\s*7|chapter|topic|revision|study)\b/i.test(s);
 }
 
-function collectFileSources(interaction) {
-  const out = [];
-  for (const step of interaction?.steps || []) {
-    if (step?.type !== 'model_output') continue;
-    for (const block of step?.content || []) {
-      for (const ann of block?.annotations || []) {
-        if (ann?.type === 'file_citation') {
-          out.push({
-            fileName: ann.file_name || 'Grade 7 science source',
-            source: ann.source || null,
-            pageNumber: Number.isFinite(Number(ann.page_number)) ? Number(ann.page_number) : null
-          });
-        }
-      }
-    }
+function explicitVisualRequest(text) {
+  return /\b(show|draw|visuali[sz]e|diagram|label(?:led)? diagram|illustrate|illustration|picture|image|chart|flowchart|model)\b/i.test(String(text || ''));
+}
+
+function shouldVisualize(text) {
+  const userText = String(text || '').trim();
+  if (!userText || isCasualMessage(userText)) return false;
+  if (isBeaconhouseQuestion(userText)) return false;
+
+  const science = looksLikeScience(userText);
+  const educational = hasEducationalIntent(userText);
+  const explicit = explicitVisualRequest(userText);
+
+  // Normal science teaching questions get a visual automatically.
+  // Other subjects get a visual only when the user explicitly asks for one.
+  return (science && educational) || explicit;
+}
+
+function classifyVisualKind(text) {
+  const s = String(text || '').toLowerCase();
+  if (/\b(joints?|skeleton|bones?|muscles?|lungs?|heart|cells?|tissues?|organs?|brain|digest(?:ion)?|respiration|breathing|reproduction|kidneys?|stomach|intestines?|diaphragm)\b/.test(s)) {
+    return 'accurate labelled anatomical or biological illustration';
   }
-  return out.filter((s, i, arr) => arr.findIndex(x => x.fileName === s.fileName && x.source === s.source && x.pageNumber === s.pageNumber) === i);
-}
-
-async function requestGemini(model, apiKey, parts, systemText) {
-  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemText }] },
-      contents: [{ role: 'user', parts }],
-      generationConfig: { thinkingConfig: { thinkingLevel: 'minimal' }, maxOutputTokens: 2200 }
-    })
-  });
-}
-
-async function requestScienceRag(apiKey, model, userText, memoryText) {
-  if (!SCIENCE_STORE_NAME) return null;
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const interaction = await ai.interactions.create({
-      model,
-      system_instruction: `${BASE_SYSTEM}\n${SCIENCE_SYSTEM}\n${BEACONHOUSE_CONTEXT}`,
-      input: memoryText,
-      tools: [{ type: 'file_search', file_search_store_names: [SCIENCE_STORE_NAME] }],
-      generation_config: { temperature: 0.2, maxOutputTokens: 1800 },
-      store: false
-    });
-    const raw = interaction?.output_text || '';
-    if (!raw.trim()) return null;
-    return { ...stripVisual(raw), sources: collectFileSources(interaction) };
-  } catch (e) {
-    console.warn('[Nimbus science RAG] unavailable:', e?.message || e);
-    return null;
+  if (/\b(circuit|electricity|force|energy|reaction|photosynthesis|food chain|food web|ecosystem|cycle|heat|temperature|diffusion|aerobic|anaerobic)\b/.test(s)) {
+    return 'scientific system or process illustration showing real relationships and objects';
   }
+  if (/\b(difference|compare|comparison)\b/.test(s)) {
+    return 'side-by-side scientific comparison illustration';
+  }
+  if (/\b(steps|sequence|process|cycle|flowchart)\b/.test(s)) {
+    return 'clean numbered process diagram';
+  }
+  return 'polished educational scientific illustration';
 }
 
-
-function normalizeHistory(history) {
-  if (!Array.isArray(history)) return [];
-  return history
-    .filter(m => m && (m.role === 'user' || m.role === 'ai') && typeof m.text === 'string')
-    .slice(-12)
-    .map(m => ({ role: m.role, text: m.text.slice(0, 6000) }));
+function stableVisualKey(text) {
+  // Small deterministic fingerprint so the frontend can prevent accidental
+  // double-rendering of the exact same backend visual result.
+  let hash = 0;
+  for (const char of String(text || '').trim().toLowerCase()) {
+    hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+  }
+  return `science-${Math.abs(hash)}`;
 }
 
-function buildConversationMemory(history, currentText) {
-  const items = normalizeHistory(history);
-  const lines = items.map(m => `${m.role === 'user' ? 'Student' : 'Nimbus'}: ${m.text}`);
-  lines.push(`Student: ${currentText}`);
-  return `Conversation memory for this chat:\n${lines.join('\n')}`;
-}
-
-function isScienceExplanation(text) {
-  if (!looksLikeScience(text)) return false;
-  const s = String(text || '').toLowerCase();
-  return /\b(explain|explanation|how does|how do|why does|why do|describe|what is|what are|how it works|function|functions|difference between|compare|process|steps|structure|role of)\b/i.test(s);
-}
-
-function autoScienceVisual(userText, answerText) {
+function buildVisual(text, answer) {
+  const kind = classifyVisualKind(text);
+  const safeAnswer = String(answer || '').slice(0, 1200);
   return {
-    type: /difference between|compare/i.test(userText) ? 'comparison' : /process|steps|how does|how do/i.test(userText) ? 'process' : 'scientific illustration',
-    title: String(userText || 'Grade 7 science visual').slice(0, 70),
-    keywords: 'scientific subject • key relationships • concise labels',
-    prompt: `Create a polished, artistic Grade 7 science visual for this explanation. Do NOT make four generic boxes, a flowchart template, a poster, or a text-heavy infographic. Choose the visual form that best matches the science: realistic anatomy/cutaway for structures, a clean laboratory setup for experiments, a physically accurate staged process for processes, or a comparison plate for differences. Use a strong central subject, dimensional depth, subtle educational lighting, clean arrows/leader lines only where useful, and very short labels. Favor visual storytelling over blocks of text. Use only facts supported by the answer. Topic: ${String(userText || '').slice(0,1400)}. Nimbus answer context: ${String(answerText || '').slice(0,3000)}.`
+    id: stableVisualKey(text),
+    type: 'diagram',
+    title: String(text || 'Grade 7 science visual').slice(0, 80),
+    prompt: `Create a high-quality 16:9 ${kind} for a Grade 7 educational science lesson.\n\nTopic/question: ${String(text || '').trim()}\n\nUseful answer points: ${safeAnswer}\n\nRequirements: make the visual topic-specific, scientifically coherent, visually rich, clear and classroom-ready. Use a strong focal subject, accurate relationships, depth or dimensionality where appropriate, concise readable labels, and leader lines/arrows only when they genuinely clarify the science. Prefer an actual scientific illustration or meaningful process diagram. NEVER use the same generic four-box template, generic rounded cards, placeholder circles, empty infographic panels, wireframes, text-only posters, or a repeated stock layout. Do not invent unsupported scientific structures or facts. Keep labels short and student-friendly.`
   };
 }
 
-function sourceNote(sources) {
-  if (!Array.isArray(sources) || !sources.length) return '';
-  const labels = sources.slice(0, 3).map(s => s.pageNumber ? `${s.fileName} • p. ${s.pageNumber}` : s.fileName);
-  return `\n\nSource: ${labels.join(' | ')}`;
+function extractText(response) {
+  if (typeof response?.text === 'string' && response.text.trim()) return response.text.trim();
+
+  const parts = response?.candidates?.[0]?.content?.parts || [];
+  return parts
+    .filter(part => typeof part?.text === 'string')
+    .map(part => part.text)
+    .join(' ')
+    .trim();
+}
+
+function extractSources(response) {
+  const chunks = response?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+  return chunks
+    .map(chunk => chunk?.retrievedContext)
+    .filter(Boolean)
+    .map(context => ({
+      title: context.title || context.fileName || '',
+      uri: context.uri || ''
+    }))
+    .filter(item => item.title || item.uri)
+    .slice(0, 5);
+}
+
+async function callModel(ai, model, body, useScienceSearch) {
+  const userText = String(body?.message || '').trim() || 'Hello!';
+  const science = looksLikeScience(userText);
+
+  const systemInstruction = `${BASE_SYSTEM}\n${BEACONHOUSE_KNOWLEDGE}${science ? '\nSOURCE MODE:\n- When Grade 7 science File Search returns relevant material, use it as the primary source for textbook-specific facts and terminology.\n- If the retrieved source is insufficient for a textbook-specific claim, say so rather than inventing it.' : ''}`;
+
+  const config = {
+    systemInstruction,
+    maxOutputTokens: 1600,
+    ...(useScienceSearch && SCIENCE_STORE_NAME ? {
+      tools: [{ fileSearch: { fileSearchStoreNames: [SCIENCE_STORE_NAME] } }]
+    } : {})
+  };
+
+  return ai.models.generateContent({
+    model,
+    contents: buildContents(body, userText),
+    config
+  });
+}
+
+async function callWithScienceFallback(ai, model, body, science) {
+  if (!science || !SCIENCE_STORE_NAME) return callModel(ai, model, body, false);
+
+  try {
+    return await callModel(ai, model, body, true);
+  } catch (err) {
+    console.warn('[Nimbus chat] File Search request failed; retrying without File Search:', err?.message || err);
+    return callModel(ai, model, body, false);
+  }
+}
+
+function applyNoCacheHeaders(res, requestId) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('X-Nimbus-Request-ID', requestId);
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ reply: 'Method Not Allowed' });
+  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  applyNoCacheHeaders(res, requestId);
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ reply: 'Method Not Allowed' });
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(200).json({ reply: 'Nimbus is temporarily busy. Please try again in a moment.' });
+  if (!apiKey) {
+    return res.status(503).json({
+      reply: 'Nimbus is temporarily unavailable. Please try again.',
+      error_code: 'MISSING_GEMINI_API_KEY'
+    });
+  }
+
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    const body = typeof req.body === 'string'
+      ? JSON.parse(req.body || '{}')
+      : (req.body || {});
+
     const userText = String(body?.message || '').trim() || 'Hello!';
-    const history = normalizeHistory(body?.history);
-    const memoryText = buildConversationMemory(history, userText);
-    const scienceQuery = looksLikeScience(userText);
-    const scienceExplanation = isScienceExplanation(userText);
-    const beaconhouseQuery = looksLikeBeaconhouse(userText);
+    const science = looksLikeScience(userText);
+    const autoVisual = shouldVisualize(userText);
+    const ai = new GoogleGenAI({ apiKey });
 
-    const requestedAttachment = body?.attachment;
-    const parts = [];
-    if (requestedAttachment?.data && requestedAttachment?.mimeType) {
-      const supported = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'text/plain'];
-      if (!supported.includes(requestedAttachment.mimeType)) return res.status(400).json({ message: 'Supported attachments: PDF, PNG, JPG, WEBP and TXT.' });
-      parts.push({ inlineData: { mimeType: requestedAttachment.mimeType, data: requestedAttachment.data } });
-    }
-    parts.push({ text: requestedAttachment?.name ? `${memoryText}\n\nPlease analyse the attached file \"${requestedAttachment.name}\" and help the student.` : memoryText });
+    let response = null;
+    let usedModel = null;
+    let lastError = null;
 
-    const chain = MODEL_CHAINS[body?.model] || MODEL_CHAINS.ror;
-
-    if (scienceQuery && !requestedAttachment) {
-      for (const ragModel of chain) {
-        const rag = await requestScienceRag(apiKey, ragModel, userText, memoryText);
-        if (rag?.text) {
-          const parsedText = beaconhouseQuery ? `${rag.text}\n${BEACONHOUSE_CONTEXT}` : rag.text;
-          const finalReply = cleanNimbusText(parsedText);
-          return res.status(200).json({
-            reply: finalReply + sourceNote(rag.sources),
-            visual: rag.visual || (scienceExplanation ? autoScienceVisual(userText, finalReply) : null),
-            auto_visual: Boolean(scienceExplanation),
-            sources: rag.sources,
-            model: body?.model || 'ror',
-            limit: Number(process.env.NIMBUS_DAILY_LIMIT || 1500),
-            grounded: true
-          });
-        }
+    for (const model of MODEL_CHAIN) {
+      try {
+        response = await callWithScienceFallback(ai, model, body, science);
+        usedModel = model;
+        break;
+      } catch (err) {
+        lastError = err;
+        const status = Number(err?.status || err?.statusCode || 0);
+        if (status === 404 || status === 429 || status >= 500) continue;
+        throw err;
       }
     }
 
-    let lastError = null;
-    for (const model of chain) {
-      try {
-        const systemText = `${BASE_SYSTEM}\n${beaconhouseQuery ? BEACONHOUSE_CONTEXT : ''}`;
-        const response = await requestGemini(model, apiKey, parts, systemText);
-        const data = await response.json();
-        if (response.ok) {
-          const raw = (data?.candidates?.[0]?.content?.parts || []).filter(p => typeof p.text === 'string').map(p => p.text).join('') || 'I’m ready. What would you like to learn?';
-          const parsed = stripVisual(raw);
-          const finalReply = cleanNimbusText(parsed.text);
-          return res.status(200).json({
-            reply: finalReply,
-            visual: parsed.visual || (scienceExplanation ? autoScienceVisual(userText, finalReply) : null),
-            auto_visual: Boolean(scienceExplanation),
-            model: body?.model || 'ror',
-            limit: Number(process.env.NIMBUS_DAILY_LIMIT || 1500),
-            grounded: false
-          });
-        }
-        lastError = data?.error?.message || `HTTP ${response.status}`;
-        if (!(response.status === 429 || response.status >= 500)) break;
-      } catch (e) { lastError = e?.message || 'network error'; }
+    if (!response) {
+      console.error('[Nimbus chat] all models failed:', lastError?.message || lastError);
+      return res.status(503).json({
+        reply: 'Nimbus is temporarily unavailable. Please try again.',
+        error_code: 'MODEL_REQUEST_FAILED'
+      });
     }
-    console.error('Nimbus upstream error', lastError);
-    return res.status(200).json({ reply: 'Nimbus is temporarily busy. Please try again in a moment.' });
-  } catch (e) {
-    console.error('Nimbus function error', e);
-    return res.status(200).json({ reply: 'Nimbus is temporarily busy. Please try again in a moment.' });
+
+    const answer = cleanText(extractText(response));
+    if (!answer) {
+      console.error('[Nimbus chat] model returned no text for request:', requestId);
+      return res.status(503).json({
+        reply: 'Nimbus could not produce a text response for that request. Please try again.',
+        error_code: 'EMPTY_MODEL_RESPONSE'
+      });
+    }
+
+    const payload = {
+      reply: answer,
+      auto_visual: autoVisual,
+      visual: autoVisual ? buildVisual(userText, answer) : null,
+      model: body?.model || 'ror',
+      backend_model: usedModel,
+      sources: science ? extractSources(response) : [],
+      limit: DAILY_LIMIT,
+      request_id: requestId
+    };
+
+    return res.status(200).json(payload);
+  } catch (err) {
+    console.error('[Nimbus chat]', err?.message || err);
+    return res.status(503).json({
+      reply: 'Nimbus is temporarily unavailable. Please try again.',
+      error_code: 'CHAT_REQUEST_FAILED',
+      request_id: requestId
+    });
   }
 }
