@@ -1,73 +1,81 @@
-const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
-const DAILY_LIMIT = Number(process.env.NIMBUS_DAILY_LIMIT || 1500);
-
-const MODEL_CHAIN = [
-  String(process.env.NIMBUS_CHAT_MODEL || 'gemini-3.5-flash-lite').trim(),
-  'gemini-3.1-flash-lite'
-].filter((value, index, array) => value && array.indexOf(value) === index);
-
-const MAX_HISTORY_MESSAGES = 14;
-const MAX_HISTORY_CHARS = 18000;
-const NORMAL_TIMEOUT_MS = 6500;
-const SCIENCE_TIMEOUT_MS = 4500;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const DEFAULT_CHAT_MODEL = 'gemini-3.5-flash-lite';
+const FALLBACK_CHAT_MODEL = 'gemini-3.1-flash-lite';
+const CHAT_MODEL = String(process.env.NIMBUS_CHAT_MODEL || DEFAULT_CHAT_MODEL).trim() || DEFAULT_CHAT_MODEL;
+const DAILY_LIMIT = Number(process.env.NIMBUS_DAILY_LIMIT || 1500);
+const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
+
+const MAX_HISTORY_MESSAGES = 12;
+const MAX_HISTORY_CHARS = 14000;
+const NORMAL_TIMEOUT_MS = 6000;
+const SCIENCE_TIMEOUT_MS = 9000;
+const SCIENCE_FALLBACK_TIMEOUT_MS = 4500;
+const MAX_OUTPUT_TOKENS = 750;
 
 const BEACONHOUSE_KNOWLEDGE = `
-BEACONHOUSE PUBLIC KNOWLEDGE — CURATED REFERENCES ONLY
-- Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. Do not claim Beaconhouse owns, endorses, or operates Nimbus unless an official source specifically supports that claim.
+BEACONHOUSE PUBLIC KNOWLEDGE — CURATED REFERENCES
+Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. Do not claim Beaconhouse owns, endorses, or operates Nimbus unless an official source specifically supports that claim.
+Useful official references:
 - Main site: https://www.beaconhouse.net/
 - Academics: https://www.beaconhouse.net/academic/
-- BISC: https://bisc.beaconhouse.net/
-- BEAMS: https://beams.beaconhouse.net/home/
-- BEAMS PRISM: https://beams.beaconhouse.net/prism/
-- RISE: https://rise.beaconhouse.net/
-- LAP: https://lap.beaconhouse.net/about-us/
-- BOSS: https://boss.beaconhouse.net/about-us/
 - Clubs & Societies: https://www.beaconhouse.net/clubs-and-societies/
 - Learner Profile: https://www.beaconhouse.net/beaconhouse-learner-profile/
 - Access Centre: https://www.beaconhouse.net/the-access-centre/
-- STEAM Competition: https://www.beaconhouse.net/steam-competition/
+- Education Trips: https://www.beaconhouse.net/education-trips/
+- International Events & Trips: https://www.beaconhouse.net/international-events-trips/
 - Sports Competition: https://www.beaconhouse.net/sports-competition/
+- STEAM Competition: https://www.beaconhouse.net/steam-competition/
+- Results: https://www.beaconhouse.net/results/
+- University Placements & Scholarships: https://www.beaconhouse.net/university-placements-scholarships/
+- Internship Programme: https://www.beaconhouse.net/internship-programme/
+- BISC: https://bisc.beaconhouse.net/
+- BISC About: https://bisc.beaconhouse.net/about-bisc/
+- RISE: https://rise.beaconhouse.net/
+- BEAMS: https://beams.beaconhouse.net/home/
+- BEAMS PRISM: https://beams.beaconhouse.net/prism/
+- LAP: https://lap.beaconhouse.net/about-us/
+- LAP Guidelines: https://lap.beaconhouse.net/guidelines-2/
+- LAP iLAP 2027 Guidelines: https://lap.beaconhouse.net/guidelines-ilap-2027/
+- BOSS: https://boss.beaconhouse.net/about-us/
 - Official book lists: https://booklist.beaconhouse.net/
-
-BEACONHOUSE RULES:
-- Treat Beaconhouse questions as normal information questions, not automatic science-visual requests.
-- Do not invent schedules, winners, eligibility rules, private student data, campus records, or exact campus-specific book lists.
-- A URL is a source reference, not proof that the current page contents have been retrieved.
-- When the supplied Beaconhouse context does not confirm an exact current fact, say that it is not confirmed here and give the relevant official URL.
 `;
 
 const BASE_SYSTEM = `
 You are Nimbus, a rapid educational AI assistant for students.
 
-CURRENT-TURN PRIORITY:
-- Answer ONLY the user's current message.
-- Never recycle an earlier answer just because a previous question was similar.
-- Use chat history only for necessary references such as "it", "this", "the diaphragm", or "the previous answer".
-- The current user message is always the task to answer.
+CURRENT TURN:
+- Answer the CURRENT user message first.
+- Never copy or recycle an earlier answer as the answer to a different current request.
+- Use active-chat history only when it is necessary to resolve references such as "it", "this", or "the previous example".
 
 NORMAL CHAT:
-- Greetings, casual conversation, and normal Beaconhouse information questions should receive normal conversational answers.
-- Do not create science visuals for greetings or Beaconhouse questions.
+- Greetings and casual chat get a natural short answer.
+- Beaconhouse questions get factual Beaconhouse-focused answers.
+- Never automatically add a science visual just because a Beaconhouse question contains words like class, competition, science, book, or program.
 
-EDUCATIONAL OUTPUT:
-- For educational/school questions, do not produce polished ready-to-submit essays unless the user explicitly requests prose for a non-schoolwork context.
-- Prefer this exact structure when the request is educational:
-  Keywords: concise topic terms.
-  Answer structure: a short step-by-step structure the student can use.
-  Key fact (8 shuffled words): exactly 8 topic-relevant words in varied order, not a sentence.
-  Explanation: a short, clear explanation in original wording.
-- Keep the wording suitable for a school student.
-- Do not add filler about backend systems, retrieval, providers, loading, or diagnostics.
+EDUCATIONAL FORMAT:
+For an educational/schoolwork question, use exactly these sections when possible:
+Keywords: 5–10 concise topic terms.
+Answer structure: 2–5 short steps or points the student can use to construct an answer.
+Key fact (8 shuffled words): exactly 8 separate topic-relevant words, shuffled/varied in order, not a sentence.
+Explanation: a concise original explanation at the student's level.
+Do not produce a polished ready-to-submit essay for ordinary schoolwork.
 
-SCIENCE SOURCE RULES:
-- For Grade 7 science questions, when File Search returns relevant textbook material, use it as the primary source for textbook-specific facts and terminology.
-- You may add a small amount of general educational context when it directly helps understanding, but do not invent or contradict textbook-specific claims.
-- Do not reproduce long textbook passages. Paraphrase.
-- When the source is insufficient for a textbook-specific claim, say so instead of guessing.
+GRADE 7 SCIENCE:
+- The supplied source is Lower Secondary Science, Grade 7, Peter D. Riley, Third Edition, Based on SNC 2022.
+- When File Search is available and returns relevant material, use it as the primary source for textbook-specific facts and terminology.
+- Paraphrase rather than copying long passages.
+- You may add a small amount of general educational context when it helps understanding, but do not invent textbook-specific facts or contradict the retrieved source.
 
-TEXTBOOK SOURCE:
-- The supplied Grade 7 source is Lower Secondary Science, Grade 7, Peter D. Riley, Third Edition, Based on SNC 2022.
+BEACONHOUSE:
+- A Beaconhouse question is not a science-visual question.
+- Do not invent current schedules, winners, eligibility rules, private records, or exact campus-specific book lists.
+- A URL is a reference, not proof that its page was retrieved.
+
+STYLE:
+- Direct, helpful, student-friendly.
+- No backend diagnostics, provider names, loading narration, or error dumps.
+- Do not use Markdown # headings or **bold** markers.
 `;
 
 function cleanText(value) {
@@ -79,73 +87,63 @@ function cleanText(value) {
 }
 
 function normalizeRole(item) {
-  const raw = String(
-    item?.role ?? item?.sender ?? item?.type ?? (item?.isUser === true ? 'user' : '')
-  ).toLowerCase().trim();
+  const raw = String(item?.role ?? item?.sender ?? item?.type ?? (item?.isUser === true ? 'user' : '')).toLowerCase().trim();
   return ['assistant', 'model', 'ai', 'nimbus'].includes(raw) ? 'model' : 'user';
 }
 
 function normalizeMessageText(item) {
   if (typeof item === 'string') return item.trim();
-  const parts = Array.isArray(item?.parts)
-    ? item.parts.map(part => typeof part?.text === 'string' ? part.text : '').join(' ')
+  const partText = Array.isArray(item?.parts)
+    ? item.parts.map(p => typeof p?.text === 'string' ? p.text : '').join(' ')
     : '';
-  return String(item?.content ?? item?.text ?? item?.message ?? parts ?? '').trim();
+  return String(item?.content ?? item?.text ?? item?.message ?? partText ?? '').trim();
 }
 
-function buildHistory(history, currentUserText) {
-  if (!Array.isArray(history)) return [];
-
+function buildHistory(body, currentUserText) {
+  const rawHistory = Array.isArray(body?.history) ? body.history : (Array.isArray(body?.messages) ? body.messages : []);
   const cleaned = [];
-  for (const item of history) {
+
+  for (const item of rawHistory) {
     const text = normalizeMessageText(item);
     if (!text) continue;
     cleaned.push({ role: normalizeRole(item), text });
   }
 
-  // The frontend may persist the current user message before calling the API.
-  // Remove trailing copies so the live request is sent exactly once.
-  while (
-    cleaned.length > 0 &&
-    cleaned[cleaned.length - 1].role === 'user' &&
-    cleaned[cleaned.length - 1].text === currentUserText
-  ) {
+  while (cleaned.length && cleaned.at(-1).role === 'user' && cleaned.at(-1).text === currentUserText) {
     cleaned.pop();
   }
 
-  // Normalize malformed histories with consecutive same-role messages.
+  // Keep the turn sequence intact. Only repair consecutive duplicate roles by
+  // combining them with a clear separator instead of inventing a missing turn.
   const merged = [];
   for (const item of cleaned) {
-    const last = merged[merged.length - 1];
+    const last = merged.at(-1);
     if (last && last.role === item.role) {
-      last.text = `${last.text}\n${item.text}`.trim();
+      last.text += `\n${item.text}`;
     } else {
       merged.push({ ...item });
     }
   }
 
-  let recent = merged.slice(-MAX_HISTORY_MESSAGES);
-  let charCount = 0;
+  let remainingChars = MAX_HISTORY_CHARS;
   const bounded = [];
-  for (let i = recent.length - 1; i >= 0; i -= 1) {
-    const item = recent[i];
-    if (charCount + item.text.length > MAX_HISTORY_CHARS) break;
+  for (let i = merged.length - 1; i >= 0 && bounded.length < MAX_HISTORY_MESSAGES; i -= 1) {
+    const item = merged[i];
+    if (item.text.length > remainingChars) break;
     bounded.unshift(item);
-    charCount += item.text.length;
+    remainingChars -= item.text.length;
   }
-  recent = bounded;
 
-  // Gemini conversation history should not begin with a model turn.
-  while (recent.length && recent[0].role === 'model') recent.shift();
+  while (bounded.length && bounded[0].role === 'model') bounded.shift();
 
-  return recent.map(item => ({
+  return bounded.map(item => ({
     role: item.role,
     parts: [{ text: item.text }]
   }));
 }
 
 function buildContents(body, currentUserText) {
-  const contents = buildHistory(body?.history || body?.messages || [], currentUserText);
+  const contents = buildHistory(body, currentUserText);
   contents.push({ role: 'user', parts: [{ text: currentUserText }] });
   return contents;
 }
@@ -156,7 +154,7 @@ function isCasualMessage(text) {
 
 function isBeaconhouseQuestion(text) {
   const s = String(text || '').toLowerCase();
-  return /\bbeaconhouse\b|\bbisc\b|\bbeams\b|\bprism\b|\brise\b|\blap\b|\bboss\b|\bbook\s*list\b|\bbooklist\b|\bcampus\b|\badmissions?\b|\bschool\s+(?:program|programme)\b|\bcompetition\b|\blearner\s+profile\b|\baccess\s+centre\b|\bclubs?\s+(?:and|&)\s+societies\b/i.test(s);
+  return /\bbeaconhouse\b|\bbisc\b|\bbeams\b|\bprism\b|\brise\b|\blap\b|\bboss\b|\bbook\s*list\b|\bbooklist\b|\bcampus\b|\badmissions?\b|\bcompetition\b|\blearner\s+profile\b|\baccess\s+centre\b|\bclubs?\s+(?:and|&)\s+societies\b/i.test(s);
 }
 
 function looksLikeScience(text) {
@@ -164,22 +162,22 @@ function looksLikeScience(text) {
 }
 
 function hasAcademicSubject(text) {
-  return /\b(?:math|maths|algebra|arithmetic|geometry|equation(?:s)?|fraction(?:s)?|percentage(?:s)?|ratio(?:s)?|statistics|probability|mean|median|mode|english|grammar|writing|literature|poetry|reading|noun(?:s)?|verb(?:s)?|adjective(?:s)?|adverb(?:s)?|sentence(?:s)?|paragraph(?:s)?|history|geography|civics|map(?:s)?|culture|civilization|revolution|empire|ancient|medieval|timeline|computer\s+science|ict|coding|programming|algorithm(?:s)?|biology|chemistry|physics|science|water\s+cycle|carbon\s+cycle|nitrogen\s+cycle|solar\s+system|planet(?:s)?|homework|schoolwork|exam|revision|lesson|chapter|class\s*\d+|grade\s*\d+)\b/i.test(String(text || ''));
-}
-
-function hasEducationalIntent(text) {
-  return /\b(?:explain|explanation|describe|define|definition|what\s+is|what\s+are|what\s+does|what\s+do|how\s+does|how\s+do|why\s+does|why\s+do|difference\s+between|compare|comparison|function\s+of|purpose\s+of|types?\s+of|how\s+it\s+works?|teach\s+me|learn\s+about|lesson|concept|process|steps?|sequence|example|diagram|label(?:led)?|flowchart|solve|calculate|find|prove|derive|revise|revision|study|notes)\b/i.test(String(text || ''));
+  return /\b(?:math|maths|algebra|arithmetic|geometry|equation(?:s)?|fraction(?:s)?|percentage(?:s)?|ratio(?:s)?|statistics|probability|mean|median|mode|english|grammar|writing|literature|poetry|reading|noun(?:s)?|verb(?:s)?|adjective(?:s)?|adverb(?:s)?|sentence(?:s)?|paragraph(?:s)?|history|geography|civics|map(?:s)?|culture|civilization|revolution|empire|timeline|computer\s+science|ict|coding|programming|algorithm(?:s)?|biology|chemistry|physics|science|homework|schoolwork|exam|revision|lesson|chapter|class\s*\d+|grade\s*\d+)\b/i.test(String(text || ''));
 }
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|×)|(?:solve|calculate|find)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|×)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+}
+
+function hasEducationalIntent(text) {
+  return /\b(?:explain|explanation|describe|define|definition|what\s+is|what\s+are|what\s+does|what\s+do|how\s+does|how\s+do|why\s+does|why\s+do|difference\s+between|compare|comparison|function\s+of|purpose\s+of|types?\s+of|how\s+it\s+works?|tell\s+me\s+about|teach\s+me|learn\s+about|lesson|concept|process|steps?|sequence|example|diagram|label(?:led)?|flowchart|solve|calculate|find|prove|derive|revise|revision|study|notes)\b/i.test(String(text || ''));
 }
 
 function isEducationalQuestion(text) {
   const s = String(text || '').trim();
   if (!s || isCasualMessage(s) || isBeaconhouseQuestion(s)) return false;
-  const academicContext = hasAcademicSubject(s) || looksLikeScience(s) || looksLikeMathProblem(s) || /\b(?:school|student|classroom|class\s*\d+|grade\s*\d+|homework|schoolwork|exam|lesson|chapter|revision|study|notes|subject)\b/i.test(s);
+  const academicContext = hasAcademicSubject(s) || looksLikeScience(s) || looksLikeMathProblem(s) || /\b(?:school|student|classroom|homework|schoolwork|exam|lesson|chapter|revision|study|notes|subject)\b/i.test(s);
   return hasEducationalIntent(s) && academicContext;
 }
 
@@ -189,91 +187,124 @@ function explicitVisualRequest(text) {
 
 function shouldVisualize(text) {
   const s = String(text || '').trim();
-  if (!isEducationalQuestion(s)) return false;
-  if (isCasualMessage(s) || isBeaconhouseQuestion(s)) return false;
-  return true;
+  if (!s || isCasualMessage(s) || isBeaconhouseQuestion(s)) return false;
+  // Educational questions trigger a visual automatically. Explicit visual
+  // requests trigger only when the request itself has an academic context.
+  if (isEducationalQuestion(s)) return true;
+  return explicitVisualRequest(s) && (hasAcademicSubject(s) || looksLikeScience(s) || /\b(?:school|student|classroom|homework|schoolwork|lesson|grade\s*\d+|class\s*\d+)\b/i.test(s));
 }
 
 function classifyVisualKind(text) {
   const s = String(text || '').toLowerCase();
-  if (/\b(joints?|skeleton|bones?|muscles?|lungs?|heart|cells?|tissues?|organs?|brain|digestion|respiration|breathing|reproduction|kidneys?|stomach|intestines?|diaphragm)\b/.test(s)) {
-    return 'a scientifically accurate labelled anatomical or biological illustration';
+  if (/\b(joints?|skeleton|bones?|muscles?|lungs?|heart|cells?|tissues?|organs?|brain|digestion|respiration|breathing|reproduction|kidneys?|stomach|intestines?|diaphragm)\b/.test(s)) return 'a scientifically accurate labelled anatomical or biological illustration';
+  if (/\b(circuit|electricity|force|energy|reaction|photosynthesis|food\s+chain|food\s+web|ecosystem|cycle|heat|temperature|diffusion|aerobic|anaerobic)\b/.test(s)) return 'a scientifically accurate scientific-system or process illustration';
+  if (/\b(algebra|equation|fraction|geometry|ratio|percentage|probability|statistics)\b/.test(s)) return 'a clear educational mathematics visualization';
+  if (/\b(history|geography|map|climate|civilization|empire|timeline)\b/.test(s)) return 'a clear educational history or geography visualization';
+  return 'a polished educational illustration that directly represents the concept';
+}
+
+function stableHash(text) {
+  let hash = 2166136261;
+  for (const char of String(text || '').toLowerCase()) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
   }
-  if (/\b(circuit|electricity|force|energy|reaction|photosynthesis|food\s+chain|food\s+web|ecosystem|cycle|heat|temperature|diffusion|aerobic|anaerobic)\b/.test(s)) {
-    return 'a scientifically accurate system or process illustration with meaningful objects and relationships';
-  }
-  if (/\b(algebra|equation|fraction|geometry|ratio|percentage|probability|statistics)\b/.test(s)) {
-    return 'a clear educational mathematics visual showing the quantities, steps, symbols, and relationships';
-  }
-  if (/\b(history|geography|climate|map|civilization|war|empire)\b/.test(s)) {
-    return 'a clear educational history or geography visual with meaningful places, objects, or timelines';
-  }
-  return 'a polished educational illustration that directly represents the lesson concept';
+  return (hash >>> 0).toString(36);
 }
 
 function createVisualPayload(question, answer) {
   const kind = classifyVisualKind(question);
-  const answerExcerpt = String(answer || '').slice(0, 1000);
   return {
     id: `nimbus-visual-${stableHash(question)}`,
     type: 'diagram',
     title: String(question).slice(0, 90),
-    prompt: `Create a high-quality 16:9 ${kind} for a student lesson.\n\nTopic/question: ${question}\n\nUseful answer points: ${answerExcerpt}\n\nVisual requirements: topic-specific, scientifically or academically coherent, visually rich, clear hierarchy, strong focal subject, accurate relationships, concise labels, useful arrows/callouts only when they clarify meaning. Prefer a real educational illustration, meaningful diagram, cutaway, process, map, timeline, or mathematical visualization as appropriate. Do not use a generic four-box template, generic cards, empty panels, wireframes, text-only poster, vague stock layout, or repetitive template. Keep labels short. Do not invent unsupported facts.`
+    prompt: `Create a high-quality 16:9 ${kind} for a school lesson.\nTopic/question: ${String(question).trim()}\nUseful educational answer points: ${String(answer || '').slice(0, 1100)}\nRequirements: topic-specific, accurate, classroom-ready, visually rich, strong focal subject, meaningful relationships, concise readable labels, useful arrows/callouts only when they clarify the concept. Prefer an actual anatomy illustration, process diagram, scientific visualization, map, timeline, or mathematics visualization appropriate to the subject. Do NOT make a generic four-box diagram, text-only poster, wireframe, empty placeholder, generic card grid, or repeated stock template. Do not invent unsupported facts or structures.`
   };
-}
-
-function stableHash(value) {
-  let hash = 0;
-  for (const char of String(value || '').toLowerCase()) {
-    hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
-  }
-  return Math.abs(hash);
 }
 
 function extractGeminiText(data) {
   const parts = data?.candidates?.[0]?.content?.parts || [];
-  return parts
-    .filter(part => typeof part?.text === 'string')
-    .map(part => part.text)
-    .join(' ')
-    .trim();
+  return parts.filter(p => typeof p?.text === 'string').map(p => p.text).join(' ').trim();
 }
 
 function extractSources(data) {
   const chunks = data?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  return chunks
-    .map(chunk => chunk?.retrievedContext)
-    .filter(Boolean)
-    .map(context => ({
-      title: context.title || context.fileName || '',
-      uri: context.uri || ''
-    }))
-    .filter(item => item.title || item.uri)
-    .slice(0, 5);
+  return chunks.map(chunk => chunk?.retrievedContext).filter(Boolean).map(item => ({
+    title: item.title || item.fileName || '',
+    uri: item.uri || ''
+  })).filter(item => item.title || item.uri).slice(0, 5);
 }
 
+function stripBullet(text) {
+  return String(text || '').replace(/^\s*[-*•]\s*/gm, '').trim();
+}
 
-async function requestGemini({ apiKey, model, contents, systemInstruction, useFileSearch, timeoutMs }) {
-  const url = `${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`;
-  const tools = useFileSearch && SCIENCE_STORE_NAME
-    ? [{ fileSearch: { fileSearchStoreNames: [SCIENCE_STORE_NAME] } }]
-    : undefined;
+function pickEightWords(answer, question) {
+  const stop = new Set('the a an and or of to in on for with is are was were be been being this that these those how what why does do did it its their our your from by as at into about than then can could should would may might will shall you your student students explain explanation function purpose main very more less also'.split(/\s+/));
+  const source = `${answer} ${question}`.replace(/https?:\/\/\S+/g, ' ');
+  const candidates = source.match(/[A-Za-z][A-Za-z-]*/g) || [];
+  const words = [];
+  for (const raw of candidates) {
+    const w = raw.toLowerCase().replace(/^-+|-+$/g, '');
+    if (w.length < 3 || stop.has(w)) continue;
+    if (!words.includes(w)) words.push(w);
+    if (words.length >= 8) break;
+  }
+  const fallback = ['structure', 'function', 'process', 'movement', 'system', 'change', 'control', 'important'];
+  for (const w of fallback) {
+    if (words.length >= 8) break;
+    if (!words.includes(w)) words.push(w);
+  }
+  return words.slice(0, 8);
+}
 
+function enforceEducationalFormat(answer, question) {
+  let text = stripBullet(cleanText(answer));
+  if (!/\bKeywords\s*:/i.test(text)) {
+    text = `Keywords: ${pickEightWords(text, question).slice(0, 6).join(', ')}\n\n${text}`;
+  }
+  if (!/\bAnswer structure\s*:/i.test(text)) {
+    text = text.replace(/(Keywords:[^\n]*(?:\n|$))/, '$1\nAnswer structure: identify the concept, state the main function or idea, explain the key relationship or steps, and give one useful example.\n\n');
+  }
+  const eight = pickEightWords(text, question);
+  const withoutOld = text.replace(/Key fact\s*\(8\s*shuffled\s*words\)\s*:[^\n]*/i, '').trim();
+  const explanationIndex = withoutOld.search(/\bExplanation\s*:/i);
+  const head = explanationIndex >= 0 ? withoutOld.slice(0, explanationIndex).trim() : withoutOld;
+  const explanation = explanationIndex >= 0 ? withoutOld.slice(explanationIndex).trim() : '';
+  return `${head}\n\nKey fact (8 shuffled words): ${eight.join(' ')}\n\n${explanation}`.trim();
+}
+
+function buildSystemInstruction({ science, educational, sourceMode = false }) {
+  let extra = '';
+  if (educational) {
+    extra += '\nEDUCATIONAL OUTPUT ENFORCEMENT: Include Keywords, Answer structure, Key fact (8 shuffled words), and Explanation. The key-fact line must contain exactly eight separate words.\n';
+  }
+  if (science) {
+    extra += sourceMode
+      ? '\nTEXTBOOK MODE: Use the supplied Grade 7 science File Search store as the primary source for textbook-specific facts.\n'
+      : '\nTEXTBOOK NOTICE: File Search was unavailable on this attempt. Do not claim you retrieved the textbook.\n';
+  }
+  return `${BASE_SYSTEM}\n${BEACONHOUSE_KNOWLEDGE}${extra}`;
+}
+
+async function requestGemini({ apiKey, model, body, currentUserText, science, educational, useFileSearch, timeoutMs }) {
   const payload = {
-    systemInstruction: { parts: [{ text: systemInstruction }] },
-    contents,
+    systemInstruction: { parts: [{ text: buildSystemInstruction({ science, educational, sourceMode: useFileSearch }) }] },
+    contents: buildContents(body, currentUserText),
     generationConfig: {
-      maxOutputTokens: 900,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
       thinkingConfig: { thinkingLevel: 'minimal' }
     }
   };
-  if (tools) payload.tools = tools;
+
+  if (useFileSearch && SCIENCE_STORE_NAME) {
+    payload.tools = [{ fileSearch: { fileSearchStoreNames: [SCIENCE_STORE_NAME] } }];
+  }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs || NORMAL_TIMEOUT_MS);
-  let response;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    response = await fetch(url, {
+    const response = await fetch(`${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -283,48 +314,32 @@ async function requestGemini({ apiKey, model, contents, systemInstruction, useFi
       signal: controller.signal
     });
 
-    const text = await response.text();
+    const raw = await response.text();
     let data = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = { raw: text.slice(0, 500) };
-    }
+    try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
 
     if (!response.ok) {
-      const message = data?.error?.message || `Gemini API returned HTTP ${response.status}`;
-      const error = new Error(message);
+      const error = new Error(data?.error?.message || `Gemini API returned HTTP ${response.status}`);
       error.status = response.status;
       throw error;
     }
-
     return data;
   } finally {
     clearTimeout(timer);
   }
-  let data = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    data = { raw: text.slice(0, 500) };
-  }
-
-  if (!response.ok) {
-    const message = data?.error?.message || `Gemini API returned HTTP ${response.status}`;
-    const error = new Error(message);
-    error.status = response.status;
-    throw error;
-  }
-
-  return data;
 }
 
-export function isEducationalQuestionForNimbus(text) {
-  return isEducationalQuestion(text);
-}
-
-export function shouldVisualizeForNimbus(text) {
-  return shouldVisualize(text);
+function errorCodeFrom(error) {
+  if (!error) return 'MODEL_REQUEST_FAILED';
+  if (error.name === 'AbortError') return 'MODEL_TIMEOUT';
+  const status = Number(error.status || 0);
+  if (status === 400) return 'MODEL_BAD_REQUEST';
+  if (status === 401) return 'MODEL_UNAUTHORIZED';
+  if (status === 403) return 'MODEL_PERMISSION_DENIED';
+  if (status === 404) return 'MODEL_NOT_FOUND';
+  if (status === 429) return 'MODEL_RATE_LIMIT';
+  if (status >= 500) return 'MODEL_SERVER_ERROR';
+  return 'MODEL_REQUEST_FAILED';
 }
 
 export default async function handler(req, res) {
@@ -352,130 +367,127 @@ export default async function handler(req, res) {
 
   try {
     let body = req.body;
-    if (typeof body === 'string') {
-      body = JSON.parse(body || '{}');
-    }
+    if (typeof body === 'string') body = JSON.parse(body || '{}');
     body = body || {};
 
-    const userText = String(body?.message || '').trim();
+    const userText = String(body.message || '').trim();
     if (!userText) {
-      return res.status(200).json({
-        ok: false,
-        reply: 'Please enter a question.',
-        auto_visual: false,
-        visual: null,
-        request_id: requestId
-      });
+      return res.status(200).json({ ok: false, reply: 'Please enter a question.', auto_visual: false, visual: null, request_id: requestId });
     }
 
     const science = looksLikeScience(userText);
     const educational = isEducationalQuestion(userText);
     const autoVisual = shouldVisualize(userText);
-    const contents = buildContents(body, userText);
-    const systemInstruction = `${BASE_SYSTEM}\n${BEACONHOUSE_KNOWLEDGE}${science ? '\nFILE SEARCH MODE: Search the supplied Grade 7 science textbook store when available. Use retrieved source material for textbook-specific facts.' : ''}${educational ? '\nEDUCATIONAL FORMAT: Use Keywords, Answer structure, exactly 8 shuffled Key fact words, then a concise Explanation.' : ''}`;
-
-    let responseData = null;
-    let usedModel = PRIMARY_MODEL;
     let sourceStatus = science ? (SCIENCE_STORE_NAME ? 'requested' : 'not_configured') : 'not_requested';
+    let responseData = null;
+    let usedModel = CHAT_MODEL;
     let firstError = null;
 
     try {
       responseData = await requestGemini({
         apiKey,
-        model: PRIMARY_MODEL,
-        contents,
-        systemInstruction,
+        model: CHAT_MODEL,
+        body,
+        currentUserText: userText,
+        science,
+        educational,
         useFileSearch: science && Boolean(SCIENCE_STORE_NAME),
         timeoutMs: science ? SCIENCE_TIMEOUT_MS : NORMAL_TIMEOUT_MS
       });
       if (science && SCIENCE_STORE_NAME) sourceStatus = 'textbook';
-    } catch (err) {
-      firstError = err;
+    } catch (error) {
+      firstError = error;
 
-      // Only retry without File Search for actual tool/request failures.
-      // Never chain several model calls for the same question; that was causing the long delays.
-      if (science && SCIENCE_STORE_NAME && (err?.name === 'AbortError' || [400,404,408,409].includes(Number(err?.status || 0)) || Number(err?.status || 0) >= 500)) {
+      // One controlled science fallback: retry the same model without File Search.
+      // This prevents a broken/temporarily unavailable retrieval tool from taking
+      // the entire chat down while keeping the usual path fast.
+      if (science && SCIENCE_STORE_NAME) {
         try {
           responseData = await requestGemini({
             apiKey,
-            model: PRIMARY_MODEL,
-            contents,
-            systemInstruction: `${systemInstruction}\nFILE SEARCH NOTICE: Textbook retrieval was unavailable on this attempt. Do not claim that the textbook was retrieved.`,
+            model: CHAT_MODEL,
+            body,
+            currentUserText: userText,
+            science,
+            educational,
             useFileSearch: false,
-            timeoutMs: 3000
+            timeoutMs: SCIENCE_FALLBACK_TIMEOUT_MS
           });
           sourceStatus = 'unavailable_fallback';
-        } catch (fallbackErr) {
-          firstError = fallbackErr;
+        } catch (fallbackError) {
+          firstError = fallbackError;
         }
       }
 
-      // Only switch model when the primary model ID itself is missing.
-      if (!responseData && Number(firstError?.status || 0) === 404 && FALLBACK_MODEL !== PRIMARY_MODEL) {
+      // Only try the secondary model when Gemini explicitly says the selected
+      // model does not exist. Do not retry 429s/timeouts because that increases latency.
+      if (!responseData && Number(firstError?.status || 0) === 404 && CHAT_MODEL !== FALLBACK_CHAT_MODEL) {
         try {
           responseData = await requestGemini({
             apiKey,
-            model: FALLBACK_MODEL,
-            contents,
-            systemInstruction,
+            model: FALLBACK_CHAT_MODEL,
+            body,
+            currentUserText: userText,
+            science: false,
+            educational,
             useFileSearch: false,
-            timeoutMs: 3500
+            timeoutMs: NORMAL_TIMEOUT_MS
           });
-          usedModel = FALLBACK_MODEL;
+          usedModel = FALLBACK_CHAT_MODEL;
           sourceStatus = science ? 'unavailable_fallback' : sourceStatus;
-        } catch (fallbackModelErr) {
-          firstError = fallbackModelErr;
+        } catch (fallbackModelError) {
+          firstError = fallbackModelError;
         }
       }
     }
 
     if (!responseData) {
-      const status = Number(firstError?.status || 0);
-      const errorCode = firstError?.name === 'AbortError' ? 'MODEL_TIMEOUT'
-        : status === 429 ? 'MODEL_RATE_LIMIT'
-        : status === 403 ? 'MODEL_PERMISSION_DENIED'
-        : status === 404 ? 'MODEL_NOT_FOUND'
-        : status === 400 ? 'MODEL_BAD_REQUEST'
-        : 'MODEL_REQUEST_FAILED';
-      console.error('[Nimbus chat]', requestId, errorCode, status, firstError?.message || 'unknown');
+      const code = errorCodeFrom(firstError);
+      console.error('[Nimbus chat]', requestId, code, Number(firstError?.status || 0), firstError?.message || 'unknown');
       return res.status(200).json({
         ok: false,
         reply: 'Nimbus is temporarily unavailable. Please try again in a moment.',
-        error_code: errorCode,
-        provider_status: status || null,
+        error_code: code,
+        provider_status: Number(firstError?.status || 0) || null,
         source_status: sourceStatus,
+        backend_model: usedModel,
         auto_visual: false,
         visual: null,
         request_id: requestId
       });
     }
 
-    const answer = cleanText(extractGeminiText(responseData));
+    let answer = extractGeminiText(responseData);
     if (!answer) {
+      console.error('[Nimbus chat]', requestId, 'EMPTY_MODEL_RESPONSE');
       return res.status(200).json({
         ok: false,
         reply: 'Nimbus could not produce a response for that question. Please try again.',
         error_code: 'EMPTY_MODEL_RESPONSE',
+        source_status: sourceStatus,
+        backend_model: usedModel,
         auto_visual: false,
         visual: null,
         request_id: requestId
       });
     }
+
+    answer = educational ? enforceEducationalFormat(answer, userText) : cleanText(answer);
 
     return res.status(200).json({
       ok: true,
       reply: answer,
       auto_visual: autoVisual,
       visual: autoVisual ? createVisualPayload(userText, answer) : null,
-      model: body?.model || 'ror',
+      model: body.model || 'ror',
       backend_model: usedModel,
       source_status: sourceStatus,
       sources: science ? extractSources(responseData) : [],
       limit: DAILY_LIMIT,
       request_id: requestId
     });
-  } catch (err) {
-    console.error('[Nimbus chat]', requestId, err?.message || err);
+  } catch (error) {
+    console.error('[Nimbus chat]', requestId, error?.message || error);
     return res.status(200).json({
       ok: false,
       reply: 'Nimbus is temporarily unavailable. Please try again in a moment.',
