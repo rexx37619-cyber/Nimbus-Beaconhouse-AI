@@ -1,0 +1,42 @@
+NIMBUS FINAL CHAT + VISUAL FIX
+
+1. Link this folder to the existing Vercel project.
+   vercel link --project nimbus-beaconhouse-ai --yes
+
+   If Vercel cannot resolve the project by name, run `vercel link` and select the Nimbus project from the prompt.
+
+2. Check production variables:
+   vercel env ls production
+
+   Required names:
+   GEMINI_API_KEY
+   NIMBUS_SCIENCE_STORE
+   CLOUDFLARE_ACCOUNT_ID
+   CLOUDFLARE_API_TOKEN
+
+3. Add any missing production values. Keep the values private.
+   vercel env add CLOUDFLARE_ACCOUNT_ID production
+   vercel env add CLOUDFLARE_API_TOKEN production
+   vercel env add GEMINI_API_KEY production
+   vercel env add NIMBUS_SCIENCE_STORE production
+
+   When prompted, enter the existing values. Do not commit them to Git.
+
+4. Deploy:
+   git add .
+   git commit -m "Fix Nimbus chat and real science image generation"
+   git push origin main
+
+5. Wait for Vercel Ready, then hard refresh the site.
+
+6. Test:
+   Explain how the diaphragm helps breathing.
+   Compare hinge and ball-and-socket joints.
+   Then ask: And what does the hinge joint do?
+
+Expected:
+- Chat replies work instead of the old generic failure message.
+- The same active chat keeps context.
+- Science explanations trigger one visual request.
+- /api/visual returns a real JPEG from Cloudflare FLUX when the Cloudflare env vars are present.
+- The old repeated generic Study Visual is no longer returned by the backend.
