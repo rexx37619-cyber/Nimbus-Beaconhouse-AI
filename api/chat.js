@@ -7,13 +7,13 @@ const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim()
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CHARS = 14000;
-const NORMAL_TIMEOUT_MS = 6000;
-const SCIENCE_TIMEOUT_MS = 9000;
-const SCIENCE_FALLBACK_TIMEOUT_MS = 4500;
+const NORMAL_TIMEOUT_MS = 20000;
+const SCIENCE_TIMEOUT_MS = 30000;
+const SCIENCE_FALLBACK_TIMEOUT_MS = 10000;
 const MAX_OUTPUT_TOKENS = 750;
 
 const BEACONHOUSE_KNOWLEDGE = `
-BEACONHOUSE PUBLIC KNOWLEDGE — CURATED REFERENCES
+BEACONHOUSE PUBLIC KNOWLEDGE â€” CURATED REFERENCES
 Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. Do not claim Beaconhouse owns, endorses, or operates Nimbus unless an official source specifically supports that claim.
 Useful official references:
 - Main site: https://www.beaconhouse.net/
@@ -55,8 +55,8 @@ NORMAL CHAT:
 
 EDUCATIONAL FORMAT:
 For an educational/schoolwork question, use exactly these sections when possible:
-Keywords: 5–10 concise topic terms.
-Answer structure: 2–5 short steps or points the student can use to construct an answer.
+Keywords: 5â€“10 concise topic terms.
+Answer structure: 2â€“5 short steps or points the student can use to construct an answer.
 Key fact (8 shuffled words): exactly 8 separate topic-relevant words, shuffled/varied in order, not a sentence.
 Explanation: a concise original explanation at the student's level.
 Do not produce a polished ready-to-submit essay for ordinary schoolwork.
@@ -167,7 +167,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|×)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|Ã·|Ã—)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -236,7 +236,7 @@ function extractSources(data) {
 }
 
 function stripBullet(text) {
-  return String(text || '').replace(/^\s*[-*•]\s*/gm, '').trim();
+  return String(text || '').replace(/^\s*[-*â€¢]\s*/gm, '').trim();
 }
 
 function pickEightWords(answer, question) {
@@ -373,6 +373,21 @@ export default async function handler(req, res) {
     const userText = String(body.message || '').trim();
     if (!userText) {
       return res.status(200).json({ ok: false, reply: 'Please enter a question.', auto_visual: false, visual: null, request_id: requestId });
+    }
+
+    if (isCasualMessage(userText)) {
+      return res.status(200).json({
+        ok: true,
+        reply: "Hey! 👋 I'm Nimbus. What are we learning today?",
+        auto_visual: false,
+        visual: null,
+        model: body.model || 'ror',
+        backend_model: 'local-casual',
+        source_status: 'not_requested',
+        sources: [],
+        limit: DAILY_LIMIT,
+        request_id: requestId
+      });
     }
 
     const science = looksLikeScience(userText);
