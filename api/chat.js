@@ -2,12 +2,14 @@ const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim()
 const DAILY_LIMIT = Number(process.env.NIMBUS_DAILY_LIMIT || 1500);
 
 const MODEL_CHAIN = [
-  process.env.NIMBUS_CHAT_MODEL || 'gemini-3.5-flash-lite',
+  String(process.env.NIMBUS_CHAT_MODEL || 'gemini-3.5-flash-lite').trim(),
   'gemini-3.1-flash-lite'
 ].filter((value, index, array) => value && array.indexOf(value) === index);
 
-const MAX_HISTORY_MESSAGES = 16;
-const MAX_HISTORY_CHARS = 24000;
+const MAX_HISTORY_MESSAGES = 14;
+const MAX_HISTORY_CHARS = 18000;
+const NORMAL_TIMEOUT_MS = 6500;
+const SCIENCE_TIMEOUT_MS = 4500;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const BEACONHOUSE_KNOWLEDGE = `
@@ -250,11 +252,8 @@ function extractSources(data) {
     .slice(0, 5);
 }
 
-function isRetryableStatus(status) {
-  return [400, 404, 408, 409, 429].includes(status) || status >= 500;
-}
 
-async function requestGemini({ apiKey, model, contents, systemInstruction, useFileSearch }) {
+async function requestGemini({ apiKey, model, contents, systemInstruction, useFileSearch, timeoutMs }) {
   const url = `${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`;
   const tools = useFileSearch && SCIENCE_STORE_NAME
     ? [{ fileSearch: { fileSearchStoreNames: [SCIENCE_STORE_NAME] } }]
@@ -264,22 +263,45 @@ async function requestGemini({ apiKey, model, contents, systemInstruction, useFi
     systemInstruction: { parts: [{ text: systemInstruction }] },
     contents,
     generationConfig: {
-      temperature: 0.4,
-      maxOutputTokens: 1800
+      maxOutputTokens: 900,
+      thinkingConfig: { thinkingLevel: 'minimal' }
     }
   };
   if (tools) payload.tools = tools;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey
-    },
-    body: JSON.stringify(payload)
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs || NORMAL_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
 
-  const text = await response.text();
+    const text = await response.text();
+    let data = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { raw: text.slice(0, 500) };
+    }
+
+    if (!response.ok) {
+      const message = data?.error?.message || `Gemini API returned HTTP ${response.status}`;
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
+    }
+
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
   let data = {};
   try {
     data = text ? JSON.parse(text) : {};
@@ -349,53 +371,79 @@ export default async function handler(req, res) {
     const science = looksLikeScience(userText);
     const educational = isEducationalQuestion(userText);
     const autoVisual = shouldVisualize(userText);
+    const contents = buildContents(body, userText);
+    const systemInstruction = `${BASE_SYSTEM}\n${BEACONHOUSE_KNOWLEDGE}${science ? '\nFILE SEARCH MODE: Search the supplied Grade 7 science textbook store when available. Use retrieved source material for textbook-specific facts.' : ''}${educational ? '\nEDUCATIONAL FORMAT: Use Keywords, Answer structure, exactly 8 shuffled Key fact words, then a concise Explanation.' : ''}`;
 
     let responseData = null;
-    let usedModel = null;
-    let lastError = null;
+    let usedModel = PRIMARY_MODEL;
+    let sourceStatus = science ? (SCIENCE_STORE_NAME ? 'requested' : 'not_configured') : 'not_requested';
+    let firstError = null;
 
-    for (const model of MODEL_CHAIN) {
-      try {
-        const systemInstruction = `${BASE_SYSTEM}\n${BEACONHOUSE_KNOWLEDGE}${science ? `\nFILE SEARCH MODE:\n- Search the supplied Grade 7 science textbook store first for the current question.\n- Use retrieved material as the primary textbook source.\n- You may add only a small amount of general context when it clarifies the source.` : ''}${educational ? `\nEDUCATIONAL FORMAT:\n- Keywords: concise terms.\n- Answer structure: short usable structure.\n- Key fact (8 shuffled words): exactly eight topic-relevant words in mixed order.\n- Explanation: concise original wording.\n- Do not write a ready-to-submit school essay.` : ''}`;
+    try {
+      responseData = await requestGemini({
+        apiKey,
+        model: PRIMARY_MODEL,
+        contents,
+        systemInstruction,
+        useFileSearch: science && Boolean(SCIENCE_STORE_NAME),
+        timeoutMs: science ? SCIENCE_TIMEOUT_MS : NORMAL_TIMEOUT_MS
+      });
+      if (science && SCIENCE_STORE_NAME) sourceStatus = 'textbook';
+    } catch (err) {
+      firstError = err;
 
+      // Only retry without File Search for actual tool/request failures.
+      // Never chain several model calls for the same question; that was causing the long delays.
+      if (science && SCIENCE_STORE_NAME && (err?.name === 'AbortError' || [400,404,408,409].includes(Number(err?.status || 0)) || Number(err?.status || 0) >= 500)) {
         try {
           responseData = await requestGemini({
             apiKey,
-            model,
-            contents: buildContents(body, userText),
-            systemInstruction,
-            useFileSearch: science
+            model: PRIMARY_MODEL,
+            contents,
+            systemInstruction: `${systemInstruction}\nFILE SEARCH NOTICE: Textbook retrieval was unavailable on this attempt. Do not claim that the textbook was retrieved.`,
+            useFileSearch: false,
+            timeoutMs: 3000
           });
-          usedModel = model;
-          break;
-        } catch (err) {
-          if (science && SCIENCE_STORE_NAME && isRetryableStatus(Number(err?.status || 0))) {
-            // If File Search itself is unavailable, retry the same model without it.
-            responseData = await requestGemini({
-              apiKey,
-              model,
-              contents: buildContents(body, userText),
-              systemInstruction: `${systemInstruction}\n\nFILE SEARCH NOTICE: The retrieval tool was unavailable on this attempt. Do not pretend you retrieved the textbook. Answer from general knowledge and clearly avoid textbook-specific claims.`,
-              useFileSearch: false
-            });
-            usedModel = model;
-            break;
-          }
-          throw err;
+          sourceStatus = 'unavailable_fallback';
+        } catch (fallbackErr) {
+          firstError = fallbackErr;
         }
-      } catch (err) {
-        lastError = err;
-        if (isRetryableStatus(Number(err?.status || 0))) continue;
-        throw err;
+      }
+
+      // Only switch model when the primary model ID itself is missing.
+      if (!responseData && Number(firstError?.status || 0) === 404 && FALLBACK_MODEL !== PRIMARY_MODEL) {
+        try {
+          responseData = await requestGemini({
+            apiKey,
+            model: FALLBACK_MODEL,
+            contents,
+            systemInstruction,
+            useFileSearch: false,
+            timeoutMs: 3500
+          });
+          usedModel = FALLBACK_MODEL;
+          sourceStatus = science ? 'unavailable_fallback' : sourceStatus;
+        } catch (fallbackModelErr) {
+          firstError = fallbackModelErr;
+        }
       }
     }
 
     if (!responseData) {
-      console.error('[Nimbus chat]', requestId, lastError?.message || 'No model response');
+      const status = Number(firstError?.status || 0);
+      const errorCode = firstError?.name === 'AbortError' ? 'MODEL_TIMEOUT'
+        : status === 429 ? 'MODEL_RATE_LIMIT'
+        : status === 403 ? 'MODEL_PERMISSION_DENIED'
+        : status === 404 ? 'MODEL_NOT_FOUND'
+        : status === 400 ? 'MODEL_BAD_REQUEST'
+        : 'MODEL_REQUEST_FAILED';
+      console.error('[Nimbus chat]', requestId, errorCode, status, firstError?.message || 'unknown');
       return res.status(200).json({
         ok: false,
         reply: 'Nimbus is temporarily unavailable. Please try again in a moment.',
-        error_code: 'MODEL_REQUEST_FAILED',
+        error_code: errorCode,
+        provider_status: status || null,
+        source_status: sourceStatus,
         auto_visual: false,
         visual: null,
         request_id: requestId
@@ -421,6 +469,7 @@ export default async function handler(req, res) {
       visual: autoVisual ? createVisualPayload(userText, answer) : null,
       model: body?.model || 'ror',
       backend_model: usedModel,
+      source_status: sourceStatus,
       sources: science ? extractSources(responseData) : [],
       limit: DAILY_LIMIT,
       request_id: requestId
