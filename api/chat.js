@@ -152,6 +152,35 @@ function isCasualMessage(text) {
   return /^(?:hi|hi nimbus|hello|hello nimbus|hey|hey nimbus|yo|sup|what'?s up|how are you|how are u|good morning|good afternoon|good evening|good night|thanks|thank you|thx|ok|okay|k|bye|goodbye|who are you|what can you do|tell me a joke)[!.?\s]*$/i.test(String(text || '').trim());
 }
 
+function getInstantLocalReply(text) {
+  const s = String(text || '').trim().toLowerCase();
+
+  if (/^(?:who are you|who is this|what is nimbus|what's nimbus|what is this)[?.! ]*$/i.test(s)) {
+    return "I'm Nimbus, a student-focused educational AI assistant.";
+  }
+
+  if (
+    /^(?:who is the founder|who's the founder|who founded nimbus|who created nimbus|who made nimbus|who is nimbus'?s founder)[?.! ]*$/i.test(s) ||
+    /\b(?:founder|created|founded|made)\b.*\bnimbus\b/i.test(s)
+  ) {
+    return "Nimbus was founded and developed by Abdul Haadi Hassan.";
+  }
+
+  if (/^(?:what can you do|what do you do|what are you capable of)[?.! ]*$/i.test(s)) {
+    return "I help with schoolwork, explanations, revision, science questions, Beaconhouse information, and educational visuals.";
+  }
+
+  if (/^(?:what powers nimbus|what model powers nimbus|what model do you use)[?.! ]*$/i.test(s)) {
+    return "Nimbus is powered by a Google model with custom Nimbus modifications.";
+  }
+
+  if (/^(?:are you official beaconhouse|is nimbus official beaconhouse|are you owned by beaconhouse)[?.! ]*$/i.test(s)) {
+    return "Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. It is not presented as an official Beaconhouse product.";
+  }
+
+  return null;
+}
+
 function isBeaconhouseQuestion(text) {
   const s = String(text || '').toLowerCase();
   return /\bbeaconhouse\b|\bbisc\b|\bbeams\b|\bprism\b|\brise\b|\blap\b|\bboss\b|\bbook\s*list\b|\bbooklist\b|\bcampus\b|\badmissions?\b|\bcompetition\b|\blearner\s+profile\b|\baccess\s+centre\b|\bclubs?\s+(?:and|&)\s+societies\b/i.test(s);
@@ -284,13 +313,16 @@ function buildSystemInstruction({ science, educational, sourceMode = false }) {
       ? '\nTEXTBOOK MODE: Use the supplied Grade 7 science File Search store as the primary source for textbook-specific facts.\n'
       : '\nTEXTBOOK NOTICE: File Search was unavailable on this attempt. Do not claim you retrieved the textbook.\n';
   }
-  return `${BASE_SYSTEM}\n${BEACONHOUSE_KNOWLEDGE}${extra}`;
+  const knowledge = science ? '' : BEACONHOUSE_KNOWLEDGE;
+  return `${BASE_SYSTEM}\n${knowledge}${extra}`;
 }
 
 async function requestGemini({ apiKey, model, body, currentUserText, science, educational, useFileSearch, timeoutMs }) {
   const payload = {
     systemInstruction: { parts: [{ text: buildSystemInstruction({ science, educational, sourceMode: useFileSearch }) }] },
-    contents: buildContents(body, currentUserText),
+    contents: science
+      ? [{ role: 'user', parts: [{ text: currentUserText }] }]
+      : buildContents(body, currentUserText),
     generationConfig: {
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       thinkingConfig: { thinkingLevel: 'minimal' }
@@ -373,6 +405,23 @@ export default async function handler(req, res) {
     const userText = String(body.message || '').trim();
     if (!userText) {
       return res.status(200).json({ ok: false, reply: 'Please enter a question.', auto_visual: false, visual: null, request_id: requestId });
+    }
+
+    const instantReply = getInstantLocalReply(userText);
+
+    if (instantReply) {
+      return res.status(200).json({
+        ok: true,
+        reply: instantReply,
+        auto_visual: false,
+        visual: null,
+        model: body.model || 'ror',
+        backend_model: 'local-router',
+        source_status: 'not_requested',
+        sources: [],
+        limit: DAILY_LIMIT,
+        request_id: requestId
+      });
     }
 
     if (isCasualMessage(userText)) {
