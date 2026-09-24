@@ -10,7 +10,6 @@ const MAX_HISTORY_CHARS = 14000;
 const NORMAL_TIMEOUT_MS = 20000;
 const SCIENCE_TIMEOUT_MS = 7000;
 const SCIENCE_FALLBACK_TIMEOUT_MS = 18000;
-const GEMINI_FALLBACK_TIMEOUT_MS = 10000;
 const MAX_OUTPUT_TOKENS = 750;
 
 const BEACONHOUSE_KNOWLEDGE = `
@@ -313,47 +312,70 @@ function buildSystemInstruction({ science, educational, sourceMode = false, beac
       : '\nTEXTBOOK NOTICE: File Search was unavailable on this attempt. Do not claim you retrieved the textbook.\n';
   }
   const knowledge = beaconhouse ? BEACONHOUSE_KNOWLEDGE : '';
-  return `${BASE_SYSTEM}\n${knowledge}${extra}`;
+  const memory = '\nCONVERSATION MEMORY: Use the supplied conversation history to stay familiar with this chat. When the user refers to earlier messages, answer using the relevant earlier context. Do not confuse information from another conversation with the current chat.';
+  return `${BASE_SYSTEM}\n${knowledge}${extra}${memory}`;
 }
 
 async function requestGemini({ apiKey, model, body, currentUserText, science, educational, useFileSearch, timeoutMs, beaconhouse = false }) {
   const payload = {
-    systemInstruction: { parts: [{ text: buildSystemInstruction({ science, educational, sourceMode: useFileSearch, beaconhouse }) }] },
-    contents: science
-      ? [{ role: 'user', parts: [{ text: currentUserText }] }]
-      : buildContents(body, currentUserText),
+    systemInstruction: {
+      parts: [{
+        text: buildSystemInstruction({
+          science,
+          educational,
+          sourceMode: useFileSearch,
+          beaconhouse
+        })
+      }]
+    },
+    contents: buildContents(body, currentUserText),
     generationConfig: {
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      thinkingConfig: { thinkingLevel: 'minimal' }
+      thinkingConfig: { thinkingLevel: 'minimal' },
+      maxOutputTokens: MAX_OUTPUT_TOKENS
     }
   };
 
   if (useFileSearch && SCIENCE_STORE_NAME) {
-    payload.tools = [{ fileSearch: { fileSearchStoreNames: [SCIENCE_STORE_NAME] } }];
+    payload.tools = [{
+      fileSearch: {
+        fileSearchStoreNames: [SCIENCE_STORE_NAME]
+      }
+    }];
   }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await fetch(`${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
+    const response = await fetch(
+      `${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      }
+    );
 
     const raw = await response.text();
     let data = {};
-    try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = {};
+    }
 
     if (!response.ok) {
-      const error = new Error(data?.error?.message || `Gemini API returned HTTP ${response.status}`);
+      const error = new Error(
+        data?.error?.message || `Gemini API returned HTTP ${response.status}`
+      );
       error.status = response.status;
       throw error;
     }
+
     return data;
   } finally {
     clearTimeout(timer);
@@ -442,105 +464,73 @@ export default async function handler(req, res) {
     const educational = isEducationalQuestion(userText);
     const autoVisual = shouldVisualize(userText);
     const beaconhouse = isBeaconhouseQuestion(userText);
-    let sourceStatus = science ? (SCIENCE_STORE_NAME ? 'requested' : 'not_configured') : 'not_requested';
+
+    let sourceStatus = science
+      ? (SCIENCE_STORE_NAME ? 'requested' : 'not_configured')
+      : 'not_requested';
+
     let responseData = null;
     let usedModel = CHAT_MODEL;
     let firstError = null;
 
-    try {
-      responseData = await requestGemini({
-        apiKey,
-        model: CHAT_MODEL,
-        body,
-        currentUserText: userText,
-        science,
-        educational,
-        useFileSearch: science && Boolean(SCIENCE_STORE_NAME),
-        timeoutMs: science ? SCIENCE_TIMEOUT_MS : NORMAL_TIMEOUT_MS,
-        beaconhouse
-      });
-      if (science && SCIENCE_STORE_NAME) sourceStatus = 'textbook';
-    } catch (error) {
-      firstError = error;
+    const modelChain = [CHAT_MODEL, FALLBACK_CHAT_MODEL]
+      .filter(Boolean)
+      .filter((model, index, arr) => arr.indexOf(model) === index);
 
-      const firstStatus = Number(error?.status || 0);
-      const transientGeminiError =
-        error?.name === 'AbortError' ||
-        [408, 425, 429, 500, 502, 503, 504].includes(firstStatus);
+    outer:
+    for (let modelIndex = 0; modelIndex < modelChain.length; modelIndex++) {
+      const model = modelChain[modelIndex];
 
-      // For transient provider failures, retry the primary model once
-      // without changing the user's requested model.
-      if (!responseData && transientGeminiError) {
+      // Textbook retrieval is attempted only on the primary model.
+      // If that path is unavailable, the fallback can still answer the question.
+      const useFileSearch =
+        science &&
+        modelIndex === 0 &&
+        Boolean(SCIENCE_STORE_NAME);
+
+      for (let attempt = 0; attempt < 2; attempt++) {
         try {
           responseData = await requestGemini({
             apiKey,
-            model: CHAT_MODEL,
+            model,
             body,
             currentUserText: userText,
             science,
             educational,
-            useFileSearch: science && Boolean(SCIENCE_STORE_NAME),
-            timeoutMs: science ? SCIENCE_TIMEOUT_MS : GEMINI_FALLBACK_TIMEOUT_MS,
+            useFileSearch,
+            timeoutMs: science ? SCIENCE_TIMEOUT_MS : NORMAL_TIMEOUT_MS,
             beaconhouse
           });
-          if (science && SCIENCE_STORE_NAME) sourceStatus = 'textbook';
-        } catch (retryError) {
-          firstError = retryError;
-        }
-      }
 
-      // If the selected model is unavailable or the provider is having a
-      // transient problem, try the secondary Gemini model once.
-      const retryStatus = Number(firstError?.status || 0);
-      const retryTransient =
-        firstError?.name === 'AbortError' ||
-        [408, 425, 429, 500, 502, 503, 504].includes(retryStatus);
+          usedModel = model;
 
-      if (
-        !responseData &&
-        (retryStatus === 404 || retryTransient) &&
-        CHAT_MODEL !== FALLBACK_CHAT_MODEL
-      ) {
-        try {
-          responseData = await requestGemini({
-            apiKey,
-            model: FALLBACK_CHAT_MODEL,
-            body,
-            currentUserText: userText,
-            science: false,
-            educational,
-            useFileSearch: false,
-            timeoutMs: GEMINI_FALLBACK_TIMEOUT_MS,
-            beaconhouse
-          });
-          usedModel = FALLBACK_CHAT_MODEL;
-          sourceStatus = science ? 'unavailable_fallback' : sourceStatus;
-        } catch (fallbackModelError) {
-          firstError = fallbackModelError;
-        }
-      }
+          if (science && useFileSearch) {
+            sourceStatus = 'textbook';
+          } else if (science && modelIndex > 0) {
+            sourceStatus = 'unavailable_fallback';
+          }
 
-      // For a non-transient science retrieval failure, keep the old
-      // retrieval-free retry so textbook retrieval cannot permanently block chat.
-      if (!responseData && science && SCIENCE_STORE_NAME && !transientGeminiError) {
-        try {
-          responseData = await requestGemini({
-            apiKey,
-            model: CHAT_MODEL,
-            body,
-            currentUserText: userText,
-            science,
-            educational,
-            useFileSearch: false,
-            timeoutMs: SCIENCE_FALLBACK_TIMEOUT_MS,
-            beaconhouse
-          });
-          sourceStatus = 'unavailable_fallback';
-        } catch (fallbackError) {
-          firstError = fallbackError;
+          break outer;
+        } catch (error) {
+          firstError = error;
+
+          const status = Number(error?.status || 0);
+          const retryable =
+            error?.name === 'AbortError' ||
+            status === 408 ||
+            status === 429 ||
+            status >= 500;
+
+          if (!retryable || attempt === 1) {
+            break;
+          }
+
+          // Small delay, matching the proven Netlify behavior.
+          await new Promise(resolve => setTimeout(resolve, 250));
         }
       }
     }
+
     if (!responseData) {
       const code = errorCodeFrom(firstError);
       console.error('[Nimbus chat]', requestId, code, Number(firstError?.status || 0), firstError?.message || 'unknown');
