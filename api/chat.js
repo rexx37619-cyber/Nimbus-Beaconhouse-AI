@@ -628,7 +628,7 @@ export default async function handler(req, res) {
     if (!responseData) {
       const openRouterKey = String(process.env.NIMBUS_OPENROUTER_API_KEY || '').trim();
 
-      if (openRouterKey) {
+      if (!science && !history && openRouterKey) {
         try {
           const openRouterData = await requestOpenRouter({
             apiKey: openRouterKey,
