@@ -58,7 +58,6 @@ For an educational/schoolwork question, use exactly these sections when possible
 Keywords: 5â€“10 concise topic terms.
 Answer structure: 2â€“5 short steps or points the student can use to construct an answer.
 Key fact (8 shuffled words): exactly 8 separate topic-relevant words, shuffled/varied in order, not a sentence.
-Explanation: a concise original explanation at the student's level.
 Do not produce a polished ready-to-submit essay for ordinary schoolwork.
 
 GRADE 7 SCIENCE:
@@ -299,14 +298,13 @@ function enforceEducationalFormat(answer, question) {
   const withoutOld = text.replace(/Key fact\s*\(8\s*shuffled\s*words\)\s*:[^\n]*/i, '').trim();
   const explanationIndex = withoutOld.search(/\bExplanation\s*:/i);
   const head = explanationIndex >= 0 ? withoutOld.slice(0, explanationIndex).trim() : withoutOld;
-  const explanation = explanationIndex >= 0 ? withoutOld.slice(explanationIndex).trim() : '';
-  return `${head}\n\nKey fact (8 shuffled words): ${eight.join(' ')}\n\n${explanation}`.trim();
+  return `${head}\n\nKey fact (8 shuffled words): ${eight.join(' ')}`.trim();
 }
 
 function buildSystemInstruction({ science, educational, sourceMode = false }) {
   let extra = '';
   if (educational) {
-    extra += '\nEDUCATIONAL OUTPUT ENFORCEMENT: Include Keywords, Answer structure, Key fact (8 shuffled words), and Explanation. The key-fact line must contain exactly eight separate words.\n';
+    extra += '\nEDUCATIONAL OUTPUT ENFORCEMENT: Include Keywords, Answer structure, and Key fact (8 shuffled words). The key-fact line must contain exactly eight separate words.\n';
   }
   if (science) {
     extra += sourceMode
