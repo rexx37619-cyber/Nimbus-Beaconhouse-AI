@@ -1,4 +1,4 @@
-const CLOUDFLARE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
+﻿const CLOUDFLARE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
 const CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4/accounts';
 const CLOUDFLARE_TIMEOUT_MS = 30000;
 
@@ -21,7 +21,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|×)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|Ã·|Ã—)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -195,6 +195,7 @@ export default async function handler(req, res) {
         data: Buffer.from(svg, 'utf8').toString('base64'),
         error_code: errorCode,
         provider_status: status || null,
+        provider_detail: error?.preview || null,
         message: 'The FLUX provider was unavailable; Nimbus returned a topic-specific fallback.'
       });
     }
@@ -207,3 +208,4 @@ export default async function handler(req, res) {
     });
   }
 }
+
