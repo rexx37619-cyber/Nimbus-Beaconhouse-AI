@@ -1,14 +1,15 @@
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_CHAT_MODEL = 'gemini-3.5-flash-lite';
 const FALLBACK_CHAT_MODEL = 'gemini-3.1-flash-lite';
+const FINAL_CHAT_MODEL = 'gemini-2.5-flash-lite';
 const CHAT_MODEL = String(process.env.NIMBUS_CHAT_MODEL || DEFAULT_CHAT_MODEL).trim() || DEFAULT_CHAT_MODEL;
 const DAILY_LIMIT = Number(process.env.NIMBUS_DAILY_LIMIT || 1500);
 const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CHARS = 14000;
-const NORMAL_TIMEOUT_MS = 20000;
-const SCIENCE_TIMEOUT_MS = 7000;
+const NORMAL_TIMEOUT_MS = 8000;
+const SCIENCE_TIMEOUT_MS = 10000;
 const SCIENCE_FALLBACK_TIMEOUT_MS = 18000;
 const MAX_OUTPUT_TOKENS = 750;
 
@@ -317,6 +318,17 @@ function buildSystemInstruction({ science, educational, sourceMode = false, beac
 }
 
 async function requestGemini({ apiKey, model, body, currentUserText, science, educational, useFileSearch, timeoutMs, beaconhouse = false }) {
+  const generationConfig = {
+    maxOutputTokens: MAX_OUTPUT_TOKENS
+  };
+
+  // Gemini 3 Flash-Lite supports thinkingLevel.
+  // Gemini 2.5 Flash-Lite uses the older thinking configuration, so omit
+  // thinkingLevel entirely for that fallback to avoid a schema mismatch.
+  if (model !== 'gemini-2.5-flash-lite') {
+    generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
+  }
+
   const payload = {
     systemInstruction: {
       parts: [{
@@ -329,10 +341,7 @@ async function requestGemini({ apiKey, model, body, currentUserText, science, ed
       }]
     },
     contents: buildContents(body, currentUserText),
-    generationConfig: {
-      thinkingConfig: { thinkingLevel: 'minimal' },
-      maxOutputTokens: MAX_OUTPUT_TOKENS
-    }
+    generationConfig
   };
 
   if (useFileSearch && SCIENCE_STORE_NAME) {
@@ -473,7 +482,7 @@ export default async function handler(req, res) {
     let usedModel = CHAT_MODEL;
     let firstError = null;
 
-    const modelChain = [CHAT_MODEL, FALLBACK_CHAT_MODEL]
+    const modelChain = [CHAT_MODEL, FALLBACK_CHAT_MODEL, FINAL_CHAT_MODEL]
       .filter(Boolean)
       .filter((model, index, arr) => arr.indexOf(model) === index);
 
