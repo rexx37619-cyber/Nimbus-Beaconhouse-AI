@@ -1,10 +1,13 @@
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_MODEL = 'openrouter/free';
 const DEFAULT_CHAT_MODEL = 'gemini-3.5-flash-lite';
 const FALLBACK_CHAT_MODEL = 'gemini-3.1-flash-lite';
 const FINAL_CHAT_MODEL = 'gemini-3.8-flash';
 const CHAT_MODEL = String(process.env.NIMBUS_CHAT_MODEL || DEFAULT_CHAT_MODEL).trim() || DEFAULT_CHAT_MODEL;
 const DAILY_LIMIT = Number(process.env.NIMBUS_DAILY_LIMIT || 1500);
 const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
+const HISTORY_STORE_NAME = String(process.env.NIMBUS_HISTORY_STORE || '').trim();
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CHARS = 14000;
@@ -203,6 +206,11 @@ function hasEducationalIntent(text) {
   return /\b(?:explain|explanation|describe|define|definition|what\s+is|what\s+are|what\s+does|what\s+do|how\s+does|how\s+do|why\s+does|why\s+do|difference\s+between|compare|comparison|function\s+of|purpose\s+of|types?\s+of|how\s+it\s+works?|tell\s+me\s+about|teach\s+me|learn\s+about|lesson|concept|process|steps?|sequence|example|diagram|label(?:led)?|flowchart|solve|calculate|find|prove|derive|revise|revision|study|notes)\b/i.test(String(text || ''));
 }
 
+function isHistoryQuestion(text) {
+  const s = String(text || '').toLowerCase();
+  return /\b(?:history|historical|medieval|civilization|civilisation|europe|asia\s+minor|seljuk|fatimid|ottoman|byzantine|crusade|caliphate|islamic|empire|dynasty|feudal|renaissance|monarch|kingdom|charlemagne|roman|greek|muslim)\b/i.test(s);
+}
+
 function isEducationalQuestion(text) {
   const s = String(text || '').trim();
   if (!s || isCasualMessage(s) || isBeaconhouseQuestion(s)) return false;
@@ -302,7 +310,7 @@ function enforceEducationalFormat(answer, question) {
   return `${head}\n\nKey fact (8 shuffled words): ${eight.join(' ')}`.trim();
 }
 
-function buildSystemInstruction({ science, educational, sourceMode = false, beaconhouse = false }) {
+function buildSystemInstruction({ science, educational, sourceMode = false, beaconhouse = false, history = false }) {
   let extra = '';
   if (educational) {
     extra += '\nEDUCATIONAL OUTPUT ENFORCEMENT: Include Keywords, Answer structure, and Key fact (8 shuffled words). The key-fact line must contain exactly eight separate words.\n';
@@ -312,12 +320,18 @@ function buildSystemInstruction({ science, educational, sourceMode = false, beac
       ? '\nTEXTBOOK MODE: Use the supplied Grade 7 science File Search store as the primary source for textbook-specific facts.\n'
       : '\nTEXTBOOK NOTICE: File Search was unavailable on this attempt. Do not claim you retrieved the textbook.\n';
   }
+
+  if (history) {
+    extra += sourceMode
+      ? '\nHISTORY BOOK MODE: Use the supplied Grade 7 History File Search store as the primary source for textbook-specific facts and terminology.\n'
+      : '\nHISTORY BOOK NOTICE: History File Search was unavailable on this attempt. Do not claim you retrieved the History book.\n';
+  }
   const knowledge = beaconhouse ? BEACONHOUSE_KNOWLEDGE : '';
   const memory = '\nCONVERSATION MEMORY: Use the supplied conversation history to stay familiar with this chat. When the user refers to earlier messages, answer using the relevant earlier context. Do not confuse information from another conversation with the current chat.';
   return `${BASE_SYSTEM}\n${knowledge}${extra}${memory}`;
 }
 
-async function requestGemini({ apiKey, model, body, currentUserText, science, educational, useFileSearch, timeoutMs, beaconhouse = false }) {
+async function requestGemini({ apiKey, model, body, currentUserText, science, educational, history = false, useFileSearch, timeoutMs, beaconhouse = false }) {
   const generationConfig = {
     maxOutputTokens: MAX_OUTPUT_TOKENS
   };
@@ -336,7 +350,8 @@ async function requestGemini({ apiKey, model, body, currentUserText, science, ed
           science,
           educational,
           sourceMode: useFileSearch,
-          beaconhouse
+          beaconhouse,
+          history
         })
       }]
     },
@@ -344,12 +359,15 @@ async function requestGemini({ apiKey, model, body, currentUserText, science, ed
     generationConfig
   };
 
-  if (useFileSearch && SCIENCE_STORE_NAME) {
-    payload.tools = [{
-      fileSearch: {
-        fileSearchStoreNames: [SCIENCE_STORE_NAME]
-      }
-    }];
+  if (useFileSearch) {
+    const storeName = science ? SCIENCE_STORE_NAME : (history ? HISTORY_STORE_NAME : '');
+    if (storeName) {
+      payload.tools = [{
+        fileSearch: {
+          fileSearchStoreNames: [storeName]
+        }
+      }];
+    }
   }
 
   const controller = new AbortController();
@@ -389,6 +407,68 @@ async function requestGemini({ apiKey, model, body, currentUserText, science, ed
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function requestOpenRouter({ apiKey, body, currentUserText, science, educational, history, beaconhouse }) {
+  const systemText = buildSystemInstruction({
+    science,
+    educational,
+    sourceMode: false,
+    beaconhouse,
+    history
+  });
+
+  const contents = buildContents(body, currentUserText);
+
+  const messages = [
+    { role: 'system', content: systemText }
+  ];
+
+  for (const item of contents) {
+    const role = item.role === 'model' ? 'assistant' : 'user';
+    const textParts = (item.parts || [])
+      .filter(part => typeof part?.text === 'string')
+      .map(part => part.text);
+
+    const content = textParts.join('\n').trim();
+    if (content) {
+      messages.push({ role, content });
+    }
+  }
+
+  const response = await fetch(OPENROUTER_API_BASE, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://nimbus-beaconhouse-ai.vercel.app/',
+      'X-Title': 'Nimbus Beaconhouse AI'
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages,
+      max_tokens: MAX_OUTPUT_TOKENS
+    })
+  });
+
+  const raw = await response.text();
+
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      data?.error?.message || `OpenRouter API returned HTTP ${response.status}`
+    );
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
 }
 
 function errorCodeFrom(error) {
@@ -470,13 +550,16 @@ export default async function handler(req, res) {
     }
 
     const science = looksLikeScience(userText);
+    const history = isHistoryQuestion(userText) && !isBeaconhouseQuestion(userText);
     const educational = isEducationalQuestion(userText);
     const autoVisual = shouldVisualize(userText);
     const beaconhouse = isBeaconhouseQuestion(userText);
 
     let sourceStatus = science
       ? (SCIENCE_STORE_NAME ? 'requested' : 'not_configured')
-      : 'not_requested';
+      : history
+        ? (HISTORY_STORE_NAME ? 'requested' : 'not_configured')
+        : 'not_requested';
 
     let responseData = null;
     let usedModel = CHAT_MODEL;
@@ -493,9 +576,9 @@ export default async function handler(req, res) {
       // Textbook retrieval is attempted only on the primary model.
       // If that path is unavailable, the fallback can still answer the question.
       const useFileSearch =
-        science &&
+        (science || history) &&
         modelIndex === 0 &&
-        Boolean(SCIENCE_STORE_NAME);
+        Boolean(science ? SCIENCE_STORE_NAME : HISTORY_STORE_NAME);
 
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
@@ -506,6 +589,7 @@ export default async function handler(req, res) {
             currentUserText: userText,
             science,
             educational,
+            history,
             useFileSearch,
             timeoutMs: science ? SCIENCE_TIMEOUT_MS : NORMAL_TIMEOUT_MS,
             beaconhouse
@@ -515,7 +599,9 @@ export default async function handler(req, res) {
 
           if (science && useFileSearch) {
             sourceStatus = 'textbook';
-          } else if (science && modelIndex > 0) {
+          } else if (history && useFileSearch) {
+            sourceStatus = 'historybook';
+          } else if ((science || history) && modelIndex > 0) {
             sourceStatus = 'unavailable_fallback';
           }
 
@@ -536,6 +622,52 @@ export default async function handler(req, res) {
 
           // Small delay, matching the proven Netlify behavior.
           await new Promise(resolve => setTimeout(resolve, 250));
+        }
+      }
+    }
+
+    if (!responseData) {
+      const openRouterKey = String(process.env.NIMBUS_OPENROUTER_API_KEY || '').trim();
+
+      if (openRouterKey) {
+        try {
+          const openRouterData = await requestOpenRouter({
+            apiKey: openRouterKey,
+            body,
+            currentUserText: userText,
+            science,
+            educational,
+            history,
+            beaconhouse
+          });
+
+          const openRouterReply =
+            openRouterData?.choices?.[0]?.message?.content ||
+            openRouterData?.choices?.[0]?.text ||
+            '';
+
+          if (String(openRouterReply).trim()) {
+            responseData = {
+              candidates: [{
+                content: {
+                  parts: [{ text: String(openRouterReply) }]
+                }
+              }]
+            };
+            usedModel = 'openrouter/free';
+            sourceStatus =
+              (science || history)
+                ? 'unavailable_fallback'
+                : sourceStatus;
+          }
+        } catch (openRouterError) {
+          firstError = openRouterError;
+          console.error(
+            '[Nimbus OpenRouter]',
+            requestId,
+            Number(openRouterError?.status || 0),
+            openRouterError?.message || 'unknown'
+          );
         }
       }
     }
