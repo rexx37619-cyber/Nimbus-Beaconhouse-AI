@@ -88,7 +88,6 @@ async function generateCloudflare(prompt) {
       body: JSON.stringify({
         prompt: String(prompt || '').slice(0, 2048),
         steps: 4,
-        seed: Math.floor(Math.random() * 2147483647)
       }),
       signal: controller.signal
     });
@@ -208,4 +207,5 @@ export default async function handler(req, res) {
     });
   }
 }
+
 
