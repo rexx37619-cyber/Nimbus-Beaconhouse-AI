@@ -577,7 +577,6 @@ export default async function handler(req, res) {
       // If that path is unavailable, the fallback can still answer the question.
       const useFileSearch =
         (science || history) &&
-        modelIndex === 0 &&
         Boolean(science ? SCIENCE_STORE_NAME : HISTORY_STORE_NAME);
 
       for (let attempt = 0; attempt < 2; attempt++) {
