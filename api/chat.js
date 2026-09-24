@@ -1,15 +1,15 @@
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_CHAT_MODEL = 'gemini-3.5-flash-lite';
 const FALLBACK_CHAT_MODEL = 'gemini-3.1-flash-lite';
-const FINAL_CHAT_MODEL = 'gemini-2.5-flash-lite';
+const FINAL_CHAT_MODEL = 'gemini-3.8-flash';
 const CHAT_MODEL = String(process.env.NIMBUS_CHAT_MODEL || DEFAULT_CHAT_MODEL).trim() || DEFAULT_CHAT_MODEL;
 const DAILY_LIMIT = Number(process.env.NIMBUS_DAILY_LIMIT || 1500);
 const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CHARS = 14000;
-const NORMAL_TIMEOUT_MS = 8000;
-const SCIENCE_TIMEOUT_MS = 10000;
+const NORMAL_TIMEOUT_MS = 7000;
+const SCIENCE_TIMEOUT_MS = 9000;
 const SCIENCE_FALLBACK_TIMEOUT_MS = 18000;
 const MAX_OUTPUT_TOKENS = 750;
 
