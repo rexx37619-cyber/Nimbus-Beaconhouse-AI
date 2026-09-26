@@ -430,3 +430,227 @@ $('premiumComposer').addEventListener('submit',async e=>{
     wait.textContent=typeof msg==='string'?msg:JSON.stringify(msg,null,2);
   }catch(err){wait.textContent='Nimbus 5.7 Lor is temporarily busy. Please try again.'; console.error(err)}
 });
+
+/* NIMBUS CLEAN PUBLIC FIX */
+(function(){
+  "use strict";
+
+  function install(){
+    if (window.__NIMBUS_CLEAN_PUBLIC_FIX__) return;
+    window.__NIMBUS_CLEAN_PUBLIC_FIX__ = true;
+
+    if (typeof state === "undefined") return;
+
+    state.memoryEnabled =
+      localStorage.getItem("nimbus_memory_enabled") !== "0";
+
+    state.speedMode = "xhigh";
+
+    /* Memory + XHigh controls */
+    var composer = document.getElementById("composer");
+
+    if (composer && !document.getElementById("nimbusCleanControls")) {
+      var controls = document.createElement("div");
+      controls.id = "nimbusCleanControls";
+      controls.style.cssText =
+        "display:flex;align-items:center;gap:6px;margin:7px 0;";
+
+      controls.innerHTML =
+        '<button type="button" id="nimbusMemoryBtnClean" style="border:1px solid rgba(120,120,160,.28);background:transparent;border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer;">Memory: ON</button>' +
+        '<button type="button" id="nimbusSpeedBtnClean" style="border:1px solid rgba(120,120,160,.28);background:transparent;border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer;">XHigh</button>';
+
+      composer.parentElement.insertBefore(controls, composer);
+
+      var memoryBtn = document.getElementById("nimbusMemoryBtnClean");
+
+      function syncMemory(){
+        if (memoryBtn) {
+          memoryBtn.textContent =
+            "Memory: " + (state.memoryEnabled ? "ON" : "OFF");
+        }
+      }
+
+      if (memoryBtn) {
+        memoryBtn.addEventListener("click", function(){
+          state.memoryEnabled = !state.memoryEnabled;
+          localStorage.setItem(
+            "nimbus_memory_enabled",
+            state.memoryEnabled ? "1" : "0"
+          );
+          syncMemory();
+        });
+      }
+
+      var speedBtn = document.getElementById("nimbusSpeedBtnClean");
+
+      if (speedBtn) {
+        speedBtn.addEventListener("click", function(){
+          state.speedMode = "xhigh";
+          localStorage.setItem("nimbus_speed_mode", "xhigh");
+          speedBtn.textContent = "XHigh";
+        });
+      }
+
+      syncMemory();
+    }
+
+    /* Active-chat memory + selected model + speed */
+    if (!window.__NIMBUS_CLEAN_FETCH_PATCH__) {
+      window.__NIMBUS_CLEAN_FETCH_PATCH__ = true;
+
+      var nativeFetch = window.fetch.bind(window);
+
+      window.fetch = function(input, init){
+        var url =
+          typeof input === "string"
+            ? input
+            : ((input && input.url) || "");
+
+        var method = String(
+          (init && init.method) ||
+          (typeof input !== "string" && input && input.method) ||
+          "GET"
+        ).toUpperCase();
+
+        if (
+          method === "POST" &&
+          url.indexOf("/api/chat") >= 0 &&
+          init &&
+          typeof init.body === "string"
+        ) {
+          try {
+            var payload = JSON.parse(init.body);
+
+            payload.model = state.model || payload.model || "ror";
+            payload.memory_enabled = state.memoryEnabled !== false;
+            payload.speed_mode = "xhigh";
+
+            if (state.memoryEnabled) {
+              var all = Array.isArray(state.messages)
+                ? state.messages.slice(0, -1)
+                : [];
+
+              payload.history = all
+                .map(function(m){
+                  return {
+                    role:
+                      String(m && m.role || "").toLowerCase() === "ai"
+                        ? "model"
+                        : "user",
+                    text: String(m && m.text || "").trim()
+                  };
+                })
+                .filter(function(m){
+                  return m.text;
+                })
+                .slice(-24);
+            } else {
+              payload.history = [];
+            }
+
+            init = Object.assign({}, init, {
+              body: JSON.stringify(payload)
+            });
+          } catch (_) {}
+        }
+
+        /* FLUX: no readable text in artwork */
+        if (
+          method === "POST" &&
+          url.indexOf("/api/visual") >= 0 &&
+          init &&
+          typeof init.body === "string"
+        ) {
+          try {
+            var visualPayload = JSON.parse(init.body);
+            var originalPrompt = String(visualPayload.prompt || "");
+
+            var rule =
+              "Create artwork only. Do not generate readable words, letters, numbers, labels, captions, logos, watermarks, signs, typography, or pseudo-writing anywhere in the image. Leave text areas blank.";
+
+            if (originalPrompt.indexOf("Leave text areas blank.") < 0) {
+              visualPayload.prompt = rule + " " + originalPrompt;
+
+              init = Object.assign({}, init, {
+                body: JSON.stringify(visualPayload)
+              });
+            }
+          } catch (_) {}
+        }
+
+        return nativeFetch(input, init);
+      };
+    }
+
+    /* Make model dropdown selection work */
+    if (!window.__NIMBUS_CLEAN_MODEL_PATCH__) {
+      window.__NIMBUS_CLEAN_MODEL_PATCH__ = true;
+
+      document.addEventListener("click", function(event){
+        var option =
+          event.target &&
+          event.target.closest &&
+          event.target.closest("#modelMenu [data-model]");
+
+        if (option) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+
+          state.model = option.dataset.model || "ror";
+          localStorage.setItem("nimbus_model", state.model);
+
+          if (typeof renderModels === "function") {
+            renderModels();
+          }
+
+          var menu = document.getElementById("modelMenu");
+          var picker = document.getElementById("modelPickerBtn");
+
+          if (menu) {
+            menu.classList.add("hidden");
+            menu.style.display = "none";
+          }
+
+          if (picker) {
+            picker.setAttribute("aria-expanded", "false");
+          }
+
+          return;
+        }
+
+        var pickerBtn =
+          event.target &&
+          event.target.closest &&
+          event.target.closest("#modelPickerBtn");
+
+        if (pickerBtn) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+
+          var modelMenu =
+            document.getElementById("modelMenu");
+
+          if (!modelMenu) return;
+
+          var opening =
+            modelMenu.classList.contains("hidden") ||
+            window.getComputedStyle(modelMenu).display === "none";
+
+          modelMenu.classList.toggle("hidden", !opening);
+          modelMenu.style.display = opening ? "" : "none";
+
+          pickerBtn.setAttribute(
+            "aria-expanded",
+            String(opening)
+          );
+        }
+      }, true);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", install, {once:true});
+  } else {
+    install();
+  }
+})();
