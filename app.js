@@ -905,3 +905,342 @@ $('premiumComposer').addEventListener('submit',async e=>{
     installNimbusFinalFix();
   }
 })();
+
+/* NIMBUS CHAT PERSISTENCE FINAL */
+(function(){
+  "use strict";
+
+  if (window.__NIMBUS_CHAT_PERSISTENCE_FINAL__) return;
+  window.__NIMBUS_CHAT_PERSISTENCE_FINAL__ = true;
+
+  /* ============================================================
+     TEXT CHAT PERSISTENCE
+     ============================================================ */
+
+  function saveActiveChat(){
+    try {
+      if (
+        typeof persistCurrent === "function" &&
+        state &&
+        state.currentChatId
+      ) {
+        persistCurrent();
+      }
+    } catch (_) {}
+  }
+
+  /* Save whenever a normal user/AI message is added. */
+  if (typeof add === "function" && !window.__NIMBUS_PERSIST_ADD__) {
+    window.__NIMBUS_PERSIST_ADD__ = true;
+
+    var originalAdd = add;
+
+    add = function(role, text, fileName){
+      var result = originalAdd.apply(this, arguments);
+
+      setTimeout(function(){
+        saveActiveChat();
+      }, 0);
+
+      return result;
+    };
+  }
+
+  /* Save before starting/clearing a chat. */
+  ["newChat","clearChat"].forEach(function(id){
+    var button = document.getElementById(id);
+
+    if (button) {
+      button.addEventListener(
+        "click",
+        function(){
+          saveActiveChat();
+        },
+        true
+      );
+    }
+  });
+
+  /* Save on page close/navigation. */
+  window.addEventListener(
+    "beforeunload",
+    saveActiveChat
+  );
+
+  /* ============================================================
+     PERSISTENT VISUAL STORAGE
+     Images go into IndexedDB instead of localStorage.
+     This keeps localStorage small while preserving actual images.
+     ============================================================ */
+
+  var DB_NAME = "nimbus_chat_media_v1";
+  var STORE_NAME = "visuals";
+
+  function openMediaDB(){
+    return new Promise(function(resolve, reject){
+      if (!window.indexedDB) {
+        reject(new Error("IndexedDB unavailable"));
+        return;
+      }
+
+      var request = indexedDB.open(DB_NAME, 1);
+
+      request.onupgradeneeded = function(event){
+        var db = event.target.result;
+
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(
+            STORE_NAME,
+            {keyPath:"id"}
+          );
+        }
+      };
+
+      request.onsuccess = function(){
+        resolve(request.result);
+      };
+
+      request.onerror = function(){
+        reject(request.error || new Error("IndexedDB open failed"));
+      };
+    });
+  }
+
+  function saveVisual(id, record){
+    return openMediaDB().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(
+          STORE_NAME,
+          "readwrite"
+        );
+
+        tx.objectStore(STORE_NAME).put({
+          id:id,
+          base64:record.base64,
+          mimeType:record.mimeType || "image/png",
+          meta:record.meta || {},
+          savedAt:Date.now()
+        });
+
+        tx.oncomplete = function(){
+          db.close();
+          resolve();
+        };
+
+        tx.onerror = function(){
+          db.close();
+          reject(tx.error || new Error("Visual save failed"));
+        };
+      });
+    });
+  }
+
+  function getVisual(id){
+    return openMediaDB().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(
+          STORE_NAME,
+          "readonly"
+        );
+
+        var request =
+          tx.objectStore(STORE_NAME).get(id);
+
+        request.onsuccess = function(){
+          db.close();
+          resolve(request.result || null);
+        };
+
+        request.onerror = function(){
+          db.close();
+          reject(request.error || new Error("Visual read failed"));
+        };
+      });
+    });
+  }
+
+  var VISUAL_PREFIX = "__NIMBUS_PERSISTED_VISUAL__:";
+
+  /* ============================================================
+     SAVE VISUAL INTO THE ACTIVE CHAT
+     ============================================================ */
+
+  if (
+    typeof addVisualMessage === "function" &&
+    !window.__NIMBUS_PERSIST_VISUAL__
+  ) {
+    window.__NIMBUS_PERSIST_VISUAL__ = true;
+
+    var originalAddVisualMessage =
+      addVisualMessage;
+
+    addVisualMessage = function(
+      base64,
+      mimeType,
+      meta
+    ){
+      meta = meta || {};
+
+      var id =
+        "visual-" +
+        (
+          crypto.randomUUID
+            ? crypto.randomUUID()
+            : String(Date.now()) +
+              "-" +
+              Math.random().toString(36).slice(2)
+        );
+
+      /* Store only a tiny reference in chat history.
+         The actual image lives in IndexedDB. */
+      if (
+        typeof state !== "undefined" &&
+        Array.isArray(state.messages)
+      ) {
+        state.messages.push({
+          role:"visual",
+          text:
+            VISUAL_PREFIX +
+            JSON.stringify({
+              id:id,
+              mimeType:mimeType || "image/png",
+              meta:meta
+            }),
+          fileName:null
+        });
+
+        saveActiveChat();
+      }
+
+      /* Keep the current visual behavior unchanged. */
+      var result =
+        originalAddVisualMessage.apply(
+          this,
+          arguments
+        );
+
+      /* Persist the actual image. */
+      saveVisual(id,{
+        base64:base64,
+        mimeType:mimeType || "image/png",
+        meta:meta
+      }).catch(function(error){
+        console.warn(
+          "Nimbus visual persistence failed:",
+          error
+        );
+      });
+
+      return result;
+    };
+  }
+
+  /* ============================================================
+     RESTORE SAVED VISUALS WHEN A CHAT IS OPENED
+     ============================================================ */
+
+  if (
+    typeof renderMessage === "function" &&
+    !window.__NIMBUS_RENDER_PERSISTED_VISUAL__
+  ) {
+    window.__NIMBUS_RENDER_PERSISTED_VISUAL__ = true;
+
+    var originalRenderMessage =
+      renderMessage;
+
+    renderMessage = function(
+      role,
+      text,
+      fileName,
+      scroll,
+      animate
+    ){
+      if (
+        role !== "visual" ||
+        typeof text !== "string" ||
+        text.indexOf(VISUAL_PREFIX) !== 0
+      ) {
+        return originalRenderMessage.apply(
+          this,
+          arguments
+        );
+      }
+
+      var data;
+
+      try {
+        data = JSON.parse(
+          text.slice(VISUAL_PREFIX.length)
+        );
+      } catch (_) {
+        return;
+      }
+
+      if (
+        typeof createVisualCard !== "function"
+      ) {
+        return;
+      }
+
+      var card =
+        createVisualCard(data.meta || {});
+
+      getVisual(data.id)
+        .then(function(record){
+          if (!record) {
+            if (
+              typeof failVisualCard === "function"
+            ) {
+              failVisualCard(card);
+            }
+            return;
+          }
+
+          if (
+            typeof finishVisualCard === "function"
+          ) {
+            finishVisualCard(
+              card,
+              record.base64,
+              record.mimeType,
+              record.meta || data.meta || {}
+            );
+          }
+        })
+        .catch(function(){
+          if (
+            typeof failVisualCard === "function"
+          ) {
+            failVisualCard(card);
+          }
+        });
+
+      return card;
+    };
+  }
+
+  /* ============================================================
+     PERIODIC AUTOSAVE
+     ============================================================ */
+
+  setInterval(function(){
+    saveActiveChat();
+  }, 2000);
+
+  /* ============================================================
+     RESTORE CURRENT CHAT AFTER PATCH INSTALLATION
+     ============================================================ */
+
+  setTimeout(function(){
+    try {
+      if (
+        state &&
+        state.currentChatId &&
+        typeof loadChat === "function"
+      ) {
+        loadChat(state.currentChatId);
+      }
+    } catch (_) {}
+  }, 100);
+
+})();
