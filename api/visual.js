@@ -65,7 +65,7 @@ function topicFallback(topic, reason) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="100%" role="img" aria-label="Educational visual fallback"><rect width="1200" height="675" fill="#f7fafc"/><rect x="55" y="45" width="1090" height="585" rx="28" fill="#fff" stroke="#d7dee8" stroke-width="3"/><text x="600" y="115" text-anchor="middle" font-family="Arial,sans-serif" font-size="28" font-weight="700" fill="#18212f">Educational Visual Fallback</text><text x="600" y="158" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#4b5563">${safeTopic}</text><circle cx="600" cy="345" r="110" fill="#eef3f8" stroke="#9aa8b8" stroke-width="4"/><path d="M515 345h170M600 260v170" stroke="#667788" stroke-width="7" stroke-linecap="round"/><text x="600" y="535" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="#667085">${safeReason}</text></svg>`;
 }
 
-const NIMBUS_NO_TEXT_RULE = "ABSOLUTE VISUAL RULE: THE GENERATED IMAGE MUST CONTAIN ZERO TEXT. Do not render ANY words, letters, numbers, readable characters, labels, captions, titles, subtitles, logos, watermarks, signs, typography, handwriting, glyphs, symbols that resemble writing, pseudo-writing, or alphabet-like marks. Do not spell anything. For educational diagrams, draw the actual subject with detailed, anatomically or scientifically recognizable structures, realistic proportions, distinct parts, clear spatial relationships, depth, texture, and textbook-quality visual detail. Do NOT replace real structures with generic circles, triangles, boxes, or abstract geometric placeholders. Use BLANK LEADER LINES only when needed so the student can label the real structures themselves. The artwork must remain completely unlabelled.";
+const NIMBUS_NO_TEXT_RULE = "ABSOLUTE VISUAL RULE: THE GENERATED IMAGE MUST CONTAIN ZERO TEXT. Do not render ANY words, letters, numbers, readable characters, labels, captions, titles, subtitles, logos, watermarks, signs, typography, handwriting, glyphs, symbols that resemble writing, pseudo-writing, or alphabet-like marks. Do not spell anything. For educational diagrams, use shapes, arrows, icons, structures, and BLANK LEADER LINES ONLY. The student will identify and label the structures themselves. The artwork must remain completely unlabelled.";
 
 async function generateCloudflare(prompt) {
   const accountId = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
@@ -164,13 +164,13 @@ export default async function handler(req, res) {
     const kind = classifyVisualKind(originalPrompt);
     const enhancedPrompt = `${NIMBUS_NO_TEXT_RULE}
 
-Create a high-quality, detailed, textbook-style 16:9 ${kind} for a student lesson, with clearly recognizable real structures and strong visual detail.
+Create a high-quality 16:9 ${kind} for a student lesson.
 
 Topic/question: ${originalPrompt}
 
 Create the actual subject, object, anatomy, process, environment, mathematical relationship, map, timeline or scientific system requested. Use accurate shapes, structures, arrows and visual relationships.
 
-For diagrams, show the complete detailed subject first, then add thin EMPTY BLANK LEADER LINES pointing to the relevant real structures. Never use generic geometric placeholders for the structures.
+For diagrams, use EMPTY BLANK LEADER LINES instead of written labels.
 
 Do not turn the image into a poster, infographic, worksheet full of text, title card, text panel, card grid or typography-heavy design.
 
