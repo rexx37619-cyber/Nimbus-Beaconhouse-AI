@@ -88,9 +88,7 @@ async function generateCloudflare(prompt) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: (NIMBUS_NO_TEXT_RULE + 
- + String(prompt || '') + 
- + "FINAL: ZERO TEXT IN THE IMAGE.").slice(0, 2048),
+        prompt: (NIMBUS_NO_TEXT_RULE + "\n" + String(prompt || "") + "\nFINAL: ZERO TEXT IN THE IMAGE.").slice(0, 2048),
         steps: 4,
       }),
       signal: controller.signal
