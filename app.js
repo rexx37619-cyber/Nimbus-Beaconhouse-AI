@@ -619,7 +619,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
           '<div id="nimbusSpeedMenuFinal" style="' +
           'display:none;position:absolute;right:0;bottom:calc(100% + 8px);' +
           'min-width:185px;padding:6px;border-radius:12px;' +
-          'background:rgba(22,24,32,.98);border:1px solid rgba(255,255,255,.12);' +
+          'background:#ffffff;color:#111111;border:1px solid rgba(0,0,0,.12);' +
           'box-shadow:0 14px 40px rgba(0,0,0,.35);z-index:100000;">' +
 
           '<button type="button" data-speed="xhigh" style="' +
