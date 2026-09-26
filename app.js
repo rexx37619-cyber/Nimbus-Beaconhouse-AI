@@ -906,93 +906,30 @@ $('premiumComposer').addEventListener('submit',async e=>{
   }
 })();
 
-/* NIMBUS CHAT PERSISTENCE FINAL */
+/* NIMBUS CHAT MEDIA PERSISTENCE V2 */
 (function(){
   "use strict";
 
-  if (window.__NIMBUS_CHAT_PERSISTENCE_FINAL__) return;
-  window.__NIMBUS_CHAT_PERSISTENCE_FINAL__ = true;
+  if (window.__NIMBUS_CHAT_MEDIA_PERSISTENCE_V2__) return;
+  window.__NIMBUS_CHAT_MEDIA_PERSISTENCE_V2__ = true;
 
-  /* ============================================================
-     TEXT CHAT PERSISTENCE
-     ============================================================ */
-
-  function saveActiveChat(){
-    try {
-      if (
-        typeof persistCurrent === "function" &&
-        state &&
-        state.currentChatId
-      ) {
-        persistCurrent();
-      }
-    } catch (_) {}
-  }
-
-  /* Save whenever a normal user/AI message is added. */
-  if (typeof add === "function" && !window.__NIMBUS_PERSIST_ADD__) {
-    window.__NIMBUS_PERSIST_ADD__ = true;
-
-    var originalAdd = add;
-
-    add = function(role, text, fileName){
-      var result = originalAdd.apply(this, arguments);
-
-      setTimeout(function(){
-        saveActiveChat();
-      }, 0);
-
-      return result;
-    };
-  }
-
-  /* Save before starting/clearing a chat. */
-  ["newChat","clearChat"].forEach(function(id){
-    var button = document.getElementById(id);
-
-    if (button) {
-      button.addEventListener(
-        "click",
-        function(){
-          saveActiveChat();
-        },
-        true
-      );
-    }
-  });
-
-  /* Save on page close/navigation. */
-  window.addEventListener(
-    "beforeunload",
-    saveActiveChat
-  );
-
-  /* ============================================================
-     PERSISTENT VISUAL STORAGE
-     Images go into IndexedDB instead of localStorage.
-     This keeps localStorage small while preserving actual images.
-     ============================================================ */
-
-  var DB_NAME = "nimbus_chat_media_v1";
+  var DB_NAME = "nimbus_chat_media_v2";
   var STORE_NAME = "visuals";
 
-  function openMediaDB(){
-    return new Promise(function(resolve, reject){
+  function openDB(){
+    return new Promise(function(resolve,reject){
       if (!window.indexedDB) {
         reject(new Error("IndexedDB unavailable"));
         return;
       }
 
-      var request = indexedDB.open(DB_NAME, 1);
+      var request = indexedDB.open(DB_NAME,1);
 
       request.onupgradeneeded = function(event){
         var db = event.target.result;
 
         if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(
-            STORE_NAME,
-            {keyPath:"id"}
-          );
+          db.createObjectStore(STORE_NAME,{keyPath:"id"});
         }
       };
 
@@ -1006,19 +943,16 @@ $('premiumComposer').addEventListener('submit',async e=>{
     });
   }
 
-  function saveVisual(id, record){
-    return openMediaDB().then(function(db){
-      return new Promise(function(resolve, reject){
-        var tx = db.transaction(
-          STORE_NAME,
-          "readwrite"
-        );
+  function saveVisual(id,base64,mimeType,meta){
+    return openDB().then(function(db){
+      return new Promise(function(resolve,reject){
+        var tx = db.transaction(STORE_NAME,"readwrite");
 
         tx.objectStore(STORE_NAME).put({
           id:id,
-          base64:record.base64,
-          mimeType:record.mimeType || "image/png",
-          meta:record.meta || {},
+          base64:base64,
+          mimeType:mimeType || "image/jpeg",
+          meta:meta || {},
           savedAt:Date.now()
         });
 
@@ -1029,19 +963,18 @@ $('premiumComposer').addEventListener('submit',async e=>{
 
         tx.onerror = function(){
           db.close();
-          reject(tx.error || new Error("Visual save failed"));
+          reject(
+            tx.error || new Error("Visual save failed")
+          );
         };
       });
     });
   }
 
-  function getVisual(id){
-    return openMediaDB().then(function(db){
-      return new Promise(function(resolve, reject){
-        var tx = db.transaction(
-          STORE_NAME,
-          "readonly"
-        );
+  function readVisual(id){
+    return openDB().then(function(db){
+      return new Promise(function(resolve,reject){
+        var tx = db.transaction(STORE_NAME,"readonly");
 
         var request =
           tx.objectStore(STORE_NAME).get(id);
@@ -1053,194 +986,339 @@ $('premiumComposer').addEventListener('submit',async e=>{
 
         request.onerror = function(){
           db.close();
-          reject(request.error || new Error("Visual read failed"));
+          reject(
+            request.error || new Error("Visual read failed")
+          );
         };
       });
     });
   }
 
-  var VISUAL_PREFIX = "__NIMBUS_PERSISTED_VISUAL__:";
+  function currentChat(){
+    if (
+      typeof state === "undefined" ||
+      !state.currentChatId ||
+      !Array.isArray(state.chats)
+    ) {
+      return null;
+    }
 
-  /* ============================================================
-     SAVE VISUAL INTO THE ACTIVE CHAT
-     ============================================================ */
+    return state.chats.find(function(chat){
+      return chat.id === state.currentChatId;
+    }) || null;
+  }
 
+  function saveChatMetadata(record){
+    var chat = currentChat();
+
+    if (!chat) return;
+
+    if (!Array.isArray(chat.visuals)) {
+      chat.visuals = [];
+    }
+
+    var exists = chat.visuals.some(function(item){
+      return item.id === record.id;
+    });
+
+    if (!exists) {
+      chat.visuals.push(record);
+    }
+
+    if (typeof saveChats === "function") {
+      saveChats();
+    }
+  }
+
+  function makeVisualId(){
+    return "visual-" +
+      (
+        crypto.randomUUID
+          ? crypto.randomUUID()
+          : String(Date.now()) +
+            "-" +
+            Math.random().toString(36).slice(2)
+      );
+  }
+
+  function placeCard(card,messageIndex){
+    if (
+      !card ||
+      !card.d ||
+      typeof document === "undefined"
+    ) {
+      return;
+    }
+
+    var messages = document.getElementById("messages");
+    if (!messages) return;
+
+    var messageNodes = Array.prototype.filter.call(
+      messages.children,
+      function(node){
+        return node.classList &&
+          node.classList.contains("message");
+      }
+    );
+
+    var index = Number.isFinite(messageIndex)
+      ? Math.max(0,messageIndex)
+      : messageNodes.length;
+
+    if (index >= messageNodes.length) {
+      messages.appendChild(card.d);
+    } else {
+      messages.insertBefore(
+        card.d,
+        messageNodes[index]
+      );
+    }
+
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  /* ------------------------------------------------------------
+     SAVE EVERY NEW GENERATED IMAGE
+     We hook the final image renderer, which is the common point
+     used by the existing visual-generation flow.
+     ------------------------------------------------------------ */
   if (
-    typeof addVisualMessage === "function" &&
-    !window.__NIMBUS_PERSIST_VISUAL__
+    typeof finishVisualCard === "function" &&
+    !window.__NIMBUS_FINISH_VISUAL_V2__
   ) {
-    window.__NIMBUS_PERSIST_VISUAL__ = true;
+    window.__NIMBUS_FINISH_VISUAL_V2__ = true;
 
-    var originalAddVisualMessage =
-      addVisualMessage;
+    var originalFinishVisualCard =
+      finishVisualCard;
 
-    addVisualMessage = function(
+    finishVisualCard = function(
+      card,
       base64,
       mimeType,
       meta
     ){
-      meta = meta || {};
-
-      var id =
-        "visual-" +
-        (
-          crypto.randomUUID
-            ? crypto.randomUUID()
-            : String(Date.now()) +
-              "-" +
-              Math.random().toString(36).slice(2)
-        );
-
-      /* Store only a tiny reference in chat history.
-         The actual image lives in IndexedDB. */
-      if (
-        typeof state !== "undefined" &&
-        Array.isArray(state.messages)
-      ) {
-        state.messages.push({
-          role:"visual",
-          text:
-            VISUAL_PREFIX +
-            JSON.stringify({
-              id:id,
-              mimeType:mimeType || "image/png",
-              meta:meta
-            }),
-          fileName:null
-        });
-
-        saveActiveChat();
-      }
-
-      /* Keep the current visual behavior unchanged. */
       var result =
-        originalAddVisualMessage.apply(
+        originalFinishVisualCard.apply(
           this,
           arguments
         );
 
-      /* Persist the actual image. */
-      saveVisual(id,{
-        base64:base64,
-        mimeType:mimeType || "image/png",
-        meta:meta
-      }).catch(function(error){
+      try {
+        if (
+          card &&
+          !card.__nimbusRestoringVisual &&
+          base64 &&
+          state &&
+          state.currentChatId
+        ) {
+          var id = makeVisualId();
+
+          card.__nimbusVisualId = id;
+
+          var messageIndex =
+            Array.isArray(state.messages)
+              ? state.messages.length
+              : 0;
+
+          saveChatMetadata({
+            id:id,
+            mimeType:mimeType || "image/jpeg",
+            meta:meta || {},
+            messageIndex:messageIndex
+          });
+
+          saveVisual(
+            id,
+            base64,
+            mimeType || "image/jpeg",
+            meta || {}
+          ).catch(function(error){
+            console.warn(
+              "Nimbus visual storage failed:",
+              error
+            );
+          });
+        }
+      } catch (error) {
         console.warn(
-          "Nimbus visual persistence failed:",
+          "Nimbus visual persistence error:",
           error
         );
-      });
+      }
 
       return result;
     };
   }
 
-  /* ============================================================
-     RESTORE SAVED VISUALS WHEN A CHAT IS OPENED
-     ============================================================ */
-
+  /* ------------------------------------------------------------
+     RESTORE VISUALS WHEN A SAVED CHAT IS OPENED
+     ------------------------------------------------------------ */
   if (
-    typeof renderMessage === "function" &&
-    !window.__NIMBUS_RENDER_PERSISTED_VISUAL__
+    typeof loadChat === "function" &&
+    !window.__NIMBUS_LOAD_CHAT_VISUALS_V2__
   ) {
-    window.__NIMBUS_RENDER_PERSISTED_VISUAL__ = true;
+    window.__NIMBUS_LOAD_CHAT_VISUALS_V2__ = true;
 
-    var originalRenderMessage =
-      renderMessage;
+    var originalLoadChat = loadChat;
 
-    renderMessage = function(
-      role,
-      text,
-      fileName,
-      scroll,
-      animate
-    ){
-      if (
-        role !== "visual" ||
-        typeof text !== "string" ||
-        text.indexOf(VISUAL_PREFIX) !== 0
-      ) {
-        return originalRenderMessage.apply(
+    loadChat = function(id){
+      var result =
+        originalLoadChat.apply(
           this,
           arguments
         );
-      }
 
-      var data;
+      setTimeout(function(){
+        try {
+          var chat =
+            Array.isArray(state.chats)
+              ? state.chats.find(function(item){
+                  return item.id === id;
+                })
+              : null;
 
-      try {
-        data = JSON.parse(
-          text.slice(VISUAL_PREFIX.length)
-        );
-      } catch (_) {
-        return;
-      }
-
-      if (
-        typeof createVisualCard !== "function"
-      ) {
-        return;
-      }
-
-      var card =
-        createVisualCard(data.meta || {});
-
-      getVisual(data.id)
-        .then(function(record){
-          if (!record) {
-            if (
-              typeof failVisualCard === "function"
-            ) {
-              failVisualCard(card);
-            }
+          if (
+            !chat ||
+            !Array.isArray(chat.visuals) ||
+            !chat.visuals.length
+          ) {
             return;
           }
 
-          if (
-            typeof finishVisualCard === "function"
-          ) {
-            finishVisualCard(
-              card,
-              record.base64,
-              record.mimeType,
-              record.meta || data.meta || {}
-            );
-          }
-        })
-        .catch(function(){
-          if (
-            typeof failVisualCard === "function"
-          ) {
-            failVisualCard(card);
-          }
-        });
+          var visuals =
+            chat.visuals.slice().sort(
+              function(a,b){
+                var ai =
+                  Number(a.messageIndex || 0);
+                var bi =
+                  Number(b.messageIndex || 0);
 
-      return card;
+                if (ai !== bi) {
+                  return ai - bi;
+                }
+
+                return Number(a.savedAt || 0) -
+                  Number(b.savedAt || 0);
+              }
+            );
+
+          visuals.forEach(function(record){
+            readVisual(record.id)
+              .then(function(saved){
+                if (!saved) return;
+
+                if (
+                  typeof createVisualCard !== "function" ||
+                  typeof finishVisualCard !== "function"
+                ) {
+                  return;
+                }
+
+                var card =
+                  createVisualCard(
+                    saved.meta || record.meta || {}
+                  );
+
+                card.__nimbusRestoringVisual = true;
+
+                /* Use the original renderer so restoring an image
+                   does NOT create another saved visual record. */
+                if (
+                  typeof originalFinishVisualCard === "function"
+                ) {
+                  originalFinishVisualCard(
+                    card,
+                    saved.base64,
+                    saved.mimeType,
+                    saved.meta || record.meta || {}
+                  );
+                }
+
+                placeCard(
+                  card,
+                  Number(record.messageIndex || 0)
+                );
+              })
+              .catch(function(error){
+                console.warn(
+                  "Nimbus visual restore failed:",
+                  error
+                );
+              });
+          });
+        } catch (error) {
+          console.warn(
+            "Nimbus saved-visual restore error:",
+            error
+          );
+        }
+      },120);
+
+      return result;
     };
   }
 
-  /* ============================================================
-     PERIODIC AUTOSAVE
-     ============================================================ */
+  /* Request persistent browser storage when supported. */
+  try {
+    if (
+      navigator.storage &&
+      navigator.storage.persist
+    ) {
+      navigator.storage.persist().catch(function(){});
+    }
+  } catch (_) {}
 
-  setInterval(function(){
-    saveActiveChat();
-  }, 2000);
-
-  /* ============================================================
-     RESTORE CURRENT CHAT AFTER PATCH INSTALLATION
-     ============================================================ */
-
+  /* Restore visuals for the chat already opened during init(). */
   setTimeout(function(){
     try {
       if (
         state &&
         state.currentChatId &&
-        typeof loadChat === "function"
+        Array.isArray(state.chats)
       ) {
-        loadChat(state.currentChatId);
+        var chat = currentChat();
+
+        if (
+          chat &&
+          Array.isArray(chat.visuals) &&
+          chat.visuals.length
+        ) {
+          chat.visuals.forEach(function(record){
+            readVisual(record.id)
+              .then(function(saved){
+                if (!saved) return;
+
+                if (
+                  typeof createVisualCard !== "function" ||
+                  typeof originalFinishVisualCard !== "function"
+                ) {
+                  return;
+                }
+
+                var card =
+                  createVisualCard(
+                    saved.meta || record.meta || {}
+                  );
+
+                card.__nimbusRestoringVisual = true;
+
+                originalFinishVisualCard(
+                  card,
+                  saved.base64,
+                  saved.mimeType,
+                  saved.meta || record.meta || {}
+                );
+
+                placeCard(
+                  card,
+                  Number(record.messageIndex || 0)
+                );
+              })
+              .catch(function(){});
+          });
+        }
       }
     } catch (_) {}
-  }, 100);
+  },250);
 
 })();

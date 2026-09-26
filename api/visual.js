@@ -1,4 +1,4 @@
-﻿const CLOUDFLARE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
+const CLOUDFLARE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
 const CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4/accounts';
 const CLOUDFLARE_TIMEOUT_MS = 30000;
 
@@ -48,8 +48,8 @@ function shouldVisualize(text) {
 
 function classifyVisualKind(text) {
   const s = String(text || '').toLowerCase();
-  if (/\b(joints?|skeleton|bones?|muscles?|lungs?|heart|cells?|tissues?|organs?|brain|digestion|respiration|breathing|reproduction|kidneys?|stomach|intestines?|diaphragm)\b/.test(s)) return 'a scientifically accurate labelled anatomical or biological illustration';
-  if (/\b(circuit|electricity|force|energy|reaction|photosynthesis|food\s+chain|food\s+web|ecosystem|cycle|heat|temperature|diffusion|aerobic|anaerobic)\b/.test(s)) return 'a scientifically accurate scientific-system or process illustration';
+  if (/\b(joints?|skeleton|bones?|muscles?|lungs?|heart|cells?|tissues?|organs?|brain|digestion|respiration|breathing|reproduction|kidneys?|stomach|intestines?|diaphragm)\b/.test(s)) return 'a scientifically accurate unlabelled anatomical or biological illustration with blank leader lines';
+  if (/\b(circuit|electricity|force|energy|reaction|photosynthesis|food\s+chain|food\s+web|ecosystem|cycle|heat|temperature|diffusion|aerobic|anaerobic)\b/.test(s)) return 'a scientifically accurate unlabelled scientific-system or process illustration with blank leader lines';
   if (/\b(algebra|equation|fraction|geometry|ratio|percentage|probability|statistics)\b/.test(s)) return 'a clear educational mathematics visualization';
   if (/\b(history|geography|map|climate|civilization|empire|timeline)\b/.test(s)) return 'a clear educational history or geography visualization';
   return 'a polished educational illustration that directly represents the concept';
@@ -64,6 +64,8 @@ function topicFallback(topic, reason) {
   const safeReason = escapeXml(reason || 'Image provider unavailable');
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="100%" role="img" aria-label="Educational visual fallback"><rect width="1200" height="675" fill="#f7fafc"/><rect x="55" y="45" width="1090" height="585" rx="28" fill="#fff" stroke="#d7dee8" stroke-width="3"/><text x="600" y="115" text-anchor="middle" font-family="Arial,sans-serif" font-size="28" font-weight="700" fill="#18212f">Educational Visual Fallback</text><text x="600" y="158" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#4b5563">${safeTopic}</text><circle cx="600" cy="345" r="110" fill="#eef3f8" stroke="#9aa8b8" stroke-width="4"/><path d="M515 345h170M600 260v170" stroke="#667788" stroke-width="7" stroke-linecap="round"/><text x="600" y="535" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="#667085">${safeReason}</text></svg>`;
 }
+
+const NIMBUS_NO_TEXT_RULE = "ABSOLUTE VISUAL RULE: THE GENERATED IMAGE MUST CONTAIN ZERO TEXT. Do not render ANY words, letters, numbers, readable characters, labels, captions, titles, subtitles, logos, watermarks, signs, typography, handwriting, glyphs, symbols that resemble writing, pseudo-writing, or alphabet-like marks. Do not spell anything. For educational diagrams, use shapes, arrows, icons, structures, and BLANK LEADER LINES ONLY. The student will identify and label the structures themselves. The artwork must remain completely unlabelled.";
 
 async function generateCloudflare(prompt) {
   const accountId = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
@@ -86,7 +88,9 @@ async function generateCloudflare(prompt) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: String(prompt || '').slice(0, 2048),
+        prompt: (NIMBUS_NO_TEXT_RULE + 
+ + String(prompt || '') + 
+ + "FINAL: ZERO TEXT IN THE IMAGE.").slice(0, 2048),
         steps: 4,
       }),
       signal: controller.signal
@@ -160,7 +164,34 @@ export default async function handler(req, res) {
     }
 
     const kind = classifyVisualKind(originalPrompt);
-    const enhancedPrompt = `Create a high-quality 16:9 ${kind} for a student lesson.\n\nTopic/question: ${originalPrompt}\n\nMake it scientifically or academically coherent, visually rich, clear and classroom-ready. Use a strong focal subject, meaningful relationships, concise readable labels, and leader lines/arrows only when they genuinely clarify the concept. Prefer real-looking educational imagery, accurate anatomy, real objects, meaningful process stages, maps, timelines, or mathematical relationships as appropriate. Avoid generic four-box diagrams, text-only posters, empty placeholder panels, wireframes, generic card grids, repeated stock layouts and vague infographic templates. Do not invent unsupported facts or structures.`;
+    const enhancedPrompt = `${NIMBUS_NO_TEXT_RULE}
+
+Create a high-quality 16:9 ${kind} for a student lesson.
+
+Topic/question: ${originalPrompt}
+
+Create the actual subject, object, anatomy, process, environment, mathematical relationship, map, timeline or scientific system requested. Use accurate shapes, structures, arrows and visual relationships.
+
+For diagrams, use EMPTY BLANK LEADER LINES instead of written labels.
+
+Do not turn the image into a poster, infographic, worksheet full of text, title card, text panel, card grid or typography-heavy design.
+
+FINAL ZERO-TEXT REQUIREMENT:
+No words.
+No letters.
+No numbers.
+No labels.
+No captions.
+No titles.
+No logos.
+No watermarks.
+No signs.
+No handwriting.
+No pseudo-writing.
+No text-like glyphs.
+No alphabet-like marks.
+
+The student will do the labeling themselves.`;
 
     try {
       const generated = await generateCloudflare(enhancedPrompt);
