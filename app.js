@@ -431,72 +431,34 @@ $('premiumComposer').addEventListener('submit',async e=>{
   }catch(err){wait.textContent='Nimbus 5.7 Lor is temporarily busy. Please try again.'; console.error(err)}
 });
 
-/* NIMBUS CLEAN PUBLIC FIX */
+/* NIMBUS PUBLIC FINAL FIX */
 (function(){
   "use strict";
 
-  function install(){
-    if (window.__NIMBUS_CLEAN_PUBLIC_FIX__) return;
-    window.__NIMBUS_CLEAN_PUBLIC_FIX__ = true;
+  function installNimbusFinalFix(){
+    if (window.__NIMBUS_PUBLIC_FINAL_FIX__) return;
+    window.__NIMBUS_PUBLIC_FINAL_FIX__ = true;
 
     if (typeof state === "undefined") return;
 
-    state.memoryEnabled =
-      localStorage.getItem("nimbus_memory_enabled") !== "0";
+    /* --------------------------------------------------------
+       REMOVE OLD MEMORY UI IF A CACHED/OLD SCRIPT LEFT IT
+       -------------------------------------------------------- */
+    var oldControls = document.getElementById("nimbusCleanControls");
+    if (oldControls) oldControls.remove();
 
-    state.speedMode = "xhigh";
+    var oldMemory = document.getElementById("nimbusMemoryBtnClean");
+    if (oldMemory) oldMemory.remove();
 
-    /* Memory + XHigh controls */
-    var composer = document.getElementById("composer");
+    /* --------------------------------------------------------
+       MEMORY = AUTOMATIC PER ACTIVE CHAT
+       No memory toggle button.
+       The existing state.messages/state.chats remain the source.
+       -------------------------------------------------------- */
+    state.memoryEnabled = true;
 
-    if (composer && !document.getElementById("nimbusCleanControls")) {
-      var controls = document.createElement("div");
-      controls.id = "nimbusCleanControls";
-      controls.style.cssText =
-        "display:flex;align-items:center;gap:6px;margin:7px 0;";
-
-      controls.innerHTML =
-        '<button type="button" id="nimbusMemoryBtnClean" style="border:1px solid rgba(120,120,160,.28);background:transparent;border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer;">Memory: ON</button>' +
-        '<button type="button" id="nimbusSpeedBtnClean" style="border:1px solid rgba(120,120,160,.28);background:transparent;border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer;">XHigh</button>';
-
-      composer.parentElement.insertBefore(controls, composer);
-
-      var memoryBtn = document.getElementById("nimbusMemoryBtnClean");
-
-      function syncMemory(){
-        if (memoryBtn) {
-          memoryBtn.textContent =
-            "Memory: " + (state.memoryEnabled ? "ON" : "OFF");
-        }
-      }
-
-      if (memoryBtn) {
-        memoryBtn.addEventListener("click", function(){
-          state.memoryEnabled = !state.memoryEnabled;
-          localStorage.setItem(
-            "nimbus_memory_enabled",
-            state.memoryEnabled ? "1" : "0"
-          );
-          syncMemory();
-        });
-      }
-
-      var speedBtn = document.getElementById("nimbusSpeedBtnClean");
-
-      if (speedBtn) {
-        speedBtn.addEventListener("click", function(){
-          state.speedMode = "xhigh";
-          localStorage.setItem("nimbus_speed_mode", "xhigh");
-          speedBtn.textContent = "XHigh";
-        });
-      }
-
-      syncMemory();
-    }
-
-    /* Active-chat memory + selected model + speed */
-    if (!window.__NIMBUS_CLEAN_FETCH_PATCH__) {
-      window.__NIMBUS_CLEAN_FETCH_PATCH__ = true;
+    if (!window.__NIMBUS_FINAL_FETCH_PATCH__) {
+      window.__NIMBUS_FINAL_FETCH_PATCH__ = true;
 
       var nativeFetch = window.fetch.bind(window);
 
@@ -512,6 +474,9 @@ $('premiumComposer').addEventListener('submit',async e=>{
           "GET"
         ).toUpperCase();
 
+        /* ------------------------------------------------------
+           CHAT MEMORY + MODEL + SPEED
+           ------------------------------------------------------ */
         if (
           method === "POST" &&
           url.indexOf("/api/chat") >= 0 &&
@@ -522,31 +487,48 @@ $('premiumComposer').addEventListener('submit',async e=>{
             var payload = JSON.parse(init.body);
 
             payload.model = state.model || payload.model || "ror";
-            payload.memory_enabled = state.memoryEnabled !== false;
-            payload.speed_mode = "xhigh";
+            payload.memory_enabled = true;
+            payload.speed_mode = state.speedMode || "xhigh";
+            payload.chat_id = state.currentChatId || payload.chat_id || "";
 
-            if (state.memoryEnabled) {
-              var all = Array.isArray(state.messages)
-                ? state.messages.slice(0, -1)
-                : [];
+            var all = Array.isArray(state.messages)
+              ? state.messages.slice(0, -1)
+              : [];
 
-              payload.history = all
-                .map(function(m){
-                  return {
-                    role:
-                      String(m && m.role || "").toLowerCase() === "ai"
-                        ? "model"
-                        : "user",
-                    text: String(m && m.text || "").trim()
-                  };
-                })
-                .filter(function(m){
-                  return m.text;
-                })
-                .slice(-24);
-            } else {
-              payload.history = [];
-            }
+            var history = all
+              .map(function(m){
+                var role =
+                  String(m && m.role || "").toLowerCase();
+
+                return {
+                  role: role === "ai" || role === "assistant"
+                    ? "model"
+                    : "user",
+                  text: String(m && m.text || "").trim()
+                };
+              })
+              .filter(function(m){
+                return m.text;
+              })
+              .slice(-24);
+
+            payload.history = history;
+
+            /* Extra active-chat context for references such as:
+               "what have we done so far?"
+               "continue the quiz"
+               "what was my last answer?"
+            */
+            var transcript = history
+              .map(function(m){
+                return (m.role === "model" ? "Nimbus" : "User") +
+                  ": " + m.text;
+              })
+              .join("\n");
+
+            payload.conversation_memory =
+              "This is one continuous active chat. Continue from the conversation below. Do not reset the topic, quiz, task, or instructions. The user may refer to earlier turns without repeating them.\n\n" +
+              transcript.slice(0, 7000);
 
             init = Object.assign({}, init, {
               body: JSON.stringify(payload)
@@ -554,7 +536,9 @@ $('premiumComposer').addEventListener('submit',async e=>{
           } catch (_) {}
         }
 
-        /* FLUX: no readable text in artwork */
+        /* ------------------------------------------------------
+           FLUX: BLANK LEADER LINES, NO TEXT
+           ------------------------------------------------------ */
         if (
           method === "POST" &&
           url.indexOf("/api/visual") >= 0 &&
@@ -563,13 +547,18 @@ $('premiumComposer').addEventListener('submit',async e=>{
         ) {
           try {
             var visualPayload = JSON.parse(init.body);
-            var originalPrompt = String(visualPayload.prompt || "");
+            var originalPrompt = String(
+              visualPayload.prompt || ""
+            );
 
-            var rule =
-              "Create artwork only. Do not generate readable words, letters, numbers, labels, captions, logos, watermarks, signs, typography, or pseudo-writing anywhere in the image. Leave text areas blank.";
+            var noTextRule =
+              "Create a student-friendly educational diagram using shapes, arrows, icons, and BLANK LEADER LINES only. Do NOT render any readable words, letters, numbers, labels, captions, alphabetic characters, logos, watermarks, signs, typography, glyphs, pseudo-writing, handwriting, or text-like marks anywhere in the artwork. Every label area must be an empty line with no writing. Never attempt to spell words. The student will identify and label the structures themselves.";
 
-            if (originalPrompt.indexOf("Leave text areas blank.") < 0) {
-              visualPayload.prompt = rule + " " + originalPrompt;
+            if (
+              originalPrompt.indexOf("BLANK LEADER LINES only") < 0
+            ) {
+              visualPayload.prompt =
+                noTextRule + " " + originalPrompt;
 
               init = Object.assign({}, init, {
                 body: JSON.stringify(visualPayload)
@@ -582,75 +571,337 @@ $('premiumComposer').addEventListener('submit',async e=>{
       };
     }
 
-    /* Make model dropdown selection work */
-    if (!window.__NIMBUS_CLEAN_MODEL_PATCH__) {
-      window.__NIMBUS_CLEAN_MODEL_PATCH__ = true;
+    /* --------------------------------------------------------
+       SPEED MODES INSIDE THE CHAT COMPOSER
+       XHigh = 1 RPD
+       Rapid = 2 RPD
+       Super Rapid = 3 RPD
+       -------------------------------------------------------- */
+    state.speedMode =
+      localStorage.getItem("nimbus_speed_mode") || "xhigh";
+
+    if (
+      state.speedMode !== "xhigh" &&
+      state.speedMode !== "rapid" &&
+      state.speedMode !== "super-rapid"
+    ) {
+      state.speedMode = "xhigh";
+    }
+
+    if (!window.__NIMBUS_FINAL_SPEED_UI__) {
+      window.__NIMBUS_FINAL_SPEED_UI__ = true;
+
+      var sendBtn = document.getElementById("sendBtn");
+      var input = document.getElementById("messageInput");
+
+      var host =
+        (sendBtn && sendBtn.parentElement) ||
+        (input && input.parentElement);
+
+      if (host && !document.getElementById("nimbusSpeedControlFinal")) {
+        if (!host.style.position) {
+          host.style.position = "relative";
+        }
+
+        var speedWrap = document.createElement("div");
+        speedWrap.id = "nimbusSpeedControlFinal";
+
+        speedWrap.style.cssText =
+          "position:relative;display:inline-flex;align-items:center;margin-right:7px;flex:0 0 auto;";
+
+        speedWrap.innerHTML =
+          '<button type="button" id="nimbusSpeedBtnFinal" aria-haspopup="true" aria-expanded="false" style="' +
+          'border:1px solid rgba(124,92,255,.45);' +
+          'background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(0,210,255,.12));' +
+          'color:inherit;border-radius:10px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;' +
+          'white-space:nowrap;">XHigh ▾</button>' +
+
+          '<div id="nimbusSpeedMenuFinal" style="' +
+          'display:none;position:absolute;right:0;bottom:calc(100% + 8px);' +
+          'min-width:185px;padding:6px;border-radius:12px;' +
+          'background:rgba(22,24,32,.98);border:1px solid rgba(255,255,255,.12);' +
+          'box-shadow:0 14px 40px rgba(0,0,0,.35);z-index:100000;">' +
+
+          '<button type="button" data-speed="xhigh" style="' +
+          'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
+          '<span style="width:8px;height:8px;border-radius:50%;background:#7c5cff;"></span>' +
+          '<span style="flex:1"><b>XHigh</b><small style="display:block;opacity:.65;">Normal • 1 RPD</small></span>' +
+          '</button>' +
+
+          '<button type="button" data-speed="rapid" style="' +
+          'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
+          '<span style="width:8px;height:8px;border-radius:50%;background:#00d2ff;"></span>' +
+          '<span style="flex:1"><b>Rapid</b><small style="display:block;opacity:.65;">Faster • 2 RPD</small></span>' +
+          '</button>' +
+
+          '<button type="button" data-speed="super-rapid" style="' +
+          'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
+          '<span style="width:8px;height:8px;border-radius:50%;background:#ff4fd8;"></span>' +
+          '<span style="flex:1"><b>Super Rapid</b><small style="display:block;opacity:.65;">Fastest • 3 RPD</small></span>' +
+          '</button>' +
+
+          '</div>';
+
+        if (sendBtn) {
+          host.insertBefore(speedWrap, sendBtn);
+        } else {
+          host.appendChild(speedWrap);
+        }
+
+        var speedBtn =
+          document.getElementById("nimbusSpeedBtnFinal");
+
+        var speedMenu =
+          document.getElementById("nimbusSpeedMenuFinal");
+
+        function speedLabel(){
+          if (state.speedMode === "rapid") return "Rapid";
+          if (state.speedMode === "super-rapid") return "Super Rapid";
+          return "XHigh";
+        }
+
+        function syncSpeed(){
+          if (!speedBtn) return;
+          speedBtn.textContent = speedLabel() + " ▾";
+        }
+
+        if (speedBtn && speedMenu) {
+          speedBtn.addEventListener("click", function(e){
+            e.preventDefault();
+            e.stopPropagation();
+
+            var open =
+              speedMenu.style.display === "block";
+
+            speedMenu.style.display =
+              open ? "none" : "block";
+
+            speedBtn.setAttribute(
+              "aria-expanded",
+              String(!open)
+            );
+          });
+
+          speedMenu.addEventListener("click", function(e){
+            var option =
+              e.target &&
+              e.target.closest &&
+              e.target.closest("[data-speed]");
+
+            if (!option) return;
+
+            state.speedMode =
+              option.dataset.speed || "xhigh";
+
+            localStorage.setItem(
+              "nimbus_speed_mode",
+              state.speedMode
+            );
+
+            speedMenu.style.display = "none";
+            speedBtn.setAttribute(
+              "aria-expanded",
+              "false"
+            );
+
+            syncSpeed();
+          });
+
+          syncSpeed();
+        }
+
+        document.addEventListener("click", function(){
+          if (speedMenu) {
+            speedMenu.style.display = "none";
+            if (speedBtn) {
+              speedBtn.setAttribute(
+                "aria-expanded",
+                "false"
+              );
+            }
+          }
+        });
+      }
+    }
+
+    /* --------------------------------------------------------
+       RPD COST
+       -------------------------------------------------------- */
+    if (
+      typeof consumeLocalUsage === "function" &&
+      !window.__NIMBUS_FINAL_USAGE_PATCH__
+    ) {
+      window.__NIMBUS_FINAL_USAGE_PATCH__ = true;
+
+      consumeLocalUsage = function(){
+        var cost = 1;
+
+        if (state.speedMode === "rapid") {
+          cost = 2;
+        } else if (state.speedMode === "super-rapid") {
+          cost = 3;
+        }
+
+        state.used =
+          Math.min(
+            USAGE_LIMIT,
+            state.used + cost
+          );
+
+        updateUsage();
+      };
+    }
+
+    /* --------------------------------------------------------
+       MODEL DROPDOWN: FORCE CLICKABLE + VISIBLE
+       -------------------------------------------------------- */
+    if (!window.__NIMBUS_FINAL_MODEL_FIX__) {
+      window.__NIMBUS_FINAL_MODEL_FIX__ = true;
+
+      function getPicker(){
+        return (
+          document.getElementById("modelPickerBtn") ||
+          document.querySelector("#modelPicker button")
+        );
+      }
+
+      function getMenu(){
+        return document.getElementById("modelMenu");
+      }
+
+      function placeMenu(){
+        var picker = getPicker();
+        var menu = getMenu();
+
+        if (!picker || !menu) return;
+
+        var r = picker.getBoundingClientRect();
+
+        menu.style.position = "fixed";
+        menu.style.left = Math.round(r.left) + "px";
+        menu.style.top =
+          Math.round(r.bottom + 7) + "px";
+        menu.style.minWidth =
+          Math.max(220, Math.round(r.width)) + "px";
+        menu.style.zIndex = "2147483647";
+        menu.style.overflow = "visible";
+      }
+
+      function closeModelMenu(){
+        var menu = getMenu();
+        var picker = getPicker();
+
+        if (menu) {
+          menu.classList.add("hidden");
+          menu.style.display = "none";
+        }
+
+        if (picker) {
+          picker.setAttribute(
+            "aria-expanded",
+            "false"
+          );
+        }
+      }
 
       document.addEventListener("click", function(event){
+        var target = event.target;
+
         var option =
-          event.target &&
-          event.target.closest &&
-          event.target.closest("#modelMenu [data-model]");
+          target &&
+          target.closest &&
+          target.closest("#modelMenu [data-model]");
 
         if (option) {
           event.preventDefault();
           event.stopImmediatePropagation();
 
-          state.model = option.dataset.model || "ror";
-          localStorage.setItem("nimbus_model", state.model);
+          state.model =
+            option.dataset.model || "ror";
+
+          localStorage.setItem(
+            "nimbus_model",
+            state.model
+          );
 
           if (typeof renderModels === "function") {
             renderModels();
           }
 
-          var menu = document.getElementById("modelMenu");
-          var picker = document.getElementById("modelPickerBtn");
+          closeModelMenu();
+          return;
+        }
 
-          if (menu) {
-            menu.classList.add("hidden");
-            menu.style.display = "none";
-          }
+        var picker = getPicker();
 
-          if (picker) {
-            picker.setAttribute("aria-expanded", "false");
+        if (
+          picker &&
+          target &&
+          (target === picker ||
+           (target.closest && target.closest("#modelPickerBtn") === picker))
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+
+          var menu = getMenu();
+          if (!menu) return;
+
+          var opening =
+            menu.classList.contains("hidden") ||
+            window.getComputedStyle(menu).display === "none";
+
+          if (opening) {
+            menu.classList.remove("hidden");
+            menu.style.display = "block";
+            menu.style.visibility = "visible";
+            placeMenu();
+
+            picker.setAttribute(
+              "aria-expanded",
+              "true"
+            );
+          } else {
+            closeModelMenu();
           }
 
           return;
         }
 
-        var pickerBtn =
-          event.target &&
-          event.target.closest &&
-          event.target.closest("#modelPickerBtn");
+        var menu = getMenu();
 
-        if (pickerBtn) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-
-          var modelMenu =
-            document.getElementById("modelMenu");
-
-          if (!modelMenu) return;
-
-          var opening =
-            modelMenu.classList.contains("hidden") ||
-            window.getComputedStyle(modelMenu).display === "none";
-
-          modelMenu.classList.toggle("hidden", !opening);
-          modelMenu.style.display = opening ? "" : "none";
-
-          pickerBtn.setAttribute(
-            "aria-expanded",
-            String(opening)
-          );
+        if (
+          menu &&
+          target &&
+          !(target.closest && target.closest("#modelMenu"))
+        ) {
+          closeModelMenu();
         }
       }, true);
+
+      window.addEventListener("resize", placeMenu);
+      window.addEventListener("scroll", placeMenu, true);
+
+      var picker = getPicker();
+
+      if (picker) {
+        picker.style.pointerEvents = "auto";
+        picker.style.position = "relative";
+        picker.style.zIndex = "2147483646";
+        picker.setAttribute(
+          "aria-expanded",
+          "false"
+        );
+      }
     }
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", install, {once:true});
+    document.addEventListener(
+      "DOMContentLoaded",
+      installNimbusFinalFix,
+      {once:true}
+    );
   } else {
-    install();
+    installNimbusFinalFix();
   }
 })();
