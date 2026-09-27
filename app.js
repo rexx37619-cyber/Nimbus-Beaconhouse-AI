@@ -1322,3 +1322,36 @@ $('premiumComposer').addEventListener('submit',async e=>{
   },250);
 
 })();
+
+/* NIMTRON SIDEBAR LINK V1 */
+(function(){
+  function installNimTronSidebarLink(){
+    var newChat=document.getElementById("newChat");
+    if(!newChat || document.getElementById("nimtronSidebarBtn")) return;
+
+    var style=document.createElement("style");
+    style.id="nimtron-sidebar-style";
+    style.textContent=
+      "#nimtronSidebarBtn{margin-top:7px;border:1px solid rgba(65,223,255,.34);background:linear-gradient(135deg,rgba(65,223,255,.12),rgba(65,223,255,.03));color:#41dfff}" +
+      "#nimtronSidebarBtn:hover{border-color:rgba(65,223,255,.72);box-shadow:0 0 18px rgba(65,223,255,.10)}";
+    document.head.appendChild(style);
+
+    var btn=document.createElement("button");
+    btn.type="button";
+    btn.id="nimtronSidebarBtn";
+    btn.className=newChat.className;
+    btn.title="Open NimTron Desktop Companion";
+    btn.innerHTML="<span>◈</span> NimTron";
+    btn.addEventListener("click",function(){
+      window.location.href="/nimtron.html";
+    });
+
+    newChat.insertAdjacentElement("afterend",btn);
+  }
+
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded",installNimTronSidebarLink,{once:true});
+  }else{
+    installNimTronSidebarLink();
+  }
+})();

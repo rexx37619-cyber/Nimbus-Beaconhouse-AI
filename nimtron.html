@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NimTron — Nimbus Desktop Companion</title>
+<style>
+:root{--bg:#030609;--panel:#071017;--line:rgba(65,223,255,.18);--cyan:#41dfff;--text:#eefcff;--muted:#8fa7b3;--green:#5dffb0}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;background:radial-gradient(circle at 50% 0%,#0b1c25 0,#030609 45%);color:var(--text)}
+body{display:flex;align-items:center;justify-content:center;padding:28px}
+.wrap{width:min(980px,100%)}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.back{color:var(--cyan);text-decoration:none;font-weight:700}.badge{font:12px monospace;color:var(--cyan);border:1px solid var(--line);padding:7px 10px;border-radius:999px}
+.hero,.panel{background:rgba(7,16,23,.92);border:1px solid var(--line);border-radius:22px;box-shadow:0 20px 70px rgba(0,0,0,.35)}
+.hero{padding:36px}.eyebrow{font:12px monospace;letter-spacing:.16em;color:var(--cyan)}h1{font-size:clamp(42px,8vw,78px);line-height:.95;margin:12px 0}h2{margin-top:0}p{color:var(--muted);line-height:1.7}.tagline{font-size:18px;max-width:720px}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:24px 0}.feature{padding:15px;border:1px solid rgba(65,223,255,.12);border-radius:14px;background:rgba(65,223,255,.035);font-weight:700}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}.btn{display:inline-flex;align-items:center;justify-content:center;padding:13px 18px;border-radius:12px;text-decoration:none;font-weight:800;border:1px solid var(--cyan);cursor:pointer}.primary{background:var(--cyan);color:#001116}.secondary{background:transparent;color:var(--cyan)}
+.panel{padding:24px;margin-top:16px}.steps{display:grid;gap:10px}.step{padding:13px 15px;border-left:3px solid var(--cyan);background:rgba(65,223,255,.035)}code{font-family:monospace;color:var(--cyan)}
+.status{font-size:12px;color:var(--green);margin-top:18px}.hash{font:11px monospace;word-break:break-all;color:#91a9b5}.warning{border-left:3px solid #ffc75b;padding:12px 14px;background:rgba(255,199,91,.05);color:#c8d2d7}
+.hidden{display:none!important}@media(max-width:600px){body{padding:14px}.hero{padding:24px}.top{align-items:flex-start;gap:10px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <a class="back" href="/">← Back to Nimbus</a>
+    <span class="badge">NIMBUS COMPANION</span>
+  </div>
+
+  <section class="hero">
+    <div class="eyebrow">DESKTOP COMPANION • WINDOWS</div>
+    <h1>NimTron</h1>
+    <p class="tagline">Voice control, vision, hand gestures, local device control, coding assistance and project memory — built as the desktop companion to Nimbus.</p>
+
+    <div class="features">
+      <div class="feature">Voice control</div>
+      <div class="feature">Vision</div>
+      <div class="feature">Hand gestures</div>
+      <div class="feature">Device control</div>
+      <div class="feature">Coding copilot</div>
+      <div class="feature">Project memory</div>
+    </div>
+
+    <div id="windowsOnly">
+      <div class="actions">
+        <a id="downloadBtn" class="btn primary" href="https://github.com/rexx37619-cyber/Nimbus-Beaconhouse-AI/releases/download/v1.0.0/NimTron-Desktop-v1.0.0.zip" download>DOWNLOAD NIMTRON</a>
+        <a id="releaseBtn" class="btn secondary" href="https://github.com/rexx37619-cyber/Nimbus-Beaconhouse-AI/releases/tag/v1.0.0" target="_blank" rel="noopener">View release</a>
+      </div>
+      <div class="status">Version <span id="version">1.0.0</span> • Windows build</div>
+      <div class="hash">SHA-256: <span id="hash">3afc0f077ca40a8e46d82476ba41ed11823850dea05c9d6f5c654fba19434ffb</span></div>
+    </div>
+
+    <div id="nonWindows" class="hidden">
+      <p><strong>Windows build available.</strong> More platforms can be added later.</p>
+    </div>
+
+    <p class="warning"><strong>Windows SmartScreen:</strong> because this build is unsigned, Windows may show an “unknown publisher” warning. That can occur with unsigned applications.</p>
+
+    <p class="status">NimTron is a Nimbus project designed with a Beaconhouse-focused student experience.</p>
+  </section>
+
+  <section class="panel">
+    <h2>How to launch NimTron</h2>
+    <p>Download the ZIP and extract it completely before launching the app.</p>
+    <div class="steps">
+      <div class="step">1. Download <code>NimTron-Desktop</code>.</div>
+      <div class="step">2. Extract the ZIP.</div>
+      <div class="step">3. Open the extracted <code>dist</code> folder.</div>
+      <div class="step">4. Open <code>win-unpacked</code>.</div>
+      <div class="step">5. Double-click <code>NimTron.exe</code>.</div>
+    </div>
+    <p>Keep the entire <code>win-unpacked</code> folder together. Do not move only the EXE by itself.</p>
+  </section>
+
+  <section class="panel">
+    <h2>System requirements</h2>
+    <p>Windows 10/11 • approximately 200 MB installed size • microphone and camera optional • internet connection required for AI features.</p>
+  </section>
+</main>
+
+<script>
+(function(){
+  var isWindows=/Windows/i.test(navigator.userAgent);
+  var win=document.getElementById('windowsOnly');
+  var nonWin=document.getElementById('nonWindows');
+  if(!isWindows){win.classList.add('hidden');nonWin.classList.remove('hidden');}
+
+  fetch('/nimtron-version.json',{cache:'no-store'})
+    .then(function(r){return r.ok?r.json():Promise.reject(new Error('manifest unavailable'));})
+    .then(function(m){
+      if(m.version)document.getElementById('version').textContent=m.version;
+      if(m.sha256&&m.sha256.package)document.getElementById('hash').textContent=m.sha256.package;
+      if(m.package_url)document.getElementById('downloadBtn').href=m.package_url;
+      if(m.release_url)document.getElementById('releaseBtn').href=m.release_url;
+    })
+    .catch(function(){});
+})();
+</script>
+</body>
+</html>

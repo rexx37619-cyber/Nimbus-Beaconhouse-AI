@@ -1,0 +1,12 @@
+{
+    "protocol":  "nimbus",
+    "product":  "nimtron",
+    "version":  "1.0.0",
+    "channel":  "stable",
+    "package_url":  "https://github.com/rexx37619-cyber/Nimbus-Beaconhouse-AI/releases/download/v1.0.0/NimTron-Desktop-v1.0.0.zip",
+    "release_url":  "https://github.com/rexx37619-cyber/Nimbus-Beaconhouse-AI/releases/tag/v1.0.0",
+    "sha256":  {
+                   "package":  "3afc0f077ca40a8e46d82476ba41ed11823850dea05c9d6f5c654fba19434ffb"
+               },
+    "release_notes":  "Windows unpacked NimTron build. Extract the ZIP, open dist, then win-unpacked, then run NimTron.exe."
+}
