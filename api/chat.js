@@ -1,4 +1,4 @@
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+﻿const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'openrouter/free';
 const DEFAULT_CHAT_MODEL = 'gemini-3.5-flash-lite';
@@ -17,7 +17,7 @@ const SCIENCE_FALLBACK_TIMEOUT_MS = 18000;
 const MAX_OUTPUT_TOKENS = 750;
 
 const BEACONHOUSE_KNOWLEDGE = `
-BEACONHOUSE PUBLIC KNOWLEDGE â€” CURATED REFERENCES
+BEACONHOUSE PUBLIC KNOWLEDGE Ã¢â‚¬â€ CURATED REFERENCES
 Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. Do not claim Beaconhouse owns, endorses, or operates Nimbus unless an official source specifically supports that claim.
 Useful official references:
 - Main site: https://www.beaconhouse.net/
@@ -59,8 +59,8 @@ NORMAL CHAT:
 
 EDUCATIONAL FORMAT:
 For an educational/schoolwork question, use exactly these sections when possible:
-Keywords: 5â€“10 concise topic terms.
-Answer structure: 2â€“5 short steps or points the student can use to construct an answer.
+Keywords: 5Ã¢â‚¬â€œ10 concise topic terms.
+Answer structure: 2Ã¢â‚¬â€œ5 short steps or points the student can use to construct an answer.
 Key fact (8 shuffled words): exactly 8 separate topic-relevant words, shuffled/varied in order, not a sentence.
 Do not produce a polished ready-to-submit essay for ordinary schoolwork.
 
@@ -199,7 +199,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]|Ã·|Ã—)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|ÃƒÂ·|Ãƒâ€”)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -273,7 +273,7 @@ function extractSources(data) {
 }
 
 function stripBullet(text) {
-  return String(text || '').replace(/^\s*[-*â€¢]\s*/gm, '').trim();
+  return String(text || '').replace(/^\s*[-*Ã¢â‚¬Â¢]\s*/gm, '').trim();
 }
 
 function pickEightWords(answer, question) {
@@ -297,17 +297,25 @@ function pickEightWords(answer, question) {
 
 function enforceEducationalFormat(answer, question) {
   let text = stripBullet(cleanText(answer));
-  if (!/\bKeywords\s*:/i.test(text)) {
-    text = `Keywords: ${pickEightWords(text, question).slice(0, 6).join(', ')}\n\n${text}`;
-  }
-  if (!/\bAnswer structure\s*:/i.test(text)) {
-    text = text.replace(/(Keywords:[^\n]*(?:\n|$))/, '$1\nAnswer structure: identify the concept, state the main function or idea, explain the key relationship or steps, and give one useful example.\n\n');
-  }
-  const eight = pickEightWords(text, question);
-  const withoutOld = text.replace(/Key fact\s*\(8\s*shuffled\s*words\)\s*:[^\n]*/i, '').trim();
-  const explanationIndex = withoutOld.search(/\bExplanation\s*:/i);
-  const head = explanationIndex >= 0 ? withoutOld.slice(0, explanationIndex).trim() : withoutOld;
-  return `${head}\n\nKey fact (8 shuffled words): ${eight.join(' ')}`.trim();
+
+  text = text
+    .replace(/^\s*Keywords\s*:[^\n]*\n?/gim, '')
+    .replace(/^\s*Answer\s*Structure\s*:[^\n]*\n?/gim, '')
+    .replace(/^\s*Key\s*Fact\s*\(8\s*shuffled\s*words\)\s*:[^\n]*\n?/gim, '')
+    .trim();
+
+  const keywordWords = pickEightWords(`${question} ${text}`, question).slice(0, 8);
+  const structure = 'Define it; state function; explain key steps; give an example.';
+  const eight = pickEightWords(`${question} ${text}`, question).slice(0, 8);
+
+  return [
+    `Keywords: ${keywordWords.join(', ')}`,
+    `Answer Structure: ${structure}`,
+    '',
+    text,
+    '',
+    `Key Fact (8 shuffled words): ${eight.join(' ')}`
+  ].join('\n').trim();
 }
 
 function buildSystemInstruction({ science, educational, sourceMode = false, beaconhouse = false, history = false }) {
@@ -537,7 +545,7 @@ export default async function handler(req, res) {
     if (isCasualMessage(userText)) {
       return res.status(200).json({
         ok: true,
-        reply: "Hey! 👋 I'm Nimbus. What are we learning today?",
+        reply: "Hey! ðŸ‘‹ I'm Nimbus. What are we learning today?",
         auto_visual: false,
         visual: null,
         model: body.model || 'ror',
@@ -728,3 +736,4 @@ export default async function handler(req, res) {
     });
   }
 }
+

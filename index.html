@@ -1,12 +1,12 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <meta name="google-site-verification" content="Bko66mzaW98t7yTDm68y99nTxS_62CWFn4Gl3XQIhQg" />
-<meta name="description" content="Nimbus — Beaconhouse Intelligence, a student-focused educational AI workspace.">
-<title>Nimbus — Beaconhouse Intelligence</title>
+<meta name="description" content="Nimbus â€” Beaconhouse Intelligence, a student-focused educational AI workspace.">
+<title>Nimbus â€” Beaconhouse Intelligence</title>
 <link rel="stylesheet" href="/styles.css">
 <script src="https://js.puter.com/v2/"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,14 +16,14 @@
   <aside class="sidebar" id="sidebar">
     <div class="side-top">
       <div class="brand"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><strong>NIMBUS</strong><span>Beaconhouse Intelligence</span></div></div>
-      <button id="newChat" class="new-chat"><span>＋</span> New chat</button>
+      <button id="newChat" class="new-chat"><span>ï¼‹</span> New chat</button>
       <div class="history-title"><span>Recent</span><button id="clearAll" title="Clear recent chats">Clear</button></div>
       <div id="chatHistory" class="history"></div>
     </div>
     <div class="side-bottom">
       <button class="side-action" id="helpBtn"><span>?</span><div><b>Help & info</b><small>Nimbus & Beaconhouse</small></div></button>
       <button class="account" id="accountBtn">
-        <div id="accountAvatar">B</div><div class="account-copy"><b id="accountName">Beaconhouse student</b><small id="accountId">Educational ID</small></div><span>⋯</span>
+        <div id="accountAvatar">B</div><div class="account-copy"><b id="accountName">Beaconhouse student</b><small id="accountId">Educational ID</small></div><span>â‹¯</span>
       </button>
     </div>
   </aside>
@@ -31,13 +31,13 @@
   <main class="main">
     <header class="topbar">
       <div class="top-left">
-        <button id="mobileMenu" class="mobile-menu">☰</button>
-        <button id="desktopSidebarToggle" class="sidebar-toggle" title="Hide sidebar">☰</button>
+        <button id="mobileMenu" class="mobile-menu">â˜°</button>
+        <button id="desktopSidebarToggle" class="sidebar-toggle" title="Hide sidebar">â˜°</button>
         <span class="page-brand">Nimbus</span>
         <button class="premium-chip" id="premiumModelsBtn" type="button" title="Nimbus 5.7 Lor premium model"><span class="premium-dot"></span> Premium Models</button>
         <div class="model-picker" id="modelPicker">
           <button id="modelPickerBtn" class="model-picker-btn" aria-expanded="false">
-            <img class="model-logo" src="/assets/nimbus-logo.png" alt=""><span id="activeModelLabel">Nimbus 4.5 ROR</span><span class="model-chevron">⌄</span>
+            <img class="model-logo" src="/assets/nimbus-logo.png" alt=""><span id="activeModelLabel">Nimbus 4.5 ROR</span><span class="model-chevron">âŒ„</span>
           </button>
           <div id="modelMenu" class="model-menu hidden"></div>
         </div>
@@ -57,10 +57,10 @@
           <h1>What can I help you learn?</h1>
           <p>Ask Nimbus anything about your studies, attach work, or start a focused learning session.</p>
           <div class="suggestions">
-            <button data-prompt="Explain this topic in a simple way, then give me 3 practice questions."><span>✦</span><b>Explain a topic</b><small>Learn it clearly</small></button>
-            <button data-prompt="Help me make a revision plan for my next test."><span>◈</span><b>Build a study plan</b><small>Revise smarter</small></button>
-            <button data-prompt="Quiz me one question at a time and wait for my answer before continuing."><span>◉</span><b>Start a quiz</b><small>Practice actively</small></button>
-            <button data-prompt="I am attaching school work. Analyse it and tell me what I should focus on."><span>⌁</span><b>Study a file</b><small>Upload & understand</small></button>
+            <button data-prompt="Explain this topic in a simple way, then give me 3 practice questions."><span>âœ¦</span><b>Explain a topic</b><small>Learn it clearly</small></button>
+            <button data-prompt="Help me make a revision plan for my next test."><span>â—ˆ</span><b>Build a study plan</b><small>Revise smarter</small></button>
+            <button data-prompt="Quiz me one question at a time and wait for my answer before continuing."><span>â—‰</span><b>Start a quiz</b><small>Practice actively</small></button>
+            <button data-prompt="I am attaching school work. Analyse it and tell me what I should focus on."><span>âŒ</span><b>Study a file</b><small>Upload & understand</small></button>
           </div>
         </div>
 
@@ -73,10 +73,11 @@
           </div>
           <div id="attachment" class="attachment hidden"></div>
           <form id="composer" class="composer" autocomplete="off">
-            <button type="button" id="attachBtn" class="icon-btn" title="Attach a file">＋</button>
+            <button type="button" id="attachBtn" class="icon-btn" title="Attach a file">ï¼‹</button>
+<button type="button" id="visualBtn" class="icon-btn visual-btn" title="Create an educational visual" aria-label="Create an educational visual">✦</button>
             <input type="file" id="fileInput" hidden accept=".pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp">
-            <textarea id="messageInput" rows="1" placeholder="Message Nimbus…"></textarea>
-            <button type="submit" id="sendBtn" class="send-btn" title="Send">↑</button>
+            <textarea id="messageInput" rows="1" placeholder="Message Nimbusâ€¦"></textarea>
+            <button type="submit" id="sendBtn" class="send-btn" title="Send">â†‘</button>
           </form>
           <div class="composer-note">Nimbus can make mistakes. Verify important school information with a teacher or official Beaconhouse source.</div>
         </div>
@@ -100,21 +101,21 @@
   </div>
 </div>
 
-<div id="menuModal" class="modal-backdrop hidden"><div class="account-menu"><button id="closeMenu" class="close">×</button><div class="menu-head"><div id="menuAvatar">B</div><div><b id="menuName">Beaconhouse student</b><span id="menuId">Educational ID</span></div></div><button id="ownerBtn" class="menu-item">Owner workspace <span>→</span></button><button id="signOut" class="menu-item">Sign out <span>→</span></button></div></div>
+<div id="menuModal" class="modal-backdrop hidden"><div class="account-menu"><button id="closeMenu" class="close">Ã—</button><div class="menu-head"><div id="menuAvatar">B</div><div><b id="menuName">Beaconhouse student</b><span id="menuId">Educational ID</span></div></div><button id="ownerBtn" class="menu-item">Owner workspace <span>â†’</span></button><button id="signOut" class="menu-item">Sign out <span>â†’</span></button></div></div>
 
 <div id="infoModal" class="modal-backdrop hidden">
   <div class="info-card">
-    <button id="closeInfo" class="close">×</button>
+    <button id="closeInfo" class="close">Ã—</button>
     <div class="info-hero">
       <img src="/assets/nimbus-logo.png" alt="Nimbus">
       <div><div class="eyebrow">NIMBUS 4.5 ROR</div><h2>Rapid learning intelligence</h2><p>Rapid Nimbus behavior with a Google-powered engine.</p></div>
     </div>
     <div class="info-profile">
-      <div class="info-person"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><b>Nimbus</b><span>4.5 ROR • Rapid model</span></div></div>
+      <div class="info-person"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><b>Nimbus</b><span>4.5 ROR â€¢ Rapid model</span></div></div>
       <div class="info-person"><img src="/assets/beaconhouse-logo.png" alt="Beaconhouse"><div><b>Beaconhouse context</b><span>Public educational resources</span></div></div>
     </div>
     <div class="info-section"><h3>About Nimbus 4.5 ROR</h3><p>Nimbus 4.5 ROR is the rapid Nimbus release with ultra modifications for quick educational responses, broad question answering, Beaconhouse context, attachments, coding help and file-ready outputs.</p></div>
-    <div class="info-section"><h3>Founder</h3><p><b>Abdul Haadi Hassan</b> — founder and developer of Nimbus. Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer.</p></div>
+    <div class="info-section"><h3>Founder</h3><p><b>Abdul Haadi Hassan</b> â€” founder and developer of Nimbus. Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer.</p></div>
     <div class="info-section"><h3>Files & exports</h3><p>Nimbus can prepare study sheets, formatted answers, code, text files and PDF-ready responses. Use the export controls on AI answers to copy, save text, or print/save an answer as PDF.</p></div>
     <div class="info-section"><h3>Beaconhouse official resources</h3><div id="resourceLinks" class="resource-grid"></div></div>
   </div>
@@ -122,7 +123,7 @@
 
 <div id="ownerModal" class="modal-backdrop hidden">
   <div class="owner-card">
-    <button id="closeOwner" class="close">×</button>
+    <button id="closeOwner" class="close">Ã—</button>
     <div class="eyebrow">PRIVATE OWNER AREA</div><h2>Workspace control</h2><p>Only the two owner emails configured on your server can enter this dashboard.</p>
     <label for="ownerEmail">Owner email</label><input id="ownerEmail" type="email" placeholder="you@example.com" autocomplete="email">
     <button id="ownerLogin" class="primary">Verify owner email</button><div id="ownerMsg" class="owner-msg"></div>
@@ -133,21 +134,21 @@
 
 <div id="premiumModal" class="modal-backdrop hidden">
   <div class="premium-card">
-    <button id="closePremium" class="close">×</button>
+    <button id="closePremium" class="close">Ã—</button>
     <div class="premium-hero">
       <img src="/assets/nimbus-logo.png" alt="Nimbus">
       <div><div class="eyebrow">PREMIUM MODELS</div><h2>Nimbus 5.7 Lor</h2><p>Puter-powered premium AI access. The provider model is selected through Puter.js.</p></div>
     </div>
     <div class="premium-model-row">
-      <div><b>Nimbus 5.7 Lor</b><span>Premium agent • Puter-powered</span></div>
-      <span id="premiumStatus" class="premium-status">Checking availability…</span>
+      <div><b>Nimbus 5.7 Lor</b><span>Premium agent â€¢ Puter-powered</span></div>
+      <span id="premiumStatus" class="premium-status">Checking availabilityâ€¦</span>
     </div>
-    <div class="premium-price-row"><div><b>$10 / 1M input • $50 / 1M output</b><span>Provider list price; billing is handled by Puter’s User-Pays system.</span></div><a class="premium-buy" href="https://puter.com" target="_blank" rel="noopener noreferrer">Buy / manage in Puter ↗</a></div>
-    <div class="visual-model-row"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><b>Nano Banana 2</b><span>Diagrams • flowcharts • concept visuals</span></div><span class="premium-status">Visual model</span></div>
+    <div class="premium-price-row"><div><b>$10 / 1M input â€¢ $50 / 1M output</b><span>Provider list price; billing is handled by Puterâ€™s User-Pays system.</span></div><a class="premium-buy" href="https://puter.com" target="_blank" rel="noopener noreferrer">Buy / manage in Puter â†—</a></div>
+    <div class="visual-model-row"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><b>Nano Banana 2</b><span>Diagrams â€¢ flowcharts â€¢ concept visuals</span></div><span class="premium-status">Visual model</span></div>
     <div id="premiumMessages" class="premium-messages"></div>
     <form id="premiumComposer" class="composer premium-composer" autocomplete="off">
-      <textarea id="premiumInput" rows="2" placeholder="Ask Nimbus 5.7 Lor…"></textarea>
-      <button type="submit" class="send-btn">↑</button>
+      <textarea id="premiumInput" rows="2" placeholder="Ask Nimbus 5.7 Lorâ€¦"></textarea>
+      <button type="submit" class="send-btn">â†‘</button>
     </form>
     <div class="composer-note">Premium AI is provided through Puter.js; availability depends on the models Puter currently exposes to your account.</div>
   </div>
@@ -156,3 +157,5 @@
 <script>(async()=>{try{const r=await fetch('/site-layout.json',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const root=document.documentElement;root.style.setProperty('--nimbus-accent',d.accent||'#6d5dfc');root.style.setProperty('--nimbus-accent-2',d.accent2||'#22b8cf');root.style.setProperty('--nimbus-radius',(d.radius||18)+'px');document.body.style.fontFamily=`"${d.font||'Plus Jakarta Sans'}",Inter,system-ui,sans-serif`;document.body.dataset.nimbusDensity=d.density||'balanced';}catch(e){}})();</script>
 </body>
 </html>
+
+
