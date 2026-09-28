@@ -72,7 +72,31 @@
             <div class="usage-track"><div id="usageBar" class="usage-bar" style="width:0%"></div></div>
           </div>
           <div id="attachment" class="attachment hidden"></div>
-          <form id="composer" class="composer" autocomplete="off">
+          <!-- NIMBUS_COMPOSER_MODES_V7 -->
+          <div id="nimbusComposerModesV7" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:8px 0">
+            <button type="button" id="nimbusMemoryToggleV7" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">Memory: ON</button>
+            <span style="font:600 11px/1 system-ui,-apple-system,sans-serif;opacity:.65;margin-left:3px">Speed</span>
+            <button type="button" class="nimbus-speed-v7" data-nimbus-speed-v7="rapid" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">Rapid</button>
+            <button type="button" class="nimbus-speed-v7" data-nimbus-speed-v7="xhigh" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">XHigh</button>
+            <button type="button" class="nimbus-speed-v7" data-nimbus-speed-v7="max" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">Max</button>
+          </div>
+<!-- NIMBUS_COMPOSER_MODES_V9 -->
+          <div id="nimbusComposerModesV9" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:8px 0">
+            <button type="button" id="nimbusMemoryToggleV9" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">Memory: ON</button>
+            <span style="font:600 11px/1 system-ui,-apple-system,sans-serif;opacity:.65;margin-left:3px">Speed</span>
+            <button type="button" class="nimbus-speed-v9" data-nimbus-speed-v9="rapid" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">Rapid</button>
+            <button type="button" class="nimbus-speed-v9" data-nimbus-speed-v9="xhigh" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">XHigh</button>
+            <button type="button" class="nimbus-speed-v9" data-nimbus-speed-v9="max" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">Max</button>
+          </div>
+<!-- NIMBUS_COMPOSER_MODES_V10 -->
+          <div id="nimbusComposerModesV10" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:8px 0">
+            <button type="button" id="nimbusMemoryToggleV10" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">Memory: ON</button>
+            <span style="font:600 11px/1 system-ui,-apple-system,sans-serif;opacity:.65;margin-left:3px">Speed</span>
+            <button type="button" class="nimbus-speed-v10" data-nimbus-speed-v10="rapid" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">Rapid</button>
+            <button type="button" class="nimbus-speed-v10" data-nimbus-speed-v10="xhigh" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">XHigh</button>
+            <button type="button" class="nimbus-speed-v10" data-nimbus-speed-v10="max" style="border:1px solid rgba(120,120,160,.24);background:transparent;border-radius:9px;padding:6px 10px;cursor:pointer">Max</button>
+          </div>
+<form id="composer" class="composer" autocomplete="off">
             <button type="button" id="attachBtn" class="icon-btn" title="Attach a file">ï¼‹</button>
 <button type="button" id="visualBtn" class="icon-btn visual-btn" title="Create an educational visual" aria-label="Create an educational visual">✦</button>
             <input type="file" id="fileInput" hidden accept=".pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp">
@@ -157,5 +181,4 @@
 <script>(async()=>{try{const r=await fetch('/site-layout.json',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const root=document.documentElement;root.style.setProperty('--nimbus-accent',d.accent||'#6d5dfc');root.style.setProperty('--nimbus-accent-2',d.accent2||'#22b8cf');root.style.setProperty('--nimbus-radius',(d.radius||18)+'px');document.body.style.fontFamily=`"${d.font||'Plus Jakarta Sans'}",Inter,system-ui,sans-serif`;document.body.dataset.nimbusDensity=d.density||'balanced';}catch(e){}})();</script>
 </body>
 </html>
-
 

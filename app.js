@@ -1,4 +1,4 @@
-﻿const MODELS={
+const MODELS={
   ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid â€¢ Ultra modifications'},
   legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'},
   'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams â€¢ Flowcharts â€¢ Visuals'}
@@ -263,26 +263,6 @@ function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
 function looksLikeSchoolWork(text){const s=String(text||'').toLowerCase();return /(homework|assignment|classwork|worksheet|study|studying|notes|revision|revise|exam|test|quiz|project|school|lesson|chapter|topic|explain|how does|why does|define|difference between|compare|biology|chemistry|physics|math|mathematics|history|geography|computer|programming|coding|python|javascript|html|css|lua|roblox|game|flowchart|diagram|concept map|process|steps)/i.test(s);}
-function shouldAutoVisualizeClient(text){
-  const s = String(text || '').trim();
-  if (!s) return false;
-
-  // Never auto-generate for casual chat.
-  if (/^(?:hi|hello|hey|yo|sup|thanks|thank you|ok|okay|bye|good morning|good afternoon|good evening|good night|who are you|what is nimbus|what can you do)[!.?\s]*$/i.test(s)) {
-    return false;
-  }
-
-  // Never auto-generate for Beaconhouse information questions.
-  if (/\b(?:beaconhouse|bisc|beams|prism|rise|lap|boss|book\s*list|booklist|campus|admissions?|competition)\b/i.test(s)) {
-    return false;
-  }
-
-  const academicSubject = /\b(?:biology|chemistry|physics|science|respiration|breathing|lungs?|heart|circulation|digestion|enzyme(?:s)?|photosynthesis|diaphragm|muscle(?:s)?|joint(?:s)?|skeleton|cell(?:s)?|tissue(?:s)?|ecosystem(?:s)?|food\s+chain|food\s+web|diffusion|aerobic|anaerobic|electricity|circuit(?:s)?|force(?:s)?|energy|heat|temperature|density|pressure|friction|gravity|atom(?:s)?|molecule(?:s)?|matter|reaction(?:s)?|algebra|equation(?:s)?|fraction(?:s)?|geometry|ratio|percentage|probability|statistics|history|geography|civilization|empire|timeline|map(?:s)?|coding|programming|algorithm(?:s)?|computer\s+science|ict|class\s*\d+|grade\s*\d+|homework|schoolwork|lesson|chapter)\b/i.test(s);
-
-  const learningIntent = /\b(?:what\s+is|what\s+are|what\s+does|what\s+do|explain|describe|define|how\s+does|how\s+do|why\s+does|why\s+do|difference\s+between|compare|function\s+of|purpose\s+of|types?\s+of|process|steps?|sequence|solve|calculate|show|diagram|visuali[sz]e|illustrate|illustration|flowchart|picture|image|chart)\b/i.test(s);
-
-  return academicSubject && learningIntent;
-}
 function makeAutoVisualPrompt(userText,answerText){return `Create a polished professional 16:9 educational visual for this schoolwork request. Make it realistic, visually rich, colorful, presentation-quality, with meaningful subject imagery, icons, clear hierarchy, varied shapes, depth/lighting, clean arrows and short readable labels. Do not make a plain text-only diagram or a generic set of boxes. Use concise keywords rather than paragraphs. Topic/request: ${userText}. Key answer context: ${String(answerText||'').slice(0,1600)}. If it is code or game-development help, visualize the logic, system architecture, mechanics, or steps instead of reproducing long code.`;}
 async function generateVisual(prompt,meta={}){
   const card=createVisualCard(meta);
@@ -330,7 +310,7 @@ async function sendMessage(text){
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
     let reply=data.reply||'Nimbus did not return a response.';
-    if(data.visual?.prompt || shouldAutoVisualizeClient(text)){
+    if(data.visual?.prompt || looksLikeSchoolWork(text) || /(flowchart|diagram|draw|image|visual|illustration|mind map|concept map|show me|make a chart)/i.test(String(text||''))){
       const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
       const vtitle=data.visual?.title||'Study visual';
       const vkeywords=data.visual?.keywords||'keywords â€¢ labels â€¢ key concepts â€¢ arrows';
@@ -350,38 +330,22 @@ $('messageInput').addEventListener('input',()=>{const el=$('messageInput');el.st
 $('attachBtn').onclick=()=>$('fileInput').click();
 $('visualBtn').onclick=async()=>{
   const topic=$('messageInput').value.trim();
-
-  if(!topic){
-    $('messageInput').focus();
-    return;
-  }
-
-  if(state.used>=USAGE_LIMIT){
-    add('ai',`Daily limit reached. Your 24-hour window resets in ${usageTimeLeft()}.`);
-    return;
-  }
-
+  if(!topic){$('messageInput').focus();return;}
+  if(state.used>=USAGE_LIMIT){add('ai',`Daily limit reached. Your 24-hour window resets in ${usageTimeLeft()}.`);return;}
   ensureChat(topic);
   add('user',topic);
-
   $('messageInput').value='';
   $('messageInput').style.height='auto';
   setAgentThinking(true);
-
   try{
     await generateVisual(
       `Create a clean, topic-specific educational visual for this student learning request.
 Topic: ${topic}
-Use accurate subject imagery, anatomy, objects, process stages, diagrams, spatial relationships, arrows and visual distinctions where useful.
-Do NOT generate readable text, words, letters, numbers, labels, captions, typography, logos, watermarks, pseudo-writing, fake handwriting, or text panels.
+Use accurate subject imagery, anatomy, objects, process stages, diagrams, spatial relationships and arrows where useful.
+Do NOT generate readable text, words, letters, numbers, labels, captions, typography, logos, watermarks, pseudo-writing or text panels.
 The artwork itself must communicate the concept visually.`,
-      {
-        title:topic,
-        type:'educational visual',
-        keywords:'concept • relationships • process'
-      }
+      {title:topic,type:'educational visual',keywords:'concept • relationships • process'}
     );
-
     consumeLocalUsage();
   } finally {
     setAgentThinking(false);
@@ -1382,27 +1346,42 @@ $('premiumComposer').addEventListener('submit',async e=>{
 
 })();
 
-/* NIMTRON SIDEBAR LINK V1 */
+/* NIMTRON SIDEBAR LINK V2 */
 (function(){
   function installNimTronSidebarLink(){
     var newChat=document.getElementById("newChat");
     if(!newChat || document.getElementById("nimtronSidebarBtn")) return;
 
-    var style=document.createElement("style");
-    style.id="nimtron-sidebar-style";
-    style.textContent=
-      "#nimtronSidebarBtn{margin-top:7px;border:1px solid rgba(65,223,255,.34);background:linear-gradient(135deg,rgba(65,223,255,.12),rgba(65,223,255,.03));color:#41dfff}" +
-      "#nimtronSidebarBtn:hover{border-color:rgba(65,223,255,.72);box-shadow:0 0 18px rgba(65,223,255,.10)}";
-    document.head.appendChild(style);
+    if(!document.getElementById("nimtron-sidebar-style")){
+      var style=document.createElement("style");
+      style.id="nimtron-sidebar-style";
+      style.textContent=
+        "#nimtronSidebarBtn{margin-top:7px;border:1px solid rgba(65,223,255,.34);background:linear-gradient(135deg,rgba(65,223,255,.12),rgba(65,223,255,.03));color:#41dfff}" +
+        "#nimtronSidebarBtn:hover{border-color:rgba(65,223,255,.72);box-shadow:0 0 18px rgba(65,223,255,.10)}";
+      document.head.appendChild(style);
+    }
+
+    var isWindows=/Windows NT/i.test(navigator.userAgent);
 
     var btn=document.createElement("button");
     btn.type="button";
     btn.id="nimtronSidebarBtn";
     btn.className=newChat.className;
-    btn.title="Open NimTron Desktop Companion";
-    btn.innerHTML="<span>â—ˆ</span> NimTron";
+    btn.title=isWindows
+      ? "Download NimTron for Windows"
+      : "Open NimTron Web for ChromeOS and other platforms";
+
+    btn.innerHTML=isWindows
+      ? "<span>◈</span> DOWNLOAD NIMTRON (.exe)"
+      : "<span>◈</span> OPEN NIMTRON WEB — Chromebook ready";
+
     btn.addEventListener("click",function(){
-      window.location.href="/nimtron.html";
+      if(isWindows){
+        window.location.href="/nimtron.html";
+      }else{
+        var w=window.open("/nimtron.html","_blank","noopener,noreferrer");
+        if(!w) window.location.href="/nimtron.html";
+      }
     });
 
     newChat.insertAdjacentElement("afterend",btn);
@@ -1414,5 +1393,3 @@ $('premiumComposer').addEventListener('submit',async e=>{
     installNimTronSidebarLink();
   }
 })();
-
-

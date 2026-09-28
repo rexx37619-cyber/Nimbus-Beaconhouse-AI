@@ -297,25 +297,17 @@ function pickEightWords(answer, question) {
 
 function enforceEducationalFormat(answer, question) {
   let text = stripBullet(cleanText(answer));
-
-  text = text
-    .replace(/^\s*Keywords\s*:[^\n]*\n?/gim, '')
-    .replace(/^\s*Answer\s*Structure\s*:[^\n]*\n?/gim, '')
-    .replace(/^\s*Key\s*Fact\s*\(8\s*shuffled\s*words\)\s*:[^\n]*\n?/gim, '')
-    .trim();
-
-  const keywordWords = pickEightWords(`${question} ${text}`, question).slice(0, 8);
-  const structure = 'Define it; state function; explain key steps; give an example.';
-  const eight = pickEightWords(`${question} ${text}`, question).slice(0, 8);
-
-  return [
-    `Keywords: ${keywordWords.join(', ')}`,
-    `Answer Structure: ${structure}`,
-    '',
-    text,
-    '',
-    `Key Fact (8 shuffled words): ${eight.join(' ')}`
-  ].join('\n').trim();
+  if (!/\bKeywords\s*:/i.test(text)) {
+    text = `Keywords: ${pickEightWords(text, question).slice(0, 6).join(', ')}\n\n${text}`;
+  }
+  if (!/\bAnswer structure\s*:/i.test(text)) {
+    text = text.replace(/(Keywords:[^\n]*(?:\n|$))/, '$1\nAnswer Structure: Define it, explain how it forms, then state its function.\n\n');
+  }
+  const eight = pickEightWords(text, question);
+  const withoutOld = text.replace(/Key fact\s*\(8\s*shuffled\s*words\)\s*:[^\n]*/i, '').trim();
+  const explanationIndex = withoutOld.search(/\bExplanation\s*:/i);
+  const head = explanationIndex >= 0 ? withoutOld.slice(0, explanationIndex).trim() : withoutOld;
+  return `${head}\n\nKey fact (8 shuffled words): ${eight.join(' ')}`.trim();
 }
 
 function buildSystemInstruction({ science, educational, sourceMode = false, beaconhouse = false, history = false }) {

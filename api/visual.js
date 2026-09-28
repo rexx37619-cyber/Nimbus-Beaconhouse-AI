@@ -1,4 +1,4 @@
-﻿const CLOUDFLARE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
+const CLOUDFLARE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
 const CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4/accounts';
 const CLOUDFLARE_TIMEOUT_MS = 30000;
 
@@ -21,7 +21,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]|ÃƒÂ·|Ãƒâ€”)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|Ã·|Ã—)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -160,15 +160,7 @@ export default async function handler(req, res) {
     }
 
     const kind = classifyVisualKind(originalPrompt);
-    const enhancedPrompt = `Create a high-quality 16:9 ${kind} for a student lesson.
-
-Topic/question: ${originalPrompt}
-
-Make the artwork scientifically or academically coherent, visually rich, clear and classroom-ready. Use a strong focal subject, accurate relationships, realistic objects or anatomy, meaningful process stages, and clean composition.
-
-CRITICAL ARTWORK RULE: Do NOT generate readable text, words, letters, numbers, captions, labels, typography, logos, watermarks, signage, fake handwriting, pseudo-writing, text panels, or spelling attempts anywhere in the artwork. Do not write the topic name. Nimbus will place any exact study text outside the generated artwork.
-
-Prefer accurate visual communication through anatomy, objects, shapes, arrows, spatial relationships, process stages, maps, timelines, and mathematical structures as appropriate. Avoid generic four-box diagrams, text-only posters, empty placeholder panels, wireframes, generic card grids, repeated stock layouts, and vague infographic templates. Do not invent unsupported facts or structures.`;
+    const enhancedPrompt = `Create a high-quality 16:9 ${kind} for a student lesson.\n\nTopic/question: ${originalPrompt}\n\nMake it scientifically or academically coherent, visually rich, clear and classroom-ready. Use a strong focal subject, meaningful relationships, concise readable labels, and leader lines/arrows only when they genuinely clarify the concept. Prefer real-looking educational imagery, accurate anatomy, real objects, meaningful process stages, maps, timelines, or mathematical relationships as appropriate. Avoid generic four-box diagrams, text-only posters, empty placeholder panels, wireframes, generic card grids, repeated stock layouts and vague infographic templates. Do not invent unsupported facts or structures.`;
 
     try {
       const generated = await generateCloudflare(enhancedPrompt);
@@ -215,4 +207,3 @@ Prefer accurate visual communication through anatomy, objects, shapes, arrows, s
     });
   }
 }
-
