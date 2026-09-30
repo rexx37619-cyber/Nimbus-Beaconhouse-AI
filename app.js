@@ -1,7 +1,7 @@
 const MODELS={
-  ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid â€¢ Ultra modifications'},
+  ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid • Ultra modifications'},
   legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'},
-  'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams â€¢ Flowcharts â€¢ Visuals'}
+  'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams • Flowcharts • Visuals'}
 };
 
 const RESOURCES=[
@@ -96,7 +96,7 @@ function updateUsage(used){
   const pct=Math.min(100,(state.used/USAGE_LIMIT)*100);
   $('usageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD`;
   $('usageBar').style.width=pct+'%';
-  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD â€¢ resets in ${usageTimeLeft()}`;
+  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD • resets in ${usageTimeLeft()}`;
   if($('menuUsageBar')) $('menuUsageBar').style.width=pct+'%';
 }
 function consumeLocalUsage(){state.used=Math.min(USAGE_LIMIT,state.used+1);updateUsage();}
@@ -126,7 +126,7 @@ function resetChat(){
 function ensureChat(text){
   if(state.currentChatId)return;
   state.currentChatId=crypto.randomUUID?crypto.randomUUID():String(Date.now());
-  state.chats.unshift({id:state.currentChatId,title:text.slice(0,42)+(text.length>42?'â€¦':''),messages:[]});
+  state.chats.unshift({id:state.currentChatId,title:text.slice(0,42)+(text.length>42?'…':''),messages:[]});
   saveChats(); renderHistory();
 }
 
@@ -173,7 +173,7 @@ function makeAiBubble(text){
   bubble.className='message-bubble ai-bubble';
   bubble.innerHTML=`
     <div class="ai-head">
-      <div><div class="ai-tag">NIMBUS â€¢ ${escapeHtml(activeModel().label)}</div></div>
+      <div><div class="ai-tag">NIMBUS • ${escapeHtml(activeModel().label)}</div></div>
     </div>
     <div class="typing-area"></div>
     <div class="answer-actions hidden">
@@ -258,7 +258,7 @@ function setAgentThinking(isThinking){
   }
 }
 
-function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2 â€¢ VISUAL</span><strong>${title}</strong><small>${type} â€¢ ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visualâ€¦</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
+function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2 • VISUAL</span><strong>${title}</strong><small>${type} • ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visual…</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
 function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'}`;img.src=`data:${mimeType||'image/png'};base64,${base64}`;card.bubble.querySelector('.visual-loading')?.remove();card.bubble.appendChild(img);const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';card.bubble.appendChild(note);$('messages').scrollTop=$('messages').scrollHeight;}
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
@@ -298,7 +298,7 @@ async function sendMessage(text){
     let r, data;
     if(state.model==='nano-banana-2'){
       const visualPrompt=`Create one clear student-friendly 16:9 educational diagram or flowchart for this request. Use concise keywords only, short labels, arrows, icons and no long paragraphs. Topic/request: ${text||'Study visual'}.`;
-      const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels â€¢ arrows â€¢ key concepts'});
+      const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels • arrows • key concepts'});
       if(ok) add('ai','Visual generated. Use the labels as study help and rephrase explanations in your own words.');
       consumeLocalUsage();
       return;
@@ -310,17 +310,17 @@ async function sendMessage(text){
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
     let reply=data.reply||'Nimbus did not return a response.';
-    if(data.visual?.prompt || looksLikeSchoolWork(text) || /(flowchart|diagram|draw|image|visual|illustration|mind map|concept map|show me|make a chart)/i.test(String(text||''))){
+    if(data.visual?.prompt){
       const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
       const vtitle=data.visual?.title||'Study visual';
-      const vkeywords=data.visual?.keywords||'keywords â€¢ labels â€¢ key concepts â€¢ arrows';
+      const vkeywords=data.visual?.keywords||'keywords • labels • key concepts • arrows';
       add('ai',reply);
       const prompt=data.visual?.prompt||makeAutoVisualPrompt(text,reply);
       try{await generateVisual(prompt,{title:vtitle,type:vtype,keywords:vkeywords});}
       catch(e){console.warn('Visual generation failed',e);}
     }else add('ai',reply);
     consumeLocalUsage();
-  }catch(err){console.error(err);add('ai','Iâ€™m ready to help. Please try that again in a moment.');}
+  }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
   finally{$('sendBtn').disabled=false;setAgentThinking(false);}
 }
 
@@ -398,19 +398,19 @@ $('infoModal').addEventListener('click',e=>{if(e.target===$('infoModal'))$('info
 $('signOut').onclick=()=>{localStorage.removeItem('nimbus_id');location.reload()};
 $('ownerBtn').onclick=()=>{$('menuModal').classList.add('hidden');$('ownerModal').classList.remove('hidden');};
 $('closeOwner').onclick=()=>$('ownerModal').classList.add('hidden');
-$('ownerLogin').onclick=async()=>{const email=$('ownerEmail').value.trim();if(!email){$('ownerMsg').textContent='Enter an owner email.';return}$('ownerMsg').textContent='Checkingâ€¦';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
+$('ownerLogin').onclick=async()=>{const email=$('ownerEmail').value.trim();if(!email){$('ownerMsg').textContent='Enter an owner email.';return}$('ownerMsg').textContent='Checking…';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
 
 function init(){syncAccount();renderHistory();renderModels();if(state.id){$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');if(state.chats.length)loadChat(state.chats[0].id)}}
 init();
 
 
-// Public Premium Models â€” Nimbus 5.7 Lor via Puter.js
+// Public Premium Models — Nimbus 5.7 Lor via Puter.js
 const PREMIUM_PUBLIC_LABEL='Nimbus 5.7 Lor';
 const PREMIUM_PUBLIC_MODEL='gpt-6-astra';
 let premiumReady=false;
 async function openPremium(){
   $('premiumModal').classList.remove('hidden');
-  $('premiumStatus').textContent='Checking availabilityâ€¦';
+  $('premiumStatus').textContent='Checking availability…';
   try{
     if(!window.puter) throw new Error('Puter.js unavailable');
     if(!puter.auth.isSignedIn()){
@@ -470,7 +470,6 @@ $('premiumComposer').addEventListener('submit',async e=>{
     var oldControls = document.getElementById("nimbusCleanControls");
     if (oldControls) oldControls.remove();
 
-    var oldMemory = document.getElementById("nimbusMemoryBtnClean");
     if (oldMemory) oldMemory.remove();
 
     /* --------------------------------------------------------
@@ -648,19 +647,19 @@ $('premiumComposer').addEventListener('submit',async e=>{
           '<button type="button" data-speed="xhigh" style="' +
           'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:#7c5cff;"></span>' +
-          '<span style="flex:1"><b>XHigh</b><small style="display:block;opacity:.65;">Normal â€¢ 1 RPD</small></span>' +
+          '<span style="flex:1"><b>XHigh</b><small style="display:block;opacity:.65;">Normal • 1 RPD</small></span>' +
           '</button>' +
 
           '<button type="button" data-speed="rapid" style="' +
           'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:#00d2ff;"></span>' +
-          '<span style="flex:1"><b>Rapid</b><small style="display:block;opacity:.65;">Faster â€¢ 2 RPD</small></span>' +
+          '<span style="flex:1"><b>Rapid</b><small style="display:block;opacity:.65;">Faster • 2 RPD</small></span>' +
           '</button>' +
 
           '<button type="button" data-speed="super-rapid" style="' +
           'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:#ff4fd8;"></span>' +
-          '<span style="flex:1"><b>Super Rapid</b><small style="display:block;opacity:.65;">Fastest â€¢ 3 RPD</small></span>' +
+          '<span style="flex:1"><b>Super Rapid</b><small style="display:block;opacity:.65;">Fastest • 3 RPD</small></span>' +
           '</button>' +
 
           '</div>';

@@ -1,4 +1,4 @@
-﻿const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'openrouter/free';
 const DEFAULT_CHAT_MODEL = 'gemini-3.5-flash-lite';
@@ -59,8 +59,8 @@ NORMAL CHAT:
 
 EDUCATIONAL FORMAT:
 For an educational/schoolwork question, use exactly these sections when possible:
-Keywords: 5Ã¢â‚¬â€œ10 concise topic terms.
-Answer structure: 2Ã¢â‚¬â€œ5 short steps or points the student can use to construct an answer.
+Keywords: 5-10 concise topic terms.
+Answer Structure: exactly one roadmap sentence of 10 words or fewer; never number it and never give the answer itself in this section.
 Key fact (8 shuffled words): exactly 8 separate topic-relevant words, shuffled/varied in order, not a sentence.
 Do not produce a polished ready-to-submit essay for ordinary schoolwork.
 
@@ -199,7 +199,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]|ÃƒÂ·|Ãƒâ€”)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|Ãƒ—)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -219,16 +219,14 @@ function isEducationalQuestion(text) {
 }
 
 function explicitVisualRequest(text) {
-  return /\b(?:show|draw|visuali[sz]e|illustrate|illustration|diagram|label(?:led)?|picture|image|chart|flowchart|model)\b/i.test(String(text || ''));
+  const s = String(text || "").trim();
+
+  return /(?:^|\s)\/visual(?:\s|$)/i.test(s) ||
+    /\\b(?:show|draw|visuali[sz]e|illustrate|illustration|diagram|label(?:led)?|picture|image|chart|flowchart|model)\\b/i.test(s);
 }
 
 function shouldVisualize(text) {
-  const s = String(text || '').trim();
-  if (!s || isCasualMessage(s) || isBeaconhouseQuestion(s)) return false;
-  // Educational questions trigger a visual automatically. Explicit visual
-  // requests trigger only when the request itself has an academic context.
-  if (isEducationalQuestion(s)) return true;
-  return explicitVisualRequest(s) && (hasAcademicSubject(s) || looksLikeScience(s) || /\b(?:school|student|classroom|homework|schoolwork|lesson|grade\s*\d+|class\s*\d+)\b/i.test(s));
+  return explicitVisualRequest(String(text || "").trim());
 }
 
 function classifyVisualKind(text) {
@@ -250,70 +248,126 @@ function stableHash(text) {
 }
 
 function createVisualPayload(question, answer) {
-  const kind = classifyVisualKind(question);
+  const cleanQuestion = String(question || "")
+    .replace(/(?:^|\s)\/visual(?=\s|$)/ig, " ")
+    .replace(/\\s+/g, " ")
+    .trim()
+    .slice(0, 700);
+
+  const cleanAnswer = cleanText(answer || "").slice(0, 1200);
+  const kind = classifyVisualKind(cleanQuestion);
+
   return {
-    id: `nimbus-visual-${stableHash(question)}`,
-    type: 'diagram',
-    title: String(question).slice(0, 90),
-    prompt: `Create a high-quality 16:9 ${kind} for a school lesson.\nTopic/question: ${String(question).trim()}\nUseful educational answer points: ${String(answer || '').slice(0, 1100)}\nRequirements: topic-specific, accurate, classroom-ready, visually rich, strong focal subject, meaningful relationships, concise readable labels, useful arrows/callouts only when they clarify the concept. Prefer an actual anatomy illustration, process diagram, scientific visualization, map, timeline, or mathematics visualization appropriate to the subject. Do NOT make a generic four-box diagram, text-only poster, wireframe, empty placeholder, generic card grid, or repeated stock template. Do not invent unsupported facts or structures.`
+    id: "nimbus-visual-" + stableHash(cleanQuestion),
+    kind,
+    prompt:
+      `Create a high-quality 16:9 educational visual for a Grade 6-8 student lesson.
+
+Exact topic:
+${cleanQuestion}
+
+Relevant answer context:
+${cleanAnswer}
+
+Focus on the EXACT topic above.
+Make the image visually rich, scientifically or academically accurate, and directly useful for learning.
+Do NOT create a generic stock illustration.
+Do NOT create a poster, worksheet, presentation slide, or UI screenshot.
+Do NOT fill the image with paragraphs or large text.
+Use diagrams, structures, arrows, processes, objects, environments, maps, timelines, or mathematical notation when appropriate.
+Use only a few short labels when they improve accuracy.
+The visual should clearly represent the requested topic rather than merely decorating it.`,
+    alt: `Nimbus educational visual for ${cleanQuestion}`
   };
 }
 
-function extractGeminiText(data) {
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  return parts.filter(p => typeof p?.text === 'string').map(p => p.text).join(' ').trim();
-}
-
-function extractSources(data) {
-  const chunks = data?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  return chunks.map(chunk => chunk?.retrievedContext).filter(Boolean).map(item => ({
-    title: item.title || item.fileName || '',
-    uri: item.uri || ''
-  })).filter(item => item.title || item.uri).slice(0, 5);
-}
-
-function stripBullet(text) {
-  return String(text || '').replace(/^\s*[-*Ã¢â‚¬Â¢]\s*/gm, '').trim();
-}
-
-function pickEightWords(answer, question) {
-  const stop = new Set('the a an and or of to in on for with is are was were be been being this that these those how what why does do did it its their our your from by as at into about than then can could should would may might will shall you your student students explain explanation function purpose main very more less also'.split(/\s+/));
-  const source = `${answer} ${question}`.replace(/https?:\/\/\S+/g, ' ');
-  const candidates = source.match(/[A-Za-z][A-Za-z-]*/g) || [];
-  const words = [];
-  for (const raw of candidates) {
-    const w = raw.toLowerCase().replace(/^-+|-+$/g, '');
-    if (w.length < 3 || stop.has(w)) continue;
-    if (!words.includes(w)) words.push(w);
-    if (words.length >= 8) break;
-  }
-  const fallback = ['structure', 'function', 'process', 'movement', 'system', 'change', 'control', 'important'];
-  for (const w of fallback) {
-    if (words.length >= 8) break;
-    if (!words.includes(w)) words.push(w);
-  }
-  return words.slice(0, 8);
-}
-
 function enforceEducationalFormat(answer, question) {
-  let text = stripBullet(cleanText(answer));
-  if (!/\bKeywords\s*:/i.test(text)) {
-    text = `Keywords: ${pickEightWords(text, question).slice(0, 6).join(', ')}\n\n${text}`;
+  let text = cleanText(answer || "").trim();
+
+  // Remove model-generated formatting sections so Nimbus owns the format.
+  text = text
+    .replace(/^\\s*Keywords\\s*:.*$/gim, "")
+    .replace(/^\\s*Key fact(?:\\s*\\(8\\s*shuffled\\s*words\\))?\\s*:.*$/gim)
+    .replace(
+      /(?:^|\\n)\\s*Answer Structure\\s*:\\s*[\\s\\S]*?(?=\\n\\s*(?:Keywords|Key fact|Answer|Explanation|Sources?|Conclusion)\\s*:|\\s*$)/i,
+      "\\n"
+    )
+    .replace(/^\\s*Answer structure\\s*:\\s*.*$/gim, "")
+    .replace(/^\\s*\\d+\\.\\s+.*$/gm, "")
+    .replace(/^\\s*[-•]\\s+.*$/gm, "")
+    .replace(/\\n{3,}/g, "\\n\\n")
+    .trim();
+
+  const keywordCandidates = pickEightWords(
+    `${String(question || "")} ${text}`,
+    question
+  );
+
+  const keywords = [...new Set(
+    keywordCandidates
+      .map((word) => String(word || "").replace(/[^\\p{L}\\p{N}'-]/gu, "").trim())
+      .filter(Boolean)
+  )].slice(0, 8);
+
+  while (keywords.length < 5) {
+    const fallback = ["concept", "process", "function", "structure", "importance"];
+    const next = fallback.find((word) => !keywords.includes(word));
+    if (!next) break;
+    keywords.push(next);
   }
-  if (!/\bAnswer structure\s*:/i.test(text)) {
-    text = text.replace(/(Keywords:[^\n]*(?:\n|$))/, '$1\nAnswer Structure: Define it, explain how it forms, then state its function.\n\n');
+
+  const factCandidates = [...new Set(
+    pickEightWords(text || String(question || ""), question)
+      .map((word) => String(word || "").replace(/[^\\p{L}\\p{N}'-]/gu, "").trim())
+      .filter(Boolean)
+  )];
+
+  const fallbackFactWords = [
+    "process",
+    "structure",
+    "function",
+    "change",
+    "system",
+    "energy",
+    "evidence",
+    "importance"
+  ];
+
+  for (const word of fallbackFactWords) {
+    if (factCandidates.length >= 8) break;
+    if (!factCandidates.includes(word)) factCandidates.push(word);
   }
-  const eight = pickEightWords(text, question);
-  const withoutOld = text.replace(/Key fact\s*\(8\s*shuffled\s*words\)\s*:[^\n]*/i, '').trim();
-  const explanationIndex = withoutOld.search(/\bExplanation\s*:/i);
-  const head = explanationIndex >= 0 ? withoutOld.slice(0, explanationIndex).trim() : withoutOld;
-  return `${head}\n\nKey fact (8 shuffled words): ${eight.join(' ')}`.trim();
+
+  const eight = factCandidates.slice(0, 8);
+
+  // Shuffle the eight words each time.
+  for (let i = eight.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [eight[i], eight[j]] = [eight[j], eight[i]];
+  }
+
+  // Exactly 10 words:
+  // Define(1) it2 explain3 how4 it5 forms6 then7 state8 its9 function10
+  const answerStructure =
+    "Define it, explain how it forms, then state its function.";
+
+  const sections = [
+    `Keywords: ${keywords.join(", ")}`,
+    `Answer Structure: ${answerStructure}`,
+    `Key fact (8 shuffled words): ${eight.join(" ")}`
+  ];
+
+  if (text) {
+    sections.push(text);
+  }
+
+  return sections.join("\\n\\n").trim();
 }
 
 function buildSystemInstruction({ science, educational, sourceMode = false, beaconhouse = false, history = false }) {
   let extra = '';
   if (educational) {
-    extra += '\nEDUCATIONAL OUTPUT ENFORCEMENT: Include Keywords, Answer structure, and Key fact (8 shuffled words). The key-fact line must contain exactly eight separate words.\n';
+    extra += "\nEDUCATIONAL OUTPUT ENFORCEMENT: Use Keywords, Answer Structure, and Key fact (8 shuffled words). Answer Structure must be ONE short roadmap sentence of 10 words or fewer, not numbered, and must not answer the question. Do not create a separate quiz section. Do not create a separate visual unless the user explicitly requests /visual or another clear visual command. Ignore the trailing /visual token as content and treat it only as a visual-generation command.";
   }
   if (science) {
     extra += sourceMode

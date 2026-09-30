@@ -36,14 +36,14 @@ function isEducationalQuestion(text) {
 }
 
 function explicitVisualRequest(text) {
-  return /\b(?:show|draw|visuali[sz]e|illustrate|illustration|diagram|label(?:led)?|picture|image|chart|flowchart|model)\b/i.test(String(text || ''));
+  const s = String(text || "").trim();
+
+  return /(?:^|\s)\/visual(?:\s|$)/i.test(s) ||
+    /\\b(?:show|draw|visuali[sz]e|illustrate|illustration|diagram|label(?:led)?|picture|image|chart|flowchart|model)\\b/i.test(s);
 }
 
 function shouldVisualize(text) {
-  const s = String(text || '').trim();
-  if (!s || isCasualMessage(s) || isBeaconhouseQuestion(s)) return false;
-  if (isEducationalQuestion(s)) return true;
-  return explicitVisualRequest(s) && (hasAcademicSubject(s) || looksLikeScience(s) || /\b(?:school|student|classroom|homework|schoolwork|lesson|grade\s*\d+|class\s*\d+)\b/i.test(s));
+  return explicitVisualRequest(String(text || "").trim());
 }
 
 function classifyVisualKind(text) {
@@ -160,7 +160,27 @@ export default async function handler(req, res) {
     }
 
     const kind = classifyVisualKind(originalPrompt);
-    const enhancedPrompt = `Create a high-quality 16:9 ${kind} for a student lesson.\n\nTopic/question: ${originalPrompt}\n\nMake it scientifically or academically coherent, visually rich, clear and classroom-ready. Use a strong focal subject, meaningful relationships, concise readable labels, and leader lines/arrows only when they genuinely clarify the concept. Prefer real-looking educational imagery, accurate anatomy, real objects, meaningful process stages, maps, timelines, or mathematical relationships as appropriate. Avoid generic four-box diagrams, text-only posters, empty placeholder panels, wireframes, generic card grids, repeated stock layouts and vague infographic templates. Do not invent unsupported facts or structures.`;
+    const visualQuestion = originalPrompt
+    .replace(/(?:^|\s)\/visual(?=\s|$)/ig, " ")
+    .replace(/\\s+/g, " ")
+    .trim();
+
+    const enhancedPrompt = `Create a high-quality 16:9 educational visual for a Grade 6-8 student lesson.
+
+EXACT REQUEST:
+${visualQuestion}
+
+VISUAL TYPE:
+${kind}
+
+Make the visual directly represent the exact topic in the request.
+Prioritize clear imagery, diagrams, structures, processes, objects, arrows, environments, maps, timelines, or mathematical notation as appropriate.
+Do not substitute a generic stock illustration.
+Do not create a poster, worksheet, presentation slide, infographic full of text, or UI screenshot.
+Do not write paragraphs.
+Use only a few short labels when necessary for educational accuracy.
+Keep the composition focused on the requested concept and make the topic immediately recognizable.
+Accuracy and topic-specific detail matter more than decorative text.`;
 
     try {
       const generated = await generateCloudflare(enhancedPrompt);
