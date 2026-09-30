@@ -17,7 +17,7 @@ const SCIENCE_FALLBACK_TIMEOUT_MS = 18000;
 const MAX_OUTPUT_TOKENS = 750;
 
 const BEACONHOUSE_KNOWLEDGE = `
-BEACONHOUSE PUBLIC KNOWLEDGE Ã¢â‚¬â€ CURATED REFERENCES
+BEACONHOUSE PUBLIC KNOWLEDGE Ã¢â‚¬- CURATED REFERENCES
 Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. Do not claim Beaconhouse owns, endorses, or operates Nimbus unless an official source specifically supports that claim.
 Useful official references:
 - Main site: https://www.beaconhouse.net/
@@ -603,11 +603,15 @@ export default async function handler(req, res) {
       });
     }
 
-    const science = looksLikeScience(userText);
+
     const history = isHistoryQuestion(userText) && !isBeaconhouseQuestion(userText);
-    const educational = isEducationalQuestion(userText);
-    const autoVisual = shouldVisualize(userText);
     const beaconhouse = isBeaconhouseQuestion(userText);
+    const science = looksLikeScience(userText);
+    const educational = !beaconhouse && isEducationalQuestion(userText);
+    const normal = !beaconhouse && !educational;
+    const autoVisual = shouldVisualize(userText);
+    const question_type = beaconhouse ? "beaconhouse" : (educational ? "educational" : "normal");
+
 
     let sourceStatus = science
       ? (SCIENCE_STORE_NAME ? 'requested' : 'not_configured')
@@ -761,6 +765,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       reply: answer,
+      question_type,
       auto_visual: autoVisual,
       visual: autoVisual ? createVisualPayload(userText, answer) : null,
       model: body.model || 'ror',

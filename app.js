@@ -106,7 +106,7 @@ function renderModels(){
   menu.innerHTML=Object.values(MODELS).map(m=>`
     <button class="model-option ${m.id===state.model?'active':''}" data-model="${m.id}">
       <div><b>${escapeHtml(m.label)}</b><small>${escapeHtml(m.sub)}</small></div>
-      ${m.id===state.model?'<span>âœ“</span>':''}
+      ${m.id===state.model?'<span>*</span>':''}
     </button>
   `).join('')+
   `<div class="model-usage">
@@ -329,27 +329,15 @@ $('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey
 $('messageInput').addEventListener('input',()=>{const el=$('messageInput');el.style.height='auto';el.style.height=Math.min(el.scrollHeight,150)+'px'});
 $('attachBtn').onclick=()=>$('fileInput').click();
 $('visualBtn').onclick=async()=>{
-  const topic=$('messageInput').value.trim();
-  if(!topic){$('messageInput').focus();return;}
-  if(state.used>=USAGE_LIMIT){add('ai',`Daily limit reached. Your 24-hour window resets in ${usageTimeLeft()}.`);return;}
-  ensureChat(topic);
-  add('user',topic);
-  $('messageInput').value='';
-  $('messageInput').style.height='auto';
-  setAgentThinking(true);
-  try{
-    await generateVisual(
-      `Create a clean, topic-specific educational visual for this student learning request.
-Topic: ${topic}
-Use accurate subject imagery, anatomy, objects, process stages, diagrams, spatial relationships and arrows where useful.
-Do NOT generate readable text, words, letters, numbers, labels, captions, typography, logos, watermarks, pseudo-writing or text panels.
-The artwork itself must communicate the concept visually.`,
-      {title:topic,type:'educational visual',keywords:'concept • relationships • process'}
-    );
-    consumeLocalUsage();
-  } finally {
-    setAgentThinking(false);
-  }
+  const input=document.getElementById('messageInput');
+  if(!input) return;
+
+  let value=String(input.value||'').trim();
+  value=value.replace(/(?:^|\s)\/visual(?:\s|$)/ig,'').trim();
+
+  input.value=value ? value+' /visual' : '/visual';
+  input.focus();
+  input.dispatchEvent(new Event('input',{bubbles:true}));
 };
 $('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`ðŸ“Ž <b>${escapeHtml(f.name)}</b> Â· ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">Ã—</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
 
@@ -1390,5 +1378,202 @@ $('premiumComposer').addEventListener('submit',async e=>{
     document.addEventListener("DOMContentLoaded",installNimTronSidebarLink,{once:true});
   }else{
     installNimTronSidebarLink();
+  }
+})();
+
+
+/* ============================================================
+   NIMBUS HOME COMPOSER V1
+   Always-visible main-screen input.
+   ============================================================ */
+(function(){
+  function mountNimbusHomeComposer(){
+    if(document.getElementById('nimbusHomeComposer')) return;
+
+    var box=document.createElement('div');
+    box.id='nimbusHomeComposer';
+
+    box.innerHTML=
+      '<div class="nhc-top">' +
+        '<span>Nimbus</span>' +
+        '<span id="nhcMemory">Memory ON</span>' +
+      '</div>' +
+      '<div class="nhc-row">' +
+        '<textarea id="nhcInput" rows="1" placeholder="Message Nimbus..."></textarea>' +
+        '<button type="button" id="nhcVisual">Visual</button>' +
+        '<button type="button" id="nhcSend">Send</button>' +
+      '</div>' +
+      '<div class="nhc-hint">Add /visual at the end when you want an educational visual.</div>';
+
+    var style=document.createElement('style');
+    style.id='nimbus-home-composer-style';
+
+    style.textContent=
+      '#nimbusHomeComposer{' +
+        'position:fixed;' +
+        'left:330px;' +
+        'right:40px;' +
+        'bottom:22px;' +
+        'z-index:9999;' +
+        'padding:12px 14px;' +
+        'border:1px solid rgba(0,0,0,.10);' +
+        'border-radius:16px;' +
+        'background:rgba(255,255,255,.96);' +
+        'box-shadow:0 12px 36px rgba(0,0,0,.10);' +
+        'backdrop-filter:blur(14px);' +
+        'font-family:system-ui,-apple-system,sans-serif;' +
+      '}' +
+
+      '#nimbusHomeComposer .nhc-top{' +
+        'display:flex;' +
+        'justify-content:space-between;' +
+        'font-size:11px;' +
+        'font-weight:700;' +
+        'margin-bottom:8px;' +
+        'opacity:.65;' +
+      '}' +
+
+      '#nimbusHomeComposer .nhc-row{' +
+        'display:flex;' +
+        'gap:8px;' +
+        'align-items:flex-end;' +
+      '}' +
+
+      '#nhcInput{' +
+        'flex:1;' +
+        'min-height:46px;' +
+        'max-height:120px;' +
+        'resize:none;' +
+        'border:1px solid rgba(0,0,0,.12);' +
+        'border-radius:12px;' +
+        'padding:12px;' +
+        'font:15px system-ui,-apple-system,sans-serif;' +
+        'outline:none;' +
+      '}' +
+
+      '#nhcInput:focus{' +
+        'border-color:rgba(40,170,220,.65);' +
+      '}' +
+
+      '#nhcVisual,#nhcSend{' +
+        'height:46px;' +
+        'padding:0 14px;' +
+        'border:1px solid rgba(0,0,0,.12);' +
+        'border-radius:12px;' +
+        'background:#fff;' +
+        'cursor:pointer;' +
+        'font-weight:700;' +
+      '}' +
+
+      '#nhcSend{' +
+        'background:#111;' +
+        'color:#fff;' +
+      '}' +
+
+      '#nimbusHomeComposer .nhc-hint{' +
+        'font-size:10px;' +
+        'margin-top:6px;' +
+        'opacity:.50;' +
+      '}' +
+
+      '@media(max-width:800px){' +
+        '#nimbusHomeComposer{' +
+          'left:16px;' +
+          'right:16px;' +
+          'bottom:12px;' +
+        '}' +
+      '}';
+
+    document.head.appendChild(style);
+    document.body.appendChild(box);
+
+    var input=document.getElementById('nhcInput');
+    var visualBtn=document.getElementById('nhcVisual');
+    var sendBtn=document.getElementById('nhcSend');
+    var memory=document.getElementById('nhcMemory');
+
+    visualBtn.addEventListener('click',function(){
+      var v=String(input.value||'').trim();
+
+      v=v.replace(/(?:^|\s)\/visual(?:\s|$)/ig,'').trim();
+
+      input.value=v ? v+' /visual' : '/visual';
+      input.focus();
+    });
+
+    function submit(){
+      var text=String(input.value||'').trim();
+      if(!text) return;
+
+      var real=document.getElementById('messageInput');
+
+      if(real){
+        var newChat=document.getElementById('newChat');
+        if(newChat) newChat.click();
+
+        setTimeout(function(){
+          real.value=text;
+          real.dispatchEvent(new Event('input',{bubbles:true}));
+          real.focus();
+
+          real.dispatchEvent(
+            new KeyboardEvent('keydown',{
+              key:'Enter',
+              code:'Enter',
+              which:13,
+              keyCode:13,
+              bubbles:true
+            })
+          );
+
+          input.value='';
+        },80);
+      }
+    }
+
+    sendBtn.addEventListener('click',submit);
+
+    input.addEventListener('keydown',function(e){
+      if(e.key==='Enter' && !e.shiftKey){
+        e.preventDefault();
+        submit();
+      }
+    });
+
+    if(window.fetch && !window.__NIMBUS_MEMORY_FETCH_V1__){
+      window.__NIMBUS_MEMORY_FETCH_V1__=true;
+
+      var originalFetch=window.fetch.bind(window);
+
+      window.fetch=function(resource,init){
+        try{
+          var url=typeof resource==='string'
+            ? resource
+            : (resource && resource.url ? resource.url : '');
+
+          if(url.indexOf('/api/chat')>=0 && init && init.body){
+            var body=JSON.parse(init.body);
+
+            body.memory_enabled=true;
+
+            init=Object.assign({},init,{
+              body:JSON.stringify(body)
+            });
+          }
+        }catch(e){}
+
+        return originalFetch(resource,init);
+      };
+    }
+
+    if(memory){
+      memory.textContent='Memory ON';
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',mountNimbusHomeComposer,{once:true});
+  }else{
+    mountNimbusHomeComposer();
   }
 })();

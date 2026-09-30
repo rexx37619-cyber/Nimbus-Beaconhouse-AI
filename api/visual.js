@@ -37,9 +37,7 @@ function isEducationalQuestion(text) {
 
 function explicitVisualRequest(text) {
   const s = String(text || "").trim();
-
-  return /(?:^|\s)\/visual(?:\s|$)/i.test(s) ||
-    /\\b(?:show|draw|visuali[sz]e|illustrate|illustration|diagram|label(?:led)?|picture|image|chart|flowchart|model)\\b/i.test(s);
+  return /(?:^|\s)\/visual(?:\s|$)/i.test(s);
 }
 
 function shouldVisualize(text) {
@@ -177,8 +175,8 @@ Make the visual directly represent the exact topic in the request.
 Prioritize clear imagery, diagrams, structures, processes, objects, arrows, environments, maps, timelines, or mathematical notation as appropriate.
 Do not substitute a generic stock illustration.
 Do not create a poster, worksheet, presentation slide, infographic full of text, or UI screenshot.
-Do not write paragraphs.
-Use only a few short labels when necessary for educational accuracy.
+Do not write any readable text.
+Use NO readable text, labels, captions, paragraphs, letters, or words. The artwork alone must communicate the concept.
 Keep the composition focused on the requested concept and make the topic immediately recognizable.
 Accuracy and topic-specific detail matter more than decorative text.`;
 
