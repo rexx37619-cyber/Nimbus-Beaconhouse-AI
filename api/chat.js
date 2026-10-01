@@ -11,13 +11,13 @@ const HISTORY_STORE_NAME = String(process.env.NIMBUS_HISTORY_STORE || '').trim()
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CHARS = 14000;
-const NORMAL_TIMEOUT_MS = 20000;
-const SCIENCE_TIMEOUT_MS = 12000;
-const SCIENCE_FALLBACK_TIMEOUT_MS = 20000;
+const NORMAL_TIMEOUT_MS = 9000;
+const SCIENCE_TIMEOUT_MS = 9000;
+const SCIENCE_FALLBACK_TIMEOUT_MS = 12000;
 const MAX_OUTPUT_TOKENS = 750;
 
 const BEACONHOUSE_KNOWLEDGE = `
-BEACONHOUSE PUBLIC KNOWLEDGE - CURATED REFERENCES
+BEACONHOUSE PUBLIC KNOWLEDGE  CURATED REFERENCES
 Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. Do not claim Beaconhouse owns, endorses, or operates Nimbus unless an official source specifically supports that claim.
 Useful official references:
 - Main site: https://www.beaconhouse.net/
@@ -59,8 +59,8 @@ NORMAL CHAT:
 
 EDUCATIONAL FORMAT:
 For an educational/schoolwork question, use exactly these sections when possible:
-Keywords: 5-10 concise topic terms.
-Answer Structure: exactly one roadmap sentence of 10 words or fewer; never number it and never give the answer itself in this section.
+Keywords: 510 concise topic terms.
+Answer structure: 25 short steps or points the student can use to construct an answer.
 Key fact (8 shuffled words): exactly 8 separate topic-relevant words, shuffled/varied in order, not a sentence.
 Do not produce a polished ready-to-submit essay for ordinary schoolwork.
 
@@ -199,7 +199,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|-\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]||")|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -212,19 +212,34 @@ function isHistoryQuestion(text) {
 }
 
 function isEducationalQuestion(text) {
-  const s = String(text || '').trim();
-  if (!s || isCasualMessage(s) || isBeaconhouseQuestion(s)) return false;
-  const academicContext = hasAcademicSubject(s) || looksLikeScience(s) || looksLikeMathProblem(s) || /\b(?:school|student|classroom|homework|schoolwork|exam|lesson|chapter|revision|study|notes|subject)\b/i.test(s);
-  return hasEducationalIntent(s) && academicContext;
+  const s = String(text || "").trim();
+
+  if (!s) return false;
+  if (isCasualMessage(s)) return false;
+  if (isBeaconhouseQuestion(s)) return false;
+
+  const academicContext =
+    hasAcademicSubject(s) ||
+    looksLikeScience(s) ||
+    looksLikeMathProblem(s) ||
+    /\b(?:school|student|classroom|homework|schoolwork|exam|lesson|chapter|revision|study|notes|subject|grade\s*\d+|class\s*\d+)\b/i.test(s);
+
+  const educationalIntent =
+    /\b(?:explain|describe|define|what\s+is|what\s+are|what\s+does|how\s+does|how\s+do|why\s+does|why\s+do|difference\s+between|compare|function\s+of|purpose\s+of|types?\s+of|how\s+it\s+works?|teach\s+me|learn\s+about|concept|process|steps?|sequence|example|solve|calculate|find|revise|revision|study|notes)\b/i.test(s);
+
+  return academicContext && educationalIntent;
 }
 
 function explicitVisualRequest(text) {
-  const s = String(text || "").trim();
-  return /(?:^|\s)\/visual(?:\s|$)/i.test(s);
+  return /(?:^|\s)\/visual(?:\s|$)/i.test(String(text || "").trim());
 }
 
 function shouldVisualize(text) {
-  return explicitVisualRequest(String(text || "").trim());
+  const s = String(text || "").trim();
+
+  if (!isEducationalQuestion(s)) return false;
+
+  return explicitVisualRequest(s);
 }
 
 function classifyVisualKind(text) {
@@ -246,135 +261,145 @@ function stableHash(text) {
 }
 
 function createVisualPayload(question, answer) {
-  const cleanQuestion = String(question || "")
-    .replace(/(?:^|\s)\/visual(?=\s|$)/ig, " ")
-    .replace(/\\s+/g, " ")
-    .trim()
-    .slice(0, 700);
-
-  const cleanAnswer = cleanText(answer || "").slice(0, 1200);
-  const kind = classifyVisualKind(cleanQuestion);
-
+  const kind = classifyVisualKind(question);
   return {
-    id: "nimbus-visual-" + stableHash(cleanQuestion),
-    kind,
-    prompt:
-      `Create a high-quality 16:9 educational visual for a Grade 6-8 student lesson.
-
-Exact topic:
-${cleanQuestion}
-
-Relevant answer context:
-${cleanAnswer}
-
-Focus on the EXACT topic above.
-Make the image visually rich, scientifically or academically accurate, and directly useful for learning.
-Do NOT create a generic stock illustration.
-Do NOT create a poster, worksheet, presentation slide, or UI screenshot.
-Do NOT fill the image with paragraphs or large text.
-Use diagrams, structures, arrows, processes, objects, environments, maps, timelines, or mathematical notation when appropriate.
-Use only a few short labels when they improve accuracy.
-The visual should clearly represent the requested topic rather than merely decorating it.`,
-    alt: `Nimbus educational visual for ${cleanQuestion}`
+    id: `nimbus-visual-${stableHash(question)}`,
+    type: 'diagram',
+    title: String(question).slice(0, 90),
+    prompt: `Create a high-quality 16:9 ${kind} for a school lesson.\nTopic/question: ${String(question).trim()}\nUseful educational answer points: ${String(answer || '').slice(0, 1100)}\nRequirements: topic-specific, accurate, classroom-ready, visually rich, strong focal subject, meaningful relationships, concise readable labels, useful arrows/callouts only when they clarify the concept. Prefer an actual anatomy illustration, process diagram, scientific visualization, map, timeline, or mathematics visualization appropriate to the subject. Do NOT make a generic four-box diagram, text-only poster, wireframe, empty placeholder, generic card grid, or repeated stock template. Do not invent unsupported facts or structures.`
   };
 }
 
+function extractGeminiText(data) {
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  return parts.filter(p => typeof p?.text === 'string').map(p => p.text).join(' ').trim();
+}
+
+function extractSources(data) {
+  const chunks = data?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+  return chunks.map(chunk => chunk?.retrievedContext).filter(Boolean).map(item => ({
+    title: item.title || item.fileName || '',
+    uri: item.uri || ''
+  })).filter(item => item.title || item.uri).slice(0, 5);
+}
+
+function stripBullet(text) {
+  return String(text || '').replace(/^\s*[-*]\s*/gm, '').trim();
+}
+
+function pickEightWords(answer, question) {
+  const stop = new Set('the a an and or of to in on for with is are was were be been being this that these those how what why does do did it its their our your from by as at into about than then can could should would may might will shall you your student students explain explanation function purpose main very more less also'.split(/\s+/));
+  const source = `${answer} ${question}`.replace(/https?:\/\/\S+/g, ' ');
+  const candidates = source.match(/[A-Za-z][A-Za-z-]*/g) || [];
+  const words = [];
+  for (const raw of candidates) {
+    const w = raw.toLowerCase().replace(/^-+|-+$/g, '');
+    if (w.length < 3 || stop.has(w)) continue;
+    if (!words.includes(w)) words.push(w);
+    if (words.length >= 8) break;
+  }
+  const fallback = ['structure', 'function', 'process', 'movement', 'system', 'change', 'control', 'important'];
+  for (const w of fallback) {
+    if (words.length >= 8) break;
+    if (!words.includes(w)) words.push(w);
+  }
+  return words.slice(0, 8);
+}
 
 function enforceEducationalFormat(answer, question) {
-  let text = String(answer || "").trim();
+  let text = cleanText(answer || "").trim();
 
   text = text
     .replace(/^\s*Keywords\s*:.*$/gim, "")
-    .replace(/^\s*Key fact.*$/gim, "")
-    .replace(
-      /(?:^|\n)\s*Answer Structure\s*:[\s\S]*?(?=\n\s*(?:Keywords|Key fact|Explanation|Sources?|Conclusion)\s*:|\s*$)/i,
-      ""
-    )
-    .replace(/^\s*Answer structure\s*:.*$/gim, "")
-    .replace(/^\s*\d+\.\s+.*$/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^\s*Answer\s+Structure\s*:.*$/gim, "")
+    .replace(/^\s*Key\s+fact.*$/gim, "")
+    .replace(/^\s*Explanation\s*:.*$/gim, "")
     .trim();
 
-  const combined =
+  const source =
     String(question || "") + " " + text;
 
-  const tokens = combined
+  const words = source
     .replace(/[^A-Za-z0-9\s'-]/g, " ")
     .split(/\s+/)
-    .map(x => x.trim())
+    .map(word => word.trim())
     .filter(Boolean);
 
   const stop = new Set([
-    "the","a","an","is","are","was","were","what",
-    "how","why","when","where","which","and","or",
-    "to","of","in","on","for","with","does","do",
-    "this","that","it"
+    "the","a","an","is","are","was","were","what","how",
+    "why","when","where","which","and","or","to","of",
+    "in","on","for","with","does","do","this","that","it"
   ]);
 
   const unique = [];
 
-  for(const word of tokens){
-    const lower=word.toLowerCase();
+  for (const word of words) {
+    const lower = word.toLowerCase();
 
-    if(!stop.has(lower) && lower.length>=3 && !unique.some(x=>x.toLowerCase()===lower)){
+    if (
+      lower.length >= 3 &&
+      !stop.has(lower) &&
+      !unique.some(item => item.toLowerCase() === lower)
+    ) {
       unique.push(word);
     }
   }
 
-  let keywords=unique.slice(0,8);
+  const keywords = unique.slice(0, 8);
 
-  while(keywords.length<5){
-    for(const fallback of [
+  while (keywords.length < 5) {
+    for (const word of [
       "concept",
       "process",
       "function",
       "structure",
       "importance"
-    ]){
-      if(keywords.length>=5) break;
-      if(!keywords.includes(fallback)) keywords.push(fallback);
+    ]) {
+      if (keywords.length >= 5) break;
+      if (!keywords.includes(word)) keywords.push(word);
     }
   }
 
-  let factWords=unique.slice(0,8);
+  const factWords = unique.slice(0, 8);
 
-  while(factWords.length<8){
-    for(const fallback of [
-      "process",
-      "structure",
-      "function",
-      "change",
-      "system",
-      "energy",
-      "evidence",
-      "importance"
-    ]){
-      if(factWords.length>=8) break;
-      if(!factWords.includes(fallback)) factWords.push(fallback);
-    }
+  for (const word of [
+    "process",
+    "structure",
+    "function",
+    "change",
+    "system",
+    "energy",
+    "evidence",
+    "importance"
+  ]) {
+    if (factWords.length >= 8) break;
+    if (!factWords.includes(word)) factWords.push(word);
   }
 
-  // Fisher-Yates shuffle.
-  for(let i=factWords.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [factWords[i],factWords[j]]=[factWords[j],factWords[i]];
+  while (factWords.length < 8) {
+    factWords.push("concept");
   }
 
-  // EXACTLY 10 words.
-  const answerStructure =
+  for (let i = factWords.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [factWords[i], factWords[j]] = [factWords[j], factWords[i]];
+  }
+
+  const structure =
     "Define it, explain how it works, then state its importance.";
 
   return [
-    "Keywords: " + keywords.join(", "),
-    "Answer Structure: " + answerStructure,
-    "Key fact (8 shuffled words): " + factWords.slice(0,8).join(" "),
+    "Keywords: " + keywords.slice(0, 8).join(", "),
+    "Answer Structure: " + structure,
+    "Key fact (8 shuffled words): " + factWords.slice(0, 8).join(" "),
     text
   ].filter(Boolean).join("\n\n").trim();
 }
+
 function buildSystemInstruction({ science, educational, sourceMode = false, beaconhouse = false, history = false }) {
   let extra = '';
   if (educational) {
-    extra += "\nEDUCATIONAL OUTPUT ENFORCEMENT: Use Keywords, Answer Structure, and Key fact (8 shuffled words). Answer Structure must be ONE short roadmap sentence of 10 words or fewer, not numbered, and must not answer the question. Do not create a separate quiz section. Do not create a separate visual unless the user explicitly requests /visual or another clear visual command. Ignore the trailing /visual token as content and treat it only as a visual-generation command.";
+    extra += '\nEDUCATIONAL OUTPUT ENFORCEMENT: Include Keywords, Answer structure, and Key fact (8 shuffled words). The key-fact line must contain exactly eight separate words.\n';
   }
   if (science) {
     extra += sourceMode
@@ -598,7 +623,7 @@ export default async function handler(req, res) {
     if (isCasualMessage(userText)) {
       return res.status(200).json({
         ok: true,
-        reply: "Hey! - I'm Nimbus. What are we learning today?",
+        reply: "Hey! ' I'm Nimbus. What are we learning today?",
         auto_visual: false,
         visual: null,
         model: body.model || 'ror',
@@ -610,22 +635,12 @@ export default async function handler(req, res) {
       });
     }
 
-
-    const history = isHistoryQuestion(userText) && !isBeaconhouseQuestion(userText);
     const beaconhouse = isBeaconhouseQuestion(userText);
     const science = looksLikeScience(userText);
     const educational = !beaconhouse && isEducationalQuestion(userText);
     const normal = !beaconhouse && !educational;
     const autoVisual = shouldVisualize(userText);
     const question_type = beaconhouse ? "beaconhouse" : (educational ? "educational" : "normal");
-
-
-    let sourceStatus = science
-      ? (SCIENCE_STORE_NAME ? 'requested' : 'not_configured')
-      : history
-        ? (HISTORY_STORE_NAME ? 'requested' : 'not_configured')
-        : 'not_requested';
-
     let responseData = null;
     let usedModel = CHAT_MODEL;
     let firstError = null;
@@ -794,4 +809,3 @@ export default async function handler(req, res) {
     });
   }
 }
-

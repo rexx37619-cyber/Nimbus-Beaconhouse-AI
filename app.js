@@ -1,7 +1,7 @@
 const MODELS={
-  ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid • Ultra modifications'},
+  ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid  Ultra modifications'},
   legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'},
-  'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams • Flowcharts • Visuals'}
+  'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams  Flowcharts  Visuals'}
 };
 
 const RESOURCES=[
@@ -96,7 +96,7 @@ function updateUsage(used){
   const pct=Math.min(100,(state.used/USAGE_LIMIT)*100);
   $('usageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD`;
   $('usageBar').style.width=pct+'%';
-  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD • resets in ${usageTimeLeft()}`;
+  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD  resets in ${usageTimeLeft()}`;
   if($('menuUsageBar')) $('menuUsageBar').style.width=pct+'%';
 }
 function consumeLocalUsage(){state.used=Math.min(USAGE_LIMIT,state.used+1);updateUsage();}
@@ -106,7 +106,7 @@ function renderModels(){
   menu.innerHTML=Object.values(MODELS).map(m=>`
     <button class="model-option ${m.id===state.model?'active':''}" data-model="${m.id}">
       <div><b>${escapeHtml(m.label)}</b><small>${escapeHtml(m.sub)}</small></div>
-      ${m.id===state.model?'<span>*</span>':''}
+      ${m.id===state.model?'<span>"</span>':''}
     </button>
   `).join('')+
   `<div class="model-usage">
@@ -126,7 +126,7 @@ function resetChat(){
 function ensureChat(text){
   if(state.currentChatId)return;
   state.currentChatId=crypto.randomUUID?crypto.randomUUID():String(Date.now());
-  state.chats.unshift({id:state.currentChatId,title:text.slice(0,42)+(text.length>42?'…':''),messages:[]});
+  state.chats.unshift({id:state.currentChatId,title:text.slice(0,42)+(text.length>42?'':''),messages:[]});
   saveChats(); renderHistory();
 }
 
@@ -173,7 +173,7 @@ function makeAiBubble(text){
   bubble.className='message-bubble ai-bubble';
   bubble.innerHTML=`
     <div class="ai-head">
-      <div><div class="ai-tag">NIMBUS • ${escapeHtml(activeModel().label)}</div></div>
+      <div><div class="ai-tag">NIMBUS  ${escapeHtml(activeModel().label)}</div></div>
     </div>
     <div class="typing-area"></div>
     <div class="answer-actions hidden">
@@ -206,7 +206,7 @@ function renderMessage(role,text,fileName,scroll=true,animate=false){
     });
     bubble.querySelector('.answer-actions').classList.remove('hidden');
   }else{
-    const bubble=document.createElement('div'); bubble.className='message-bubble'; bubble.innerHTML=`${plainTextToHtml(text)}${fileName?`<div class="file-chip">- ${escapeHtml(fileName)}</div>`:''}`;
+    const bubble=document.createElement('div'); bubble.className='message-bubble'; bubble.innerHTML=`${plainTextToHtml(text)}${fileName?`<div class="file-chip">" ${escapeHtml(fileName)}</div>`:''}`;
     d.appendChild(bubble); $('messages').appendChild(d);
   }
   if(scroll)$('messages').scrollTop=$('messages').scrollHeight;
@@ -258,7 +258,7 @@ function setAgentThinking(isThinking){
   }
 }
 
-function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2 • VISUAL</span><strong>${title}</strong><small>${type} • ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visual…</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
+function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2  VISUAL</span><strong>${title}</strong><small>${type}  ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visual</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
 function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'}`;img.src=`data:${mimeType||'image/png'};base64,${base64}`;card.bubble.querySelector('.visual-loading')?.remove();card.bubble.appendChild(img);const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';card.bubble.appendChild(note);$('messages').scrollTop=$('messages').scrollHeight;}
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
@@ -298,7 +298,7 @@ async function sendMessage(text){
     let r, data;
     if(state.model==='nano-banana-2'){
       const visualPrompt=`Create one clear student-friendly 16:9 educational diagram or flowchart for this request. Use concise keywords only, short labels, arrows, icons and no long paragraphs. Topic/request: ${text||'Study visual'}.`;
-      const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels • arrows • key concepts'});
+      const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels  arrows  key concepts'});
       if(ok) add('ai','Visual generated. Use the labels as study help and rephrase explanations in your own words.');
       consumeLocalUsage();
       return;
@@ -310,17 +310,17 @@ async function sendMessage(text){
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
     let reply=data.reply||'Nimbus did not return a response.';
-    if(data.visual?.prompt){
+    if(data.visual?.prompt || looksLikeSchoolWork(text) || /(flowchart|diagram|draw|image|visual|illustration|mind map|concept map|show me|make a chart)/i.test(String(text||''))){
       const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
       const vtitle=data.visual?.title||'Study visual';
-      const vkeywords=data.visual?.keywords||'keywords • labels • key concepts • arrows';
+      const vkeywords=data.visual?.keywords||'keywords  labels  key concepts  arrows';
       add('ai',reply);
       const prompt=data.visual?.prompt||makeAutoVisualPrompt(text,reply);
       try{await generateVisual(prompt,{title:vtitle,type:vtype,keywords:vkeywords});}
       catch(e){console.warn('Visual generation failed',e);}
     }else add('ai',reply);
     consumeLocalUsage();
-  }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
+  }catch(err){console.error(err);add('ai','Im ready to help. Please try that again in a moment.');}
   finally{$('sendBtn').disabled=false;setAgentThinking(false);}
 }
 
@@ -329,17 +329,29 @@ $('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey
 $('messageInput').addEventListener('input',()=>{const el=$('messageInput');el.style.height='auto';el.style.height=Math.min(el.scrollHeight,150)+'px'});
 $('attachBtn').onclick=()=>$('fileInput').click();
 $('visualBtn').onclick=async()=>{
-  const input=document.getElementById('messageInput');
-  if(!input) return;
-
-  let value=String(input.value||'').trim();
-  value=value.replace(/(?:^|\s)\/visual(?:\s|$)/ig,'').trim();
-
-  input.value=value ? value+' /visual' : '/visual';
-  input.focus();
-  input.dispatchEvent(new Event('input',{bubbles:true}));
+  const topic=$('messageInput').value.trim();
+  if(!topic){$('messageInput').focus();return;}
+  if(state.used>=USAGE_LIMIT){add('ai',`Daily limit reached. Your 24-hour window resets in ${usageTimeLeft()}.`);return;}
+  ensureChat(topic);
+  add('user',topic);
+  $('messageInput').value='';
+  $('messageInput').style.height='auto';
+  setAgentThinking(true);
+  try{
+    await generateVisual(
+      `Create a clean, topic-specific educational visual for this student learning request.
+Topic: ${topic}
+Use accurate subject imagery, anatomy, objects, process stages, diagrams, spatial relationships and arrows where useful.
+Do NOT generate readable text, words, letters, numbers, labels, captions, typography, logos, watermarks, pseudo-writing or text panels.
+The artwork itself must communicate the concept visually.`,
+      {title:topic,type:'educational visual',keywords:'concept - relationships - process'}
+    );
+    consumeLocalUsage();
+  } finally {
+    setAgentThinking(false);
+  }
 };
-$('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`- <b>${escapeHtml(f.name)}</b> - ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">-</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
+$('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`" <b>${escapeHtml(f.name)}</b>  ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">-</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
 
 document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('messageInput').value=b.dataset.prompt;$('messageInput').focus()});
 $('newChat').onclick=resetChat;$('clearChat').onclick=resetChat;$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
@@ -386,19 +398,19 @@ $('infoModal').addEventListener('click',e=>{if(e.target===$('infoModal'))$('info
 $('signOut').onclick=()=>{localStorage.removeItem('nimbus_id');location.reload()};
 $('ownerBtn').onclick=()=>{$('menuModal').classList.add('hidden');$('ownerModal').classList.remove('hidden');};
 $('closeOwner').onclick=()=>$('ownerModal').classList.add('hidden');
-$('ownerLogin').onclick=async()=>{const email=$('ownerEmail').value.trim();if(!email){$('ownerMsg').textContent='Enter an owner email.';return}$('ownerMsg').textContent='Checking…';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
+$('ownerLogin').onclick=async()=>{const email=$('ownerEmail').value.trim();if(!email){$('ownerMsg').textContent='Enter an owner email.';return}$('ownerMsg').textContent='Checking';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
 
 function init(){syncAccount();renderHistory();renderModels();if(state.id){$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');if(state.chats.length)loadChat(state.chats[0].id)}}
 init();
 
 
-// Public Premium Models — Nimbus 5.7 Lor via Puter.js
+// Public Premium Models " Nimbus 5.7 Lor via Puter.js
 const PREMIUM_PUBLIC_LABEL='Nimbus 5.7 Lor';
 const PREMIUM_PUBLIC_MODEL='gpt-6-astra';
 let premiumReady=false;
 async function openPremium(){
   $('premiumModal').classList.remove('hidden');
-  $('premiumStatus').textContent='Checking availability…';
+  $('premiumStatus').textContent='Checking availability';
   try{
     if(!window.puter) throw new Error('Puter.js unavailable');
     if(!puter.auth.isSignedIn()){
@@ -458,6 +470,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
     var oldControls = document.getElementById("nimbusCleanControls");
     if (oldControls) oldControls.remove();
 
+    var oldMemory = document.getElementById("nimbusMemoryBtnClean");
     if (oldMemory) oldMemory.remove();
 
     /* --------------------------------------------------------
@@ -635,19 +648,19 @@ $('premiumComposer').addEventListener('submit',async e=>{
           '<button type="button" data-speed="xhigh" style="' +
           'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:#7c5cff;"></span>' +
-          '<span style="flex:1"><b>XHigh</b><small style="display:block;opacity:.65;">Normal • 1 RPD</small></span>' +
+          '<span style="flex:1"><b>XHigh</b><small style="display:block;opacity:.65;">Normal  1 RPD</small></span>' +
           '</button>' +
 
           '<button type="button" data-speed="rapid" style="' +
           'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:#00d2ff;"></span>' +
-          '<span style="flex:1"><b>Rapid</b><small style="display:block;opacity:.65;">Faster • 2 RPD</small></span>' +
+          '<span style="flex:1"><b>Rapid</b><small style="display:block;opacity:.65;">Faster  2 RPD</small></span>' +
           '</button>' +
 
           '<button type="button" data-speed="super-rapid" style="' +
           'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:#ff4fd8;"></span>' +
-          '<span style="flex:1"><b>Super Rapid</b><small style="display:block;opacity:.65;">Fastest • 3 RPD</small></span>' +
+          '<span style="flex:1"><b>Super Rapid</b><small style="display:block;opacity:.65;">Fastest  3 RPD</small></span>' +
           '</button>' +
 
           '</div>';
@@ -672,7 +685,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
 
         function syncSpeed(){
           if (!speedBtn) return;
-          speedBtn.textContent = speedLabel() + " -
+          speedBtn.textContent = speedLabel() + " -";
         }
 
         if (speedBtn && speedMenu) {
@@ -1359,8 +1372,8 @@ $('premiumComposer').addEventListener('submit',async e=>{
       : "Open NimTron Web for ChromeOS and other platforms";
 
     btn.innerHTML=isWindows
-      ? "<span>◈</span> DOWNLOAD NIMTRON (.exe)"
-      : "<span>◈</span> OPEN NIMTRON WEB — Chromebook ready";
+      ? "<span>*</span> DOWNLOAD NIMTRON (.exe)"
+      : "<span>*</span> OPEN NIMTRON WEB - Chromebook ready";
 
     btn.addEventListener("click",function(){
       if(isWindows){
@@ -1382,206 +1395,9 @@ $('premiumComposer').addEventListener('submit',async e=>{
 })();
 
 
-/* ============================================================
-   NIMBUS HOME COMPOSER V1
-   Always-visible main-screen input.
-   ============================================================ */
+/* NIMBUS EXISTING COMPOSER FINAL FIX */
 (function(){
-  function mountNimbusHomeComposer(){
-    if(document.getElementById('nimbusHomeComposer')) return;
-
-    var box=document.createElement('div');
-    box.id='nimbusHomeComposer';
-
-    box.innerHTML=
-      '<div class="nhc-top">' +
-        '<span>Nimbus</span>' +
-        '<span id="nhcMemory">Memory ON</span>' +
-      '</div>' +
-      '<div class="nhc-row">' +
-        '<textarea id="nhcInput" rows="1" placeholder="Message Nimbus..."></textarea>' +
-        '<button type="button" id="nhcVisual">Visual</button>' +
-        '<button type="button" id="nhcSend">Send</button>' +
-      '</div>' +
-      '<div class="nhc-hint">Add /visual at the end when you want an educational visual.</div>';
-
-    var style=document.createElement('style');
-    style.id='nimbus-home-composer-style';
-
-    style.textContent=
-      '#nimbusHomeComposer{' +
-        'position:fixed;' +
-        'left:330px;' +
-        'right:40px;' +
-        'bottom:22px;' +
-        'z-index:9999;' +
-        'padding:12px 14px;' +
-        'border:1px solid rgba(0,0,0,.10);' +
-        'border-radius:16px;' +
-        'background:rgba(255,255,255,.96);' +
-        'box-shadow:0 12px 36px rgba(0,0,0,.10);' +
-        'backdrop-filter:blur(14px);' +
-        'font-family:system-ui,-apple-system,sans-serif;' +
-      '}' +
-
-      '#nimbusHomeComposer .nhc-top{' +
-        'display:flex;' +
-        'justify-content:space-between;' +
-        'font-size:11px;' +
-        'font-weight:700;' +
-        'margin-bottom:8px;' +
-        'opacity:.65;' +
-      '}' +
-
-      '#nimbusHomeComposer .nhc-row{' +
-        'display:flex;' +
-        'gap:8px;' +
-        'align-items:flex-end;' +
-      '}' +
-
-      '#nhcInput{' +
-        'flex:1;' +
-        'min-height:46px;' +
-        'max-height:120px;' +
-        'resize:none;' +
-        'border:1px solid rgba(0,0,0,.12);' +
-        'border-radius:12px;' +
-        'padding:12px;' +
-        'font:15px system-ui,-apple-system,sans-serif;' +
-        'outline:none;' +
-      '}' +
-
-      '#nhcInput:focus{' +
-        'border-color:rgba(40,170,220,.65);' +
-      '}' +
-
-      '#nhcVisual,#nhcSend{' +
-        'height:46px;' +
-        'padding:0 14px;' +
-        'border:1px solid rgba(0,0,0,.12);' +
-        'border-radius:12px;' +
-        'background:#fff;' +
-        'cursor:pointer;' +
-        'font-weight:700;' +
-      '}' +
-
-      '#nhcSend{' +
-        'background:#111;' +
-        'color:#fff;' +
-      '}' +
-
-      '#nimbusHomeComposer .nhc-hint{' +
-        'font-size:10px;' +
-        'margin-top:6px;' +
-        'opacity:.50;' +
-      '}' +
-
-      '@media(max-width:800px){' +
-        '#nimbusHomeComposer{' +
-          'left:16px;' +
-          'right:16px;' +
-          'bottom:12px;' +
-        '}' +
-      '}';
-
-    document.head.appendChild(style);
-    document.body.appendChild(box);
-
-    var input=document.getElementById('nhcInput');
-    var visualBtn=document.getElementById('nhcVisual');
-    var sendBtn=document.getElementById('nhcSend');
-    var memory=document.getElementById('nhcMemory');
-
-    visualBtn.addEventListener('click',function(){
-      var v=String(input.value||'').trim();
-
-      v=v.replace(/(?:^|\s)\/visual(?:\s|$)/ig,'').trim();
-
-      input.value=v ? v+' /visual' : '/visual';
-      input.focus();
-    });
-
-    function submit(){
-      var text=String(input.value||'').trim();
-      if(!text) return;
-
-      var real=document.getElementById('messageInput');
-
-      if(real){
-        var newChat=document.getElementById('newChat');
-        if(newChat) newChat.click();
-
-        setTimeout(function(){
-          real.value=text;
-          real.dispatchEvent(new Event('input',{bubbles:true}));
-          real.focus();
-
-          real.dispatchEvent(
-            new KeyboardEvent('keydown',{
-              key:'Enter',
-              code:'Enter',
-              which:13,
-              keyCode:13,
-              bubbles:true
-            })
-          );
-
-          input.value='';
-        },80);
-      }
-    }
-
-    sendBtn.addEventListener('click',submit);
-
-    input.addEventListener('keydown',function(e){
-      if(e.key==='Enter' && !e.shiftKey){
-        e.preventDefault();
-        submit();
-      }
-    });
-
-    if(window.fetch && !window.__NIMBUS_MEMORY_FETCH_V1__){
-      window.__NIMBUS_MEMORY_FETCH_V1__=true;
-
-      var originalFetch=window.fetch.bind(window);
-
-      window.fetch=function(resource,init){
-        try{
-          var url=typeof resource==='string'
-            ? resource
-            : (resource && resource.url ? resource.url : '');
-
-          if(url.indexOf('/api/chat')>=0 && init && init.body){
-            var body=JSON.parse(init.body);
-
-            body.memory_enabled=true;
-
-            init=Object.assign({},init,{
-              body:JSON.stringify(body)
-            });
-          }
-        }catch(e){}
-
-        return originalFetch(resource,init);
-      };
-    }
-
-    if(memory){
-      memory.textContent='Memory ON';
-    }
-  }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',mountNimbusHomeComposer,{once:true});
-  }else{
-    mountNimbusHomeComposer();
-  }
-})();
-
-
-/* NIMBUS EXISTING COMPOSER VISUAL + MEMORY V3 */
-(function(){
-  function installNimbusExistingComposerFix(){
+  function installNimbusComposerFix(){
     var input=document.getElementById("messageInput");
     var visualBtn=document.getElementById("visualBtn");
 
@@ -1593,7 +1409,10 @@ $('premiumComposer').addEventListener('submit',async e=>{
           .replace(/(?:^|\\s)\\/visual(?:\\s|$)/ig,"")
           .trim();
 
-        input.value=value ? value + " /visual" : "/visual";
+        input.value=value
+          ? value+" /visual"
+          : "/visual";
+
         input.focus();
 
         try{
@@ -1602,34 +1421,32 @@ $('premiumComposer').addEventListener('submit',async e=>{
       };
     }
 
-    // Inline memory status only. No floating box and no duplicate composer.
-    var sendBtn=document.getElementById("sendBtn");
+    // Reuse the existing composer on the home screen.
+    // We do not create another textbox.
+    if(input){
+      var el=input;
 
-    if(sendBtn && sendBtn.parentElement &&
-       !sendBtn.parentElement.querySelector(".nimbus-memory-inline-v3")){
+      for(var i=0;i<6 && el && el!==document.body;i++,el=el.parentElement){
+        try{
+          if(getComputedStyle(el).display==="none"){
+            el.style.display="";
+          }
 
-      var memory=document.createElement("span");
-      memory.className="nimbus-memory-inline-v3";
-      memory.textContent="Memory ON";
-
-      memory.style.cssText=
-        "font-size:10px;" +
-        "opacity:.55;" +
-        "margin:0 7px 6px 2px;" +
-        "white-space:nowrap;";
-
-      sendBtn.parentElement.insertBefore(memory,sendBtn);
+          if(getComputedStyle(el).visibility==="hidden"){
+            el.style.visibility="visible";
+          }
+        }catch(e){}
+      }
     }
   }
 
   if(document.readyState==="loading"){
     document.addEventListener(
       "DOMContentLoaded",
-      installNimbusExistingComposerFix,
+      installNimbusComposerFix,
       {once:true}
     );
   }else{
-    installNimbusExistingComposerFix();
+    installNimbusComposerFix();
   }
 })();
-
