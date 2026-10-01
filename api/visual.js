@@ -21,7 +21,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]|Ã·|Ã—)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|-)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -181,7 +181,10 @@ Keep the composition focused on the requested concept and make the topic immedia
 Accuracy and topic-specific detail matter more than decorative text.`;
 
     try {
-      const generated = await generateCloudflare(enhancedPrompt);
+      const generated = await generateCloudflare(
+        enhancedPrompt +
+        "\n\nSTRICT IMAGE RULE: Use NO readable text, letters, words, captions, paragraphs, labels, UI, poster text, or typography. The artwork itself must communicate the exact requested topic."
+      );
       return res.status(200).json({
         ok: true,
         skipped: false,

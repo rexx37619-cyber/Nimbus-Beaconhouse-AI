@@ -11,13 +11,13 @@ const HISTORY_STORE_NAME = String(process.env.NIMBUS_HISTORY_STORE || '').trim()
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CHARS = 14000;
-const NORMAL_TIMEOUT_MS = 7000;
-const SCIENCE_TIMEOUT_MS = 9000;
-const SCIENCE_FALLBACK_TIMEOUT_MS = 18000;
+const NORMAL_TIMEOUT_MS = 20000;
+const SCIENCE_TIMEOUT_MS = 12000;
+const SCIENCE_FALLBACK_TIMEOUT_MS = 20000;
 const MAX_OUTPUT_TOKENS = 750;
 
 const BEACONHOUSE_KNOWLEDGE = `
-BEACONHOUSE PUBLIC KNOWLEDGE Ã¢â‚¬- CURATED REFERENCES
+BEACONHOUSE PUBLIC KNOWLEDGE - CURATED REFERENCES
 Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. Do not claim Beaconhouse owns, endorses, or operates Nimbus unless an official source specifically supports that claim.
 Useful official references:
 - Main site: https://www.beaconhouse.net/
@@ -199,7 +199,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|Ãƒ—)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|-\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -220,9 +220,7 @@ function isEducationalQuestion(text) {
 
 function explicitVisualRequest(text) {
   const s = String(text || "").trim();
-
-  return /(?:^|\s)\/visual(?:\s|$)/i.test(s) ||
-    /\\b(?:show|draw|visuali[sz]e|illustrate|illustration|diagram|label(?:led)?|picture|image|chart|flowchart|model)\\b/i.test(s);
+  return /(?:^|\s)\/visual(?:\s|$)/i.test(s);
 }
 
 function shouldVisualize(text) {
@@ -281,89 +279,98 @@ The visual should clearly represent the requested topic rather than merely decor
   };
 }
 
-function enforceEducationalFormat(answer, question) {
-  let text = cleanText(answer || "").trim();
 
-  // Remove model-generated formatting sections so Nimbus owns the format.
+function enforceEducationalFormat(answer, question) {
+  let text = String(answer || "").trim();
+
   text = text
-    .replace(/^\\s*Keywords\\s*:.*$/gim, "")
-    .replace(/^\\s*Key fact(?:\\s*\\(8\\s*shuffled\\s*words\\))?\\s*:.*$/gim)
+    .replace(/^\s*Keywords\s*:.*$/gim, "")
+    .replace(/^\s*Key fact.*$/gim, "")
     .replace(
-      /(?:^|\\n)\\s*Answer Structure\\s*:\\s*[\\s\\S]*?(?=\\n\\s*(?:Keywords|Key fact|Answer|Explanation|Sources?|Conclusion)\\s*:|\\s*$)/i,
-      "\\n"
+      /(?:^|\n)\s*Answer Structure\s*:[\s\S]*?(?=\n\s*(?:Keywords|Key fact|Explanation|Sources?|Conclusion)\s*:|\s*$)/i,
+      ""
     )
-    .replace(/^\\s*Answer structure\\s*:\\s*.*$/gim, "")
-    .replace(/^\\s*\\d+\\.\\s+.*$/gm, "")
-    .replace(/^\\s*[-•]\\s+.*$/gm, "")
-    .replace(/\\n{3,}/g, "\\n\\n")
+    .replace(/^\s*Answer structure\s*:.*$/gim, "")
+    .replace(/^\s*\d+\.\s+.*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  const keywordCandidates = pickEightWords(
-    `${String(question || "")} ${text}`,
-    question
-  );
+  const combined =
+    String(question || "") + " " + text;
 
-  const keywords = [...new Set(
-    keywordCandidates
-      .map((word) => String(word || "").replace(/[^\\p{L}\\p{N}'-]/gu, "").trim())
-      .filter(Boolean)
-  )].slice(0, 8);
+  const tokens = combined
+    .replace(/[^A-Za-z0-9\s'-]/g, " ")
+    .split(/\s+/)
+    .map(x => x.trim())
+    .filter(Boolean);
 
-  while (keywords.length < 5) {
-    const fallback = ["concept", "process", "function", "structure", "importance"];
-    const next = fallback.find((word) => !keywords.includes(word));
-    if (!next) break;
-    keywords.push(next);
+  const stop = new Set([
+    "the","a","an","is","are","was","were","what",
+    "how","why","when","where","which","and","or",
+    "to","of","in","on","for","with","does","do",
+    "this","that","it"
+  ]);
+
+  const unique = [];
+
+  for(const word of tokens){
+    const lower=word.toLowerCase();
+
+    if(!stop.has(lower) && lower.length>=3 && !unique.some(x=>x.toLowerCase()===lower)){
+      unique.push(word);
+    }
   }
 
-  const factCandidates = [...new Set(
-    pickEightWords(text || String(question || ""), question)
-      .map((word) => String(word || "").replace(/[^\\p{L}\\p{N}'-]/gu, "").trim())
-      .filter(Boolean)
-  )];
+  let keywords=unique.slice(0,8);
 
-  const fallbackFactWords = [
-    "process",
-    "structure",
-    "function",
-    "change",
-    "system",
-    "energy",
-    "evidence",
-    "importance"
-  ];
-
-  for (const word of fallbackFactWords) {
-    if (factCandidates.length >= 8) break;
-    if (!factCandidates.includes(word)) factCandidates.push(word);
+  while(keywords.length<5){
+    for(const fallback of [
+      "concept",
+      "process",
+      "function",
+      "structure",
+      "importance"
+    ]){
+      if(keywords.length>=5) break;
+      if(!keywords.includes(fallback)) keywords.push(fallback);
+    }
   }
 
-  const eight = factCandidates.slice(0, 8);
+  let factWords=unique.slice(0,8);
 
-  // Shuffle the eight words each time.
-  for (let i = eight.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [eight[i], eight[j]] = [eight[j], eight[i]];
+  while(factWords.length<8){
+    for(const fallback of [
+      "process",
+      "structure",
+      "function",
+      "change",
+      "system",
+      "energy",
+      "evidence",
+      "importance"
+    ]){
+      if(factWords.length>=8) break;
+      if(!factWords.includes(fallback)) factWords.push(fallback);
+    }
   }
 
-  // Exactly 10 words:
-  // Define(1) it2 explain3 how4 it5 forms6 then7 state8 its9 function10
+  // Fisher-Yates shuffle.
+  for(let i=factWords.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [factWords[i],factWords[j]]=[factWords[j],factWords[i]];
+  }
+
+  // EXACTLY 10 words.
   const answerStructure =
-    "Define it, explain how it forms, then state its function.";
+    "Define it, explain how it works, then state its importance.";
 
-  const sections = [
-    `Keywords: ${keywords.join(", ")}`,
-    `Answer Structure: ${answerStructure}`,
-    `Key fact (8 shuffled words): ${eight.join(" ")}`
-  ];
-
-  if (text) {
-    sections.push(text);
-  }
-
-  return sections.join("\\n\\n").trim();
+  return [
+    "Keywords: " + keywords.join(", "),
+    "Answer Structure: " + answerStructure,
+    "Key fact (8 shuffled words): " + factWords.slice(0,8).join(" "),
+    text
+  ].filter(Boolean).join("\n\n").trim();
 }
-
 function buildSystemInstruction({ science, educational, sourceMode = false, beaconhouse = false, history = false }) {
   let extra = '';
   if (educational) {
@@ -591,7 +598,7 @@ export default async function handler(req, res) {
     if (isCasualMessage(userText)) {
       return res.status(200).json({
         ok: true,
-        reply: "Hey! ðŸ‘‹ I'm Nimbus. What are we learning today?",
+        reply: "Hey! - I'm Nimbus. What are we learning today?",
         auto_visual: false,
         visual: null,
         model: body.model || 'ror',

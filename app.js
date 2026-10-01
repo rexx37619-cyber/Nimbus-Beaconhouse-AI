@@ -206,7 +206,7 @@ function renderMessage(role,text,fileName,scroll=true,animate=false){
     });
     bubble.querySelector('.answer-actions').classList.remove('hidden');
   }else{
-    const bubble=document.createElement('div'); bubble.className='message-bubble'; bubble.innerHTML=`${plainTextToHtml(text)}${fileName?`<div class="file-chip">ðŸ“Ž ${escapeHtml(fileName)}</div>`:''}`;
+    const bubble=document.createElement('div'); bubble.className='message-bubble'; bubble.innerHTML=`${plainTextToHtml(text)}${fileName?`<div class="file-chip">- ${escapeHtml(fileName)}</div>`:''}`;
     d.appendChild(bubble); $('messages').appendChild(d);
   }
   if(scroll)$('messages').scrollTop=$('messages').scrollHeight;
@@ -339,7 +339,7 @@ $('visualBtn').onclick=async()=>{
   input.focus();
   input.dispatchEvent(new Event('input',{bubbles:true}));
 };
-$('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`ðŸ“Ž <b>${escapeHtml(f.name)}</b> Â· ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">Ã—</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
+$('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`- <b>${escapeHtml(f.name)}</b> - ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">-</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
 
 document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('messageInput').value=b.dataset.prompt;$('messageInput').focus()});
 $('newChat').onclick=resetChat;$('clearChat').onclick=resetChat;$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
@@ -624,7 +624,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
           'border:1px solid rgba(124,92,255,.45);' +
           'background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(0,210,255,.12));' +
           'color:inherit;border-radius:10px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;' +
-          'white-space:nowrap;">XHigh â–¾</button>' +
+          'white-space:nowrap;">XHigh -</button>' +
 
           '<div id="nimbusSpeedMenuFinal" style="' +
           'display:none;position:absolute;right:0;bottom:calc(100% + 8px);' +
@@ -672,7 +672,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
 
         function syncSpeed(){
           if (!speedBtn) return;
-          speedBtn.textContent = speedLabel() + " â–¾";
+          speedBtn.textContent = speedLabel() + " -
         }
 
         if (speedBtn && speedMenu) {
@@ -1577,3 +1577,59 @@ $('premiumComposer').addEventListener('submit',async e=>{
     mountNimbusHomeComposer();
   }
 })();
+
+
+/* NIMBUS EXISTING COMPOSER VISUAL + MEMORY V3 */
+(function(){
+  function installNimbusExistingComposerFix(){
+    var input=document.getElementById("messageInput");
+    var visualBtn=document.getElementById("visualBtn");
+
+    if(input && visualBtn){
+      visualBtn.onclick=function(){
+        var value=String(input.value || "").trim();
+
+        value=value
+          .replace(/(?:^|\\s)\\/visual(?:\\s|$)/ig,"")
+          .trim();
+
+        input.value=value ? value + " /visual" : "/visual";
+        input.focus();
+
+        try{
+          input.dispatchEvent(new Event("input",{bubbles:true}));
+        }catch(e){}
+      };
+    }
+
+    // Inline memory status only. No floating box and no duplicate composer.
+    var sendBtn=document.getElementById("sendBtn");
+
+    if(sendBtn && sendBtn.parentElement &&
+       !sendBtn.parentElement.querySelector(".nimbus-memory-inline-v3")){
+
+      var memory=document.createElement("span");
+      memory.className="nimbus-memory-inline-v3";
+      memory.textContent="Memory ON";
+
+      memory.style.cssText=
+        "font-size:10px;" +
+        "opacity:.55;" +
+        "margin:0 7px 6px 2px;" +
+        "white-space:nowrap;";
+
+      sendBtn.parentElement.insertBefore(memory,sendBtn);
+    }
+  }
+
+  if(document.readyState==="loading"){
+    document.addEventListener(
+      "DOMContentLoaded",
+      installNimbusExistingComposerFix,
+      {once:true}
+    );
+  }else{
+    installNimbusExistingComposerFix();
+  }
+})();
+
