@@ -21,7 +21,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]||-)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|-)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -36,11 +36,12 @@ function isEducationalQuestion(text) {
 }
 
 function explicitVisualRequest(text) {
-  return /\b(?:show|draw|visuali[sz]e|illustrate|illustration|diagram|label(?:led)?|picture|image|chart|flowchart|model)\b/i.test(String(text || ''));
+  const s = String(text || "").trim();
+  return /(?:^|\s)\/visual(?:\s|$)/i.test(s);
 }
 
 function shouldVisualize(text) {
-  return Boolean(String(text || "").trim());
+  return explicitVisualRequest(String(text || "").trim());
 }
 
 function classifyVisualKind(text) {
@@ -157,30 +158,33 @@ export default async function handler(req, res) {
     }
 
     const kind = classifyVisualKind(originalPrompt);
-    const enhancedPrompt = `Create a high-quality 16:9 educational visual for the exact requested topic.
+    const visualQuestion = originalPrompt
+    .replace(/(?:^|\s)\/visual(?=\s|$)/ig, " ")
+    .replace(/\\s+/g, " ")
+    .trim();
 
-EXACT TOPIC:
-${originalPrompt}
+    const enhancedPrompt = `Create a high-quality 16:9 educational visual for a Grade 6-8 student lesson.
+
+EXACT REQUEST:
+${visualQuestion}
 
 VISUAL TYPE:
 ${kind}
 
-Create the actual subject-specific image, diagram, anatomy illustration, process illustration, map, timeline, circuit, mathematical visual, or other academic visual appropriate to the topic.
-
-Do NOT create a generic template.
-Do NOT create a four-box infographic.
-Do NOT create a poster.
-Do NOT create a worksheet.
-Do NOT create a UI screenshot.
-Do NOT create readable text.
-Do NOT create letters, words, labels, captions, paragraphs, or typography.
-Do NOT add text-heavy content.
-
-The artwork itself must communicate the requested concept accurately.
-Prioritize real objects, structures, relationships, arrows, processes, spatial arrangement, and topic-specific detail.`;
+Make the visual directly represent the exact topic in the request.
+Prioritize clear imagery, diagrams, structures, processes, objects, arrows, environments, maps, timelines, or mathematical notation as appropriate.
+Do not substitute a generic stock illustration.
+Do not create a poster, worksheet, presentation slide, infographic full of text, or UI screenshot.
+Do not write any readable text.
+Use NO readable text, labels, captions, paragraphs, letters, or words. The artwork alone must communicate the concept.
+Keep the composition focused on the requested concept and make the topic immediately recognizable.
+Accuracy and topic-specific detail matter more than decorative text.`;
 
     try {
-      const generated = await generateCloudflare(enhancedPrompt);
+      const generated = await generateCloudflare(
+        enhancedPrompt +
+        "\n\nSTRICT IMAGE RULE: Use NO readable text, letters, words, captions, paragraphs, labels, UI, poster text, or typography. The artwork itself must communicate the exact requested topic."
+      );
       return res.status(200).json({
         ok: true,
         skipped: false,

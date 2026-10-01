@@ -11,9 +11,9 @@ const HISTORY_STORE_NAME = String(process.env.NIMBUS_HISTORY_STORE || '').trim()
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CHARS = 14000;
-const NORMAL_TIMEOUT_MS = 9000;
+const NORMAL_TIMEOUT_MS = 20000;
 const SCIENCE_TIMEOUT_MS = 9000;
-const SCIENCE_FALLBACK_TIMEOUT_MS = 12000;
+const SCIENCE_FALLBACK_TIMEOUT_MS = 18000;
 const MAX_OUTPUT_TOKENS = 750;
 
 const BEACONHOUSE_KNOWLEDGE = `
@@ -59,8 +59,8 @@ NORMAL CHAT:
 
 EDUCATIONAL FORMAT:
 For an educational/schoolwork question, use exactly these sections when possible:
-Keywords: 510 concise topic terms.
-Answer structure: 25 short steps or points the student can use to construct an answer.
+Keywords: 5"10 concise topic terms.
+Answer structure: 2"5 short steps or points the student can use to construct an answer.
 Key fact (8 shuffled words): exactly 8 separate topic-relevant words, shuffled/varied in order, not a sentence.
 Do not produce a polished ready-to-submit essay for ordinary schoolwork.
 
@@ -199,7 +199,7 @@ function hasAcademicSubject(text) {
 
 function looksLikeMathProblem(text) {
   const s = String(text || '');
-  return /(?:\d|x|y)\s*(?:[+\-*/^=]||")|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
+  return /(?:\d|x|y)\s*(?:[+\-*/^=]|/|-)|\b(?:solve|calculate|find|evaluate|simplify|factorise|factorize|expand)\b/i.test(s);
 }
 
 function hasEducationalIntent(text) {
@@ -215,31 +215,40 @@ function isEducationalQuestion(text) {
   const s = String(text || "").trim();
 
   if (!s) return false;
-  if (isCasualMessage(s)) return false;
-  if (isBeaconhouseQuestion(s)) return false;
 
-  const academicContext =
-    hasAcademicSubject(s) ||
-    looksLikeScience(s) ||
-    looksLikeMathProblem(s) ||
-    /\b(?:school|student|classroom|homework|schoolwork|exam|lesson|chapter|revision|study|notes|subject|grade\s*\d+|class\s*\d+)\b/i.test(s);
+  if (typeof isCasualMessage === "function" && isCasualMessage(s)) {
+    return false;
+  }
 
-  const educationalIntent =
-    /\b(?:explain|describe|define|what\s+is|what\s+are|what\s+does|how\s+does|how\s+do|why\s+does|why\s+do|difference\s+between|compare|function\s+of|purpose\s+of|types?\s+of|how\s+it\s+works?|teach\s+me|learn\s+about|concept|process|steps?|sequence|example|solve|calculate|find|revise|revision|study|notes)\b/i.test(s);
+  if (
+    typeof isBeaconhouseQuestion === "function" &&
+    isBeaconhouseQuestion(s)
+  ) {
+    return false;
+  }
 
-  return academicContext && educationalIntent;
+  const academicTopic =
+    /\b(?:science|biology|chemistry|physics|math|mathematics|algebra|geometry|equation|respiration|breathing|diffusion|diaphragm|lungs|heart|blood|cells?|photosynthesis|ecosystem|food\s+chain|force|energy|electricity|circuit|atoms?|molecules?|joints?|muscles?|digestion|history|geography|climate|continent|country|civilization|revolution|empire|government|democracy|english|grammar|literature|verb|noun|adjective|cambridge|grade\s*[1-8]|class\s*[1-8]|homework|schoolwork|lesson|chapter|exam|revision|study|notes)\b/i.test(s);
+
+  const academicIntent =
+    /\b(?:explain|describe|define|what\s+is|what\s+are|what\s+does|how\s+does|how\s+do|why\s+does|why\s+do|difference\s+between|compare|function\s+of|purpose\s+of|types?\s+of|solve|calculate|find|revise|teach\s+me|learn\s+about|give\s+an\s+example|how\s+it\s+works?)\b/i.test(s);
+
+  return academicTopic && academicIntent;
 }
 
 function explicitVisualRequest(text) {
-  return /(?:^|\s)\/visual(?:\s|$)/i.test(String(text || "").trim());
+  return /(?:^|\s)\/visual(?:\s|$)/i.test(
+    String(text || "").trim()
+  );
 }
 
 function shouldVisualize(text) {
   const s = String(text || "").trim();
 
-  if (!isEducationalQuestion(s)) return false;
-
-  return explicitVisualRequest(s);
+  return (
+    isEducationalQuestion(s) &&
+    explicitVisualRequest(s)
+  );
 }
 
 function classifyVisualKind(text) {
@@ -316,19 +325,20 @@ function enforceEducationalFormat(answer, question) {
     .replace(/^\s*Explanation\s*:.*$/gim, "")
     .trim();
 
-  const source =
-    String(question || "") + " " + text;
-
-  const words = source
+  const words = (
+    String(question || "") +
+    " " +
+    text
+  )
     .replace(/[^A-Za-z0-9\s'-]/g, " ")
     .split(/\s+/)
-    .map(word => word.trim())
     .filter(Boolean);
 
   const stop = new Set([
-    "the","a","an","is","are","was","were","what","how",
-    "why","when","where","which","and","or","to","of",
-    "in","on","for","with","does","do","this","that","it"
+    "the","a","an","is","are","was","were",
+    "what","how","why","when","where","which",
+    "and","or","to","of","in","on","for",
+    "with","does","do","this","that","it"
   ]);
 
   const unique = [];
@@ -339,13 +349,15 @@ function enforceEducationalFormat(answer, question) {
     if (
       lower.length >= 3 &&
       !stop.has(lower) &&
-      !unique.some(item => item.toLowerCase() === lower)
+      !unique.some(
+        x => x.toLowerCase() === lower
+      )
     ) {
       unique.push(word);
     }
   }
 
-  const keywords = unique.slice(0, 8);
+  const keywords = unique.slice(0,8);
 
   while (keywords.length < 5) {
     for (const word of [
@@ -356,11 +368,14 @@ function enforceEducationalFormat(answer, question) {
       "importance"
     ]) {
       if (keywords.length >= 5) break;
-      if (!keywords.includes(word)) keywords.push(word);
+
+      if (!keywords.includes(word)) {
+        keywords.push(word);
+      }
     }
   }
 
-  const factWords = unique.slice(0, 8);
+  const factWords = unique.slice(0,8);
 
   for (const word of [
     "process",
@@ -373,27 +388,38 @@ function enforceEducationalFormat(answer, question) {
     "importance"
   ]) {
     if (factWords.length >= 8) break;
-    if (!factWords.includes(word)) factWords.push(word);
+
+    if (!factWords.includes(word)) {
+      factWords.push(word);
+    }
   }
 
   while (factWords.length < 8) {
     factWords.push("concept");
   }
 
-  for (let i = factWords.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [factWords[i], factWords[j]] = [factWords[j], factWords[i]];
+  for (let i=factWords.length-1;i>0;i--) {
+    const j=Math.floor(Math.random()*(i+1));
+    [factWords[i],factWords[j]]=[
+      factWords[j],
+      factWords[i]
+    ];
   }
 
+  // EXACTLY TEN WORDS.
   const structure =
     "Define it, explain how it works, then state its importance.";
 
   return [
-    "Keywords: " + keywords.slice(0, 8).join(", "),
+    "Keywords: " + keywords.slice(0,8).join(", "),
     "Answer Structure: " + structure,
-    "Key fact (8 shuffled words): " + factWords.slice(0, 8).join(" "),
+    "Key fact (8 shuffled words): " +
+      factWords.slice(0,8).join(" "),
     text
-  ].filter(Boolean).join("\n\n").trim();
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
 }
 
 function buildSystemInstruction({ science, educational, sourceMode = false, beaconhouse = false, history = false }) {
@@ -599,6 +625,12 @@ export default async function handler(req, res) {
     body = body || {};
 
     const userText = String(body.message || '').trim();
+    const beaconhouse = isBeaconhouseQuestion(userText);
+    const science = looksLikeScience(userText);
+    const educational = !beaconhouse && isEducationalQuestion(userText);
+    const normal = !beaconhouse && !educational;
+    const autoVisual = shouldVisualize(userText);
+    const question_type = beaconhouse ? "beaconhouse" : (educational ? "educational" : "normal");
     if (!userText) {
       return res.status(200).json({ ok: false, reply: 'Please enter a question.', auto_visual: false, visual: null, request_id: requestId });
     }
@@ -623,7 +655,7 @@ export default async function handler(req, res) {
     if (isCasualMessage(userText)) {
       return res.status(200).json({
         ok: true,
-        reply: "Hey! ' I'm Nimbus. What are we learning today?",
+        reply: "Hey!  I'm Nimbus. What are we learning today?",
         auto_visual: false,
         visual: null,
         model: body.model || 'ror',
@@ -635,12 +667,18 @@ export default async function handler(req, res) {
       });
     }
 
-    const beaconhouse = isBeaconhouseQuestion(userText);
     const science = looksLikeScience(userText);
-    const educational = !beaconhouse && isEducationalQuestion(userText);
-    const normal = !beaconhouse && !educational;
+    const history = isHistoryQuestion(userText) && !isBeaconhouseQuestion(userText);
+    const educational = isEducationalQuestion(userText);
     const autoVisual = shouldVisualize(userText);
-    const question_type = beaconhouse ? "beaconhouse" : (educational ? "educational" : "normal");
+    const beaconhouse = isBeaconhouseQuestion(userText);
+
+    let sourceStatus = science
+      ? (SCIENCE_STORE_NAME ? 'requested' : 'not_configured')
+      : history
+        ? (HISTORY_STORE_NAME ? 'requested' : 'not_configured')
+        : 'not_requested';
+
     let responseData = null;
     let usedModel = CHAT_MODEL;
     let firstError = null;
@@ -768,6 +806,17 @@ export default async function handler(req, res) {
     }
 
     let answer = extractGeminiText(responseData);
+    answer = educational || beaconhouse
+      ? (educational
+        ? enforceEducationalFormat(answer, userText)
+        : answer.replace(/^\s*Keywords\s*:.*$/gim, "")
+                .replace(/^\s*Answer\s+Structure\s*:.*$/gim, "")
+                .replace(/^\s*Key\s+fact.*$/gim, "")
+                .trim())
+      : answer.replace(/^\s*Keywords\s*:.*$/gim, "")
+              .replace(/^\s*Answer\s+Structure\s*:.*$/gim, "")
+              .replace(/^\s*Key\s+fact.*$/gim, "")
+              .trim();
     if (!answer) {
       console.error('[Nimbus chat]', requestId, 'EMPTY_MODEL_RESPONSE');
       return res.status(200).json({
