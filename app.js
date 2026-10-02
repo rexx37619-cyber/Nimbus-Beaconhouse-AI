@@ -1,7 +1,7 @@
-const MODELS={
-  ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid - Ultra modifications'},
+﻿const MODELS={
+  ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid â€¢ Ultra modifications'},
   legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'},
-  'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams - Flowcharts - Visuals'}
+  'nano-banana-2':{id:'nano-banana-2',label:'Nano Banana 2',sub:'Diagrams â€¢ Flowcharts â€¢ Visuals'}
 };
 
 const RESOURCES=[
@@ -96,7 +96,7 @@ function updateUsage(used){
   const pct=Math.min(100,(state.used/USAGE_LIMIT)*100);
   $('usageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD`;
   $('usageBar').style.width=pct+'%';
-  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD - resets in ${usageTimeLeft()}`;
+  if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD â€¢ resets in ${usageTimeLeft()}`;
   if($('menuUsageBar')) $('menuUsageBar').style.width=pct+'%';
 }
 function consumeLocalUsage(){state.used=Math.min(USAGE_LIMIT,state.used+1);updateUsage();}
@@ -106,7 +106,7 @@ function renderModels(){
   menu.innerHTML=Object.values(MODELS).map(m=>`
     <button class="model-option ${m.id===state.model?'active':''}" data-model="${m.id}">
       <div><b>${escapeHtml(m.label)}</b><small>${escapeHtml(m.sub)}</small></div>
-      ${m.id===state.model?'<span></span>':''}
+      ${m.id===state.model?'<span>âœ“</span>':''}
     </button>
   `).join('')+
   `<div class="model-usage">
@@ -173,7 +173,7 @@ function makeAiBubble(text){
   bubble.className='message-bubble ai-bubble';
   bubble.innerHTML=`
     <div class="ai-head">
-      <div><div class="ai-tag">NIMBUS - ${escapeHtml(activeModel().label)}</div></div>
+      <div><div class="ai-tag">NIMBUS â€¢ ${escapeHtml(activeModel().label)}</div></div>
     </div>
     <div class="typing-area"></div>
     <div class="answer-actions hidden">
@@ -206,7 +206,7 @@ function renderMessage(role,text,fileName,scroll=true,animate=false){
     });
     bubble.querySelector('.answer-actions').classList.remove('hidden');
   }else{
-    const bubble=document.createElement('div'); bubble.className='message-bubble'; bubble.innerHTML=`${plainTextToHtml(text)}${fileName?`<div class="file-chip"> ${escapeHtml(fileName)}</div>`:''}`;
+    const bubble=document.createElement('div'); bubble.className='message-bubble'; bubble.innerHTML=`${plainTextToHtml(text)}${fileName?`<div class="file-chip">ðŸ“Ž ${escapeHtml(fileName)}</div>`:''}`;
     d.appendChild(bubble); $('messages').appendChild(d);
   }
   if(scroll)$('messages').scrollTop=$('messages').scrollHeight;
@@ -258,7 +258,7 @@ function setAgentThinking(isThinking){
   }
 }
 
-function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2 - VISUAL</span><strong>${title}</strong><small>${type} - ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visual...</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
+function createVisualCard(meta={}){const d=document.createElement('div');d.className='message ai';const bubble=document.createElement('div');bubble.className='message-bubble ai-bubble visual-bubble';const title=escapeHtml(meta.title||'Study visual');const type=escapeHtml(meta.type||'diagram');const keywords=escapeHtml(meta.keywords||'keywords only');bubble.innerHTML=`<div class="visual-card-head"><div><span class="visual-kicker">NANO BANANA 2 â€¢ VISUAL</span><strong>${title}</strong><small>${type} â€¢ ${keywords}</small></div><span class="visual-badge">IMAGE</span></div><div class="visual-loading" aria-live="polite"><span></span><span></span><span></span><div>Generating visual...</div></div>`;d.appendChild(bubble);$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return {d,bubble};}
 function finishVisualCard(card,base64,mimeType,meta={}){if(!card?.bubble)return;const img=document.createElement('img');img.className='nimbus-visual-image';img.alt=`Nimbus ${meta.type||'diagram'}`;img.src=`data:${mimeType||'image/png'};base64,${base64}`;card.bubble.querySelector('.visual-loading')?.remove();card.bubble.appendChild(img);const note=document.createElement('div');note.className='visual-rephrase-note';note.textContent='Use the keywords and labels as study help, then rephrase the explanation in your own words.';card.bubble.appendChild(note);$('messages').scrollTop=$('messages').scrollHeight;}
 function failVisualCard(card){if(!card?.bubble)return;const load=card.bubble.querySelector('.visual-loading');if(load){load.innerHTML='<div class="visual-fallback">Visual generation is unavailable right now.</div>';load.classList.add('visual-error');}}
 function addVisualMessage(base64,mimeType,meta={}){const card=createVisualCard(meta);finishVisualCard(card,base64,mimeType,meta);}
@@ -318,7 +318,7 @@ async function sendMessage(text){
     let r, data;
     if(state.model==='nano-banana-2'){
       const visualPrompt=`Create one clear student-friendly 16:9 educational diagram or flowchart for this request. Use concise keywords only, short labels, arrows, icons and no long paragraphs. Topic/request: ${text||'Study visual'}.`;
-      const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels - arrows - key concepts'});
+      const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels â€¢ arrows â€¢ key concepts'});
       if(ok) add('ai','Visual generated. Use the labels as study help and rephrase explanations in your own words.');
       consumeLocalUsage();
       return;
@@ -333,14 +333,14 @@ async function sendMessage(text){
     if(data.visual?.prompt || shouldAutoVisualizeClient(text)){
       const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
       const vtitle=data.visual?.title||'Study visual';
-      const vkeywords=data.visual?.keywords||'keywords - labels - key concepts - arrows';
+      const vkeywords=data.visual?.keywords||'keywords â€¢ labels â€¢ key concepts â€¢ arrows';
       add('ai',reply);
       const prompt=data.visual?.prompt||makeAutoVisualPrompt(text,reply);
       try{await generateVisual(prompt,{title:vtitle,type:vtype,keywords:vkeywords});}
       catch(e){console.warn('Visual generation failed',e);}
     }else add('ai',reply);
     consumeLocalUsage();
-  }catch(err){console.error(err);add('ai','I'm ready to help. Please try that again in a moment.');}
+  }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
   finally{$('sendBtn').disabled=false;setAgentThinking(false);}
 }
 
@@ -378,7 +378,7 @@ The artwork itself must communicate the concept visually.`,
       {
         title:topic,
         type:'educational visual',
-        keywords:'concept  relationships  process'
+        keywords:'concept • relationships • process'
       }
     );
 
@@ -387,7 +387,7 @@ The artwork itself must communicate the concept visually.`,
     setAgentThinking(false);
   }
 };
-$('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=` <b>${escapeHtml(f.name)}</b>  ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none"></button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
+$('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`ðŸ“Ž <b>${escapeHtml(f.name)}</b> Â· ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">x</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
 
 document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('messageInput').value=b.dataset.prompt;$('messageInput').focus()});
 $('newChat').onclick=resetChat;$('clearChat').onclick=resetChat;$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
@@ -673,7 +673,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
           'border:1px solid rgba(124,92,255,.45);' +
           'background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(0,210,255,.12));' +
           'color:inherit;border-radius:10px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;' +
-          'white-space:nowrap;">XHigh </button>' +
+          'white-space:nowrap;">XHigh â–¾</button>' +
 
           '<div id="nimbusSpeedMenuFinal" style="' +
           'display:none;position:absolute;right:0;bottom:calc(100% + 8px);' +
@@ -684,19 +684,19 @@ $('premiumComposer').addEventListener('submit',async e=>{
           '<button type="button" data-speed="xhigh" style="' +
           'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:#7c5cff;"></span>' +
-          '<span style="flex:1"><b>XHigh</b><small style="display:block;opacity:.65;">Normal - 1 RPD</small></span>' +
+          '<span style="flex:1"><b>XHigh</b><small style="display:block;opacity:.65;">Normal â€¢ 1 RPD</small></span>' +
           '</button>' +
 
           '<button type="button" data-speed="rapid" style="' +
           'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:#00d2ff;"></span>' +
-          '<span style="flex:1"><b>Rapid</b><small style="display:block;opacity:.65;">Faster - 2 RPD</small></span>' +
+          '<span style="flex:1"><b>Rapid</b><small style="display:block;opacity:.65;">Faster â€¢ 2 RPD</small></span>' +
           '</button>' +
 
           '<button type="button" data-speed="super-rapid" style="' +
           'display:flex;width:100%;align-items:center;gap:8px;padding:9px;border:0;background:transparent;color:inherit;border-radius:8px;cursor:pointer;text-align:left;">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:#ff4fd8;"></span>' +
-          '<span style="flex:1"><b>Super Rapid</b><small style="display:block;opacity:.65;">Fastest - 3 RPD</small></span>' +
+          '<span style="flex:1"><b>Super Rapid</b><small style="display:block;opacity:.65;">Fastest â€¢ 3 RPD</small></span>' +
           '</button>' +
 
           '</div>';
@@ -721,7 +721,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
 
         function syncSpeed(){
           if (!speedBtn) return;
-          speedBtn.textContent = speedLabel() + " ";
+          speedBtn.textContent = speedLabel() + " â–¾";
         }
 
         if (speedBtn && speedMenu) {
@@ -1400,7 +1400,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
     btn.id="nimtronSidebarBtn";
     btn.className=newChat.className;
     btn.title="Open NimTron Desktop Companion";
-    btn.innerHTML="<span></span> NimTron";
+    btn.innerHTML="<span>â—ˆ</span> NimTron";
     btn.addEventListener("click",function(){
       window.location.href="/nimtron.html";
     });
@@ -1412,46 +1412,5 @@ $('premiumComposer').addEventListener('submit',async e=>{
     document.addEventListener("DOMContentLoaded",installNimTronSidebarLink,{once:true});
   }else{
     installNimTronSidebarLink();
-  }
-})();
-
-
-
-
-/* NIMBUS EXISTING COMPOSER VISUAL FINAL FIX */
-(function(){
-  function bindNimbusVisual(){
-    var input=document.getElementById("messageInput");
-    var button=document.getElementById("visualBtn");
-
-    if(!input || !button) return;
-
-    button.onclick=function(){
-      var value=String(input.value || "").trim();
-
-      value=value
-        .replace(/(?:^|\s)\/visual(?:\s|$)/ig,"")
-        .trim();
-
-      input.value=value
-        ? value+" /visual"
-        : "/visual";
-
-      input.focus();
-
-      try{
-        input.dispatchEvent(new Event("input",{bubbles:true}));
-      }catch(e){}
-    };
-  }
-
-  if(document.readyState==="loading"){
-    document.addEventListener(
-      "DOMContentLoaded",
-      bindNimbusVisual,
-      {once:true}
-    );
-  }else{
-    bindNimbusVisual();
   }
 })();
