@@ -13,9 +13,8 @@ const MAX_OUTPUT_TOKENS = 850;
 const BEACONHOUSE_KNOWLEDGE = `
 NIMBUS BEACONHOUSE KNOWLEDGE
 NIMBUS PROJECT FACTS
-- Nimbus founder: Abdul Haadi Hassan.
-- Nimbus co-founder: Muhammad Arham.
-- When asked who created, founded, or co-founded Nimbus, state these roles directly.
+- Nimbus is an educational-focused AI project built manually by co-founders Abdul Haadi Hassan and Muhammad Arham.
+- When asked who created, founded, or co-founded Nimbus, explain that Abdul Haadi Hassan and Muhammad Arham manually built it together as co-founders and describe its student-focused educational purpose.
 
 BEACONHOUSE TERMS
 - BISC stands for Beaconhouse International Student Convention.
@@ -152,7 +151,7 @@ function classifyQuestion(text) {
 
 /* NIMBUS_V9_EDUCATIONAL_FORMATTER */
 function nimbusFormatWords(answer, question) {
-  const stop = new Set('the a an and or of to in on for with is are was were be been being this that these those how what why does do did it its their our your from by as at into about than then can could should would may might will shall explain explanation main very more less also'.split(/\s+/));
+  const stop = new Set('the a an and or of to in on for with is are was were be been being this that these those how what why does do did it its their our your from by as at into about than then can could should would may might will shall explain explanation main very more less also keyword keywords answer structure key fact facts section sections'.split(/\s+/));
   const source = (String(question||'')+' '+String(answer||'')).replace(/https?:\/\/\S+/g,' ');
   const candidates = source.match(/[A-Za-z][A-Za-z-]*/g) || [];
   const words = [];
@@ -172,11 +171,91 @@ function nimbusFormatWords(answer, question) {
   return words;
 }
 
+function nimbusTopicFromQuestion(question) {
+  const cleaned = removeVisualCommand(question || '')
+    .replace(/[?!.:,;()[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const ignore = new Set(
+    'explain describe define discuss tell show give write make what whats what\'s is are was were how does do did why who when where compare difference between the a an of to in on for with and or please about work works working formed form formation happens happened happen process stages steps'.split(/\s+/)
+  );
+
+  const words = (cleaned.match(/[A-Za-z][A-Za-z-]*/g) || [])
+    .filter(word => !ignore.has(word.toLowerCase()))
+    .slice(0, 3);
+
+  return words.join(' ') || 'the topic';
+}
+
+function nimbusLimitRoadmap(line) {
+  const words = String(line || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 10) return words.join(' ');
+  return words.slice(0, 10).join(' ').replace(/[,:;]+$/,'') + '.';
+}
+
+function nimbusBuildRoadmap(question, words) {
+  const q = removeVisualCommand(question || '').toLowerCase();
+  const topic = nimbusTopicFromQuestion(question);
+  const topicWords = new Set(topic.toLowerCase().split(/\s+/));
+  const useful = (Array.isArray(words) ? words : [])
+    .filter(word => !topicWords.has(String(word).toLowerCase()))
+    .slice(0, 6);
+
+  const a = useful[0] || 'main features';
+  const b = useful[1] || 'important stages';
+  const c = useful[2] || 'key changes';
+  const d = useful[3] || 'final result';
+
+  let lines;
+
+  if (/\b(compare|difference|different|similar|similarities|versus|vs)\b/.test(q)) {
+    lines = [
+      'Define ' + topic + ' and identify both compared ideas.',
+      'Compare their main features, processes, similarities, and differences.',
+      'Conclude with the most important comparison and significance.'
+    ];
+  } else if (/\b(why|cause|causes|reason|reasons)\b/.test(q)) {
+    lines = [
+      'Define ' + topic + ' and identify the main cause.',
+      'Explain how the causes lead to each major effect.',
+      'Conclude with the final effect and overall importance.'
+    ];
+  } else if (/\b(function|purpose|role|importance|important)\b/.test(q)) {
+    lines = [
+      'Define ' + topic + ' and identify its main function.',
+      'Explain how its parts or stages perform that function.',
+      'Conclude with why that function is important.'
+    ];
+  } else if (/\b(how|formed|formation|develop|developed|process|stages|steps|work|works)\b/.test(q)) {
+    lines = [
+      'Define ' + topic + ' and identify its starting point.',
+      'Explain each stage and how the process develops further.',
+      'Conclude with the final result and its importance.'
+    ];
+  } else if (/\b(what is|what are|define|meaning)\b/.test(q)) {
+    lines = [
+      'Define ' + topic + ' clearly in simple terms.',
+      'Explain ' + a + ', ' + b + ', and ' + c + '.',
+      'Conclude with ' + d + ' and overall importance.'
+    ];
+  } else {
+    lines = [
+      'Define ' + topic + ' and state its main idea.',
+      'Explain how ' + a + ', ' + b + ', and ' + c + ' connect.',
+      'Conclude with ' + d + ' and the topic\'s importance.'
+    ];
+  }
+
+  return lines.map(nimbusLimitRoadmap);
+}
+
 function formatEducationalAnswer(answer, question) {
   const raw = cleanText(answer || '');
   const q = removeVisualCommand(question || '');
   const words = nimbusFormatWords(raw, q);
   const keywords = words.slice(0, 6);
+  const roadmap = nimbusBuildRoadmap(q, words);
 
   const keyWords = words.slice(0, 8);
   const shift = keyWords.length
@@ -188,9 +267,9 @@ function formatEducationalAnswer(answer, question) {
     'Keywords: ' + keywords.join(', '),
     '',
     'Answer Structure:',
-    '1. Define the topic and explain how it was formed.',
-    '2. Explain what happened next and how it developed further.',
-    '3. Finally explain the result, function, or importance.',
+    '1. ' + roadmap[0].replace(/^\d+\.\s*/, ''),
+    '2. ' + roadmap[1].replace(/^\d+\.\s*/, ''),
+    '3. ' + roadmap[2].replace(/^\d+\.\s*/, ''),
     '',
     'Key Fact (8 shuffled words): ' + shuffled.slice(0, 8).join(' ')
   ].join('\n').trim();
@@ -278,10 +357,29 @@ function errorCode(error) {
 }
 
 function instantReply(text) {
-  const s = textOf(text).toLowerCase();
+  const original = textOf(text);
+  const s = original.toLowerCase();
+
+  if (/\b(who\s+(?:made|built|created|founded)|founder|co-?founder|creator)\b.*\bnimbus\b|\bnimbus\b.*\b(founder|co-?founder|creator)\b/i.test(original)) {
+    return 'Nimbus is an educational-focused AI project built manually by Abdul Haadi Hassan and Muhammad Arham, its co-founders. The project is designed around student learning: concise educational guidance, question-focused answer structures, saved conversations, Beaconhouse-aware information, and optional on-demand FLUX visuals. Nimbus is an independently built educational project, so it should not be described as officially owned or endorsed by Beaconhouse unless an official source says so.';
+  }
+
+  if (/\bbisc\b|beaconhouse international student convention/i.test(original)) {
+    return 'BISC stands for Beaconhouse International Student Convention. It is an international Beaconhouse student platform that brings learners together to connect, collaborate, compete, and showcase their talents. BISC includes activities across areas such as sports, creativity, knowledge, innovation, debate, gaming, culture, and other student challenges. Its wider purpose includes cross-cultural friendship, healthy competition, teamwork, student agency, global awareness, and collaboration. Official BISC information: https://bisc.beaconhouse.net/ and https://bisc.beaconhouse.net/about-bisc/.';
+  }
+
+  if (/\bilap\b|international learner agency paradigm/i.test(original)) {
+    return 'ILAP stands for International Learner Agency Paradigm Conference. It is the international development of Beaconhouse learner-agency conferences and brings students and teachers together around meaningful action, real learning, learner agency, and teacher agency. Recent ILAP guidance also connects projects with AI in education, Beaconhouse strategic intents, and relevant UN Sustainable Development Goals. Official ILAP/LAP guidance: https://lap.beaconhouse.net/guidelines-ilap-2027/.';
+  }
+
+  if (/\blap\b|learner agency paradigm/i.test(original)) {
+    return 'LAP stands for Learner Agency Paradigm. At Beaconhouse, its vision is to move learners from passive receivers toward active contributors by strengthening student voice, initiative, ownership, empathy, social responsibility, personal growth, equity, tolerance, and purposeful action. LAP conferences showcase learner agency in practice, with students taking meaningful responsibility for ideas, projects, and learning. Official LAP information: https://lap.beaconhouse.net/ and https://lap.beaconhouse.net/about-us/.';
+  }
+
   if (/^(hi|hello|hey|yo|sup|good morning|good afternoon|good evening|good night)[!.?,\s]*$/i.test(s)) {
     return 'Hi! I\'m Nimbus. What would you like to learn or work on?';
   }
+
   return '';
 }
 

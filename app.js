@@ -303,6 +303,7 @@ async function generateVisual(prompt,meta={}){
 }
 
 async function sendMessage(text){
+  const explicitVisualRequest=/(?:^|\s)\/visual(?:\s|$)/i.test(String(text||''));
   const file=state.file;
   ensureChat(text||'Study file');
   add('user',text||'Please analyse my attachment.',file?.name);
@@ -316,7 +317,7 @@ async function sendMessage(text){
       attachment={name:file.name,mimeType:file.type||'application/octet-stream',data:dataUrl.split(',')[1]};
     }
     let r, data;
-    if(state.model==='nano-banana-2'){
+    if(state.model==='nano-banana-2' && explicitVisualRequest){
       const visualPrompt=`Create one clear student-friendly 16:9 educational diagram or flowchart for this request. Use concise keywords only, short labels, arrows, icons and no long paragraphs. Topic/request: ${text||'Study visual'}.`;
       const ok=await generateVisual(visualPrompt,{title:text||'Study visual',type:'diagram',keywords:'concise labels • arrows • key concepts'});
       if(ok) add('ai','Visual generated. Use the labels as study help and rephrase explanations in your own words.');
@@ -330,7 +331,7 @@ async function sendMessage(text){
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
     let reply=data.reply||'Nimbus did not return a response.';
-    if(data.visual?.prompt || shouldAutoVisualizeClient(text)){
+    if(explicitVisualRequest && data.visual?.prompt){
       const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
       const vtitle=data.visual?.title||'Study visual';
       const vkeywords=data.visual?.keywords||'keywords • labels • key concepts • arrows';
