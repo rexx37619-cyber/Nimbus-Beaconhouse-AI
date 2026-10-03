@@ -37,19 +37,33 @@ async function generateCloudflare(prompt) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: textOf(prompt).slice(0, MAX_PROMPT_CHARS),
-        steps: 4,
-        seed: Math.floor(Math.random() * 2147483647)
+        prompt: textOf(prompt).slice(0, MAX_PROMPT_CHARS)
       }),
       signal: controller.signal
     });
 
     const contentType = response.headers.get('content-type') || '';
     if (!response.ok) {
-      const detail = (await response.text()).slice(0, 500);
-      const error = new Error(`Cloudflare image request failed (${response.status})`);
+      const detail = (await response.text()).slice(0, 1200);
+
+      let providerMessage = '';
+      try {
+        const parsed = detail ? JSON.parse(detail) : {};
+        providerMessage =
+          parsed?.errors?.[0]?.message ||
+          parsed?.messages?.[0]?.message ||
+          parsed?.error?.message ||
+          '';
+      } catch {}
+
+      if (!providerMessage) {
+        providerMessage = detail.replace(/\s+/g, ' ').slice(0, 300);
+      }
+
+      const error = new Error('Cloudflare FLUX request failed (' + response.status + ')');
       error.status = response.status;
-      error.preview = detail;
+      error.code = 'CLOUDFLARE_HTTP_' + response.status;
+      error.providerMessage = providerMessage;
       throw error;
     }
 
@@ -115,7 +129,8 @@ export default async function handler(req, res) {
         fallback: false,
         model: 'flux-1-schnell',
         error_code: error?.code || 'FLUX_REQUEST_FAILED',
-        provider_status: Number(error?.status || 0) || null
+        provider_status: Number(error?.status || 0) || null,
+      provider_message: textOf(error?.providerMessage).slice(0, 300) || null
       });
     }
   } catch (error) {

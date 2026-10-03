@@ -12,6 +12,17 @@ const MAX_OUTPUT_TOKENS = 850;
 
 const BEACONHOUSE_KNOWLEDGE = `
 NIMBUS BEACONHOUSE KNOWLEDGE
+NIMBUS PROJECT FACTS
+- Nimbus founder: Abdul Haadi Hassan.
+- Nimbus co-founder: Muhammad Arham.
+- When asked who created, founded, or co-founded Nimbus, state these roles directly.
+
+BEACONHOUSE TERMS
+- BISC stands for Beaconhouse International Student Convention.
+- LAP stands for Learner Agency Paradigm.
+- ILAP stands for International Learner Agency Paradigm Conference.
+- Learner Agency at Beaconhouse focuses on students taking ownership, voice, initiative, and meaningful action in learning.
+
 Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer. Do not claim Beaconhouse owns, endorses, or operates Nimbus unless an official source specifically supports that claim.
 Useful official references:
 - https://www.beaconhouse.net/
@@ -51,7 +62,7 @@ LIGHT EDUCATIONAL FORMAT:
 - For educational/schoolwork questions, the final Nimbus reply uses exactly these sections: Keywords, Answer Structure, Key Fact (8 shuffled words).
 - Answer Structure contains exactly three short roadmap lines.
 - Every Answer Structure line must be 10 words or fewer.
-- The roadmap should follow the question logically: define/how formed, what happened next, then final result/function/importance.
+- The roadmap guides creativity only: define/how formed, explain development, then final result/function/importance. Do not place the actual answer inside Answer Structure.
 - Do not add a full explanation, paragraph answer, How It Works section, examples, conclusion, or extra material after the format.
 - Casual and non-educational questions should remain natural.
 - Never output backend diagnostics, provider errors, internal model details, or loading narration.
@@ -177,9 +188,9 @@ function formatEducationalAnswer(answer, question) {
     'Keywords: ' + keywords.join(', '),
     '',
     'Answer Structure:',
-    '1. Define the topic and explain how it formed.',
-    '2. Describe what happened next in the process.',
-    '3. State the final result, function, or importance.',
+    '1. Define the topic and explain how it was formed.',
+    '2. Explain what happened next and how it developed further.',
+    '3. Finally explain the result, function, or importance.',
     '',
     'Key Fact (8 shuffled words): ' + shuffled.slice(0, 8).join(' ')
   ].join('\n').trim();
