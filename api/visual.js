@@ -110,14 +110,12 @@ export default async function handler(req, res) {
       console.error('[Nimbus visual]', error?.message || error);
       const svg = fallbackSvg(originalPrompt);
       return res.status(200).json({
-        ok: true,
+        ok: false,
         skipped: false,
-        fallback: true,
-        model: 'nimbus-topic-fallback',
-        mimeType: 'image/svg+xml',
-        svg,
-        data: Buffer.from(svg, 'utf8').toString('base64'),
-        error_code: error?.code || 'FLUX_REQUEST_FAILED'
+        fallback: false,
+        model: 'flux-1-schnell',
+        error_code: error?.code || 'FLUX_REQUEST_FAILED',
+        provider_status: Number(error?.status || 0) || null
       });
     }
   } catch (error) {
