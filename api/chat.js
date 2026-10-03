@@ -48,14 +48,13 @@ CORE BEHAVIOUR:
 - Beaconhouse-specific questions should be factual and should not invent private records, winners, schedules, eligibility rules, or campus-specific facts.
 
 LIGHT EDUCATIONAL FORMAT:
-- Nimbus is built for Beaconhouse students, so use a light educational format by default.
-- Prefer these labels when they fit naturally: Keywords, Answer Structure, Key Fact.
-- Answer Structure is one short roadmap sentence and must be 10 words or fewer.
-- A Key Fact line may use a few concise topic words when useful; it is not mandatory.
-- Do not overthink or pad the response just to satisfy the format. A correct, natural answer matters more than rigid structure.
-- Normal/casual questions may still use the same light student-friendly format.
+- For educational/schoolwork questions, the final Nimbus reply uses exactly these sections: Keywords, Answer Structure, Key Fact (8 shuffled words).
+- Answer Structure contains exactly three short roadmap lines.
+- Every Answer Structure line must be 10 words or fewer.
+- The roadmap should follow the question logically: define/how formed, what happened next, then final result/function/importance.
+- Do not add a full explanation, paragraph answer, How It Works section, examples, conclusion, or extra material after the format.
+- Casual and non-educational questions should remain natural.
 - Never output backend diagnostics, provider errors, internal model details, or loading narration.
-
 GRADE 7 SCIENCE:
 - The target source is Lower Secondary Science, Grade 7, Peter D. Riley, Third Edition, Based on SNC 2022.
 - When File Search is available and returns relevant material, use it as the primary source for textbook-specific facts and terminology.
@@ -138,6 +137,52 @@ function classifyQuestion(text) {
   if (/\bbeaconhouse\b|\bbisc\b|\bbeams\b|\bprism\b|\brise\b|\blap\b|\bboss\b|\bbooklist\b|\bcampus\b|\badmissions?\b|\bcompetition\b/i.test(s)) return 'beaconhouse';
   if (looksLikeScience(s) || /\b(?:math|maths|algebra|geometry|equation|fraction|percentage|ratio|history|geography|english|grammar|homework|schoolwork|lesson|chapter|exam|revision|study|grade\s*\d+|class\s*\d+)\b/i.test(s)) return 'educational';
   return 'general';
+}
+
+/* NIMBUS_V9_EDUCATIONAL_FORMATTER */
+function nimbusFormatWords(answer, question) {
+  const stop = new Set('the a an and or of to in on for with is are was were be been being this that these those how what why does do did it its their our your from by as at into about than then can could should would may might will shall explain explanation main very more less also'.split(/\s+/));
+  const source = (String(question||'')+' '+String(answer||'')).replace(/https?:\/\/\S+/g,' ');
+  const candidates = source.match(/[A-Za-z][A-Za-z-]*/g) || [];
+  const words = [];
+
+  for (const raw of candidates) {
+    const word = raw.toLowerCase().replace(/^-+|-+$/g,'');
+    if (word.length < 3 || stop.has(word) || words.includes(word)) continue;
+    words.push(word);
+    if (words.length >= 12) break;
+  }
+
+  const fallback = ['structure','function','process','system','change','movement','result','importance','concept','stage','purpose','sequence'];
+  for (const word of fallback) {
+    if (words.length >= 12) break;
+    if (!words.includes(word)) words.push(word);
+  }
+  return words;
+}
+
+function formatEducationalAnswer(answer, question) {
+  const raw = cleanText(answer || '');
+  const q = removeVisualCommand(question || '');
+  const words = nimbusFormatWords(raw, q);
+  const keywords = words.slice(0, 6);
+
+  const keyWords = words.slice(0, 8);
+  const shift = keyWords.length
+    ? Array.from(q).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % keyWords.length
+    : 0;
+  const shuffled = keyWords.slice(shift).concat(keyWords.slice(0, shift));
+
+  return [
+    'Keywords: ' + keywords.join(', '),
+    '',
+    'Answer Structure:',
+    '1. Define the topic and explain how it formed.',
+    '2. Describe what happened next in the process.',
+    '3. State the final result, function, or importance.',
+    '',
+    'Key Fact (8 shuffled words): ' + shuffled.slice(0, 8).join(' ')
+  ].join('\n').trim();
 }
 
 function buildSystemInstruction({ science, useFileSearch }) {
@@ -353,7 +398,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const answer = extractText(data);
+    let answer = extractText(data);
     if (!answer) {
       return res.status(200).json({
         ok: false,
@@ -367,6 +412,8 @@ export default async function handler(req, res) {
         request_id: requestId
       });
     }
+
+    if (questionType === 'educational') answer = formatEducationalAnswer(answer, userText);
 
     return res.status(200).json({
       ok: true,

@@ -108,13 +108,15 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       console.error('[Nimbus visual]', error?.message || error);
+      const svg = fallbackSvg(originalPrompt);
       return res.status(200).json({
         ok: true,
         skipped: false,
         fallback: true,
         model: 'nimbus-topic-fallback',
         mimeType: 'image/svg+xml',
-        svg: fallbackSvg(originalPrompt),
+        svg,
+        data: Buffer.from(svg, 'utf8').toString('base64'),
         error_code: error?.code || 'FLUX_REQUEST_FAILED'
       });
     }
