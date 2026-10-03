@@ -46,6 +46,15 @@ Useful official references:
 - https://lap.beaconhouse.net/guidelines-ilap-2027/
 - https://boss.beaconhouse.net/about-us/
 - https://booklist.beaconhouse.net/
+
+
+BEAMS KNOWLEDGE
+- BEAMS stands for Beaconhouse Enterprise Application Management System.
+- BEAMS serves as Beaconhouse's internal comprehensive Enterprise Resource Planning (ERP) and digital ecosystem used across staff, employees, and students.
+- BEAMS provides authenticated access through a BEAMS ID for internal digital services and connected Beaconhouse systems.
+- PRISM is a Beaconhouse professional-development platform that can be accessed using BEAMS credentials.
+- Official BEAMS portal: https://beams.beaconhouse.net/home/
+- Official BEAMS PRISM page: https://beams.beaconhouse.net/prism/
 `;
 
 const BASE_SYSTEM = `
@@ -363,6 +372,11 @@ function instantReply(text) {
   if (/\b(who\s+(?:made|built|created|founded)|founder|co-?founder|creator)\b.*\bnimbus\b|\bnimbus\b.*\b(founder|co-?founder|creator)\b/i.test(original)) {
     return 'Nimbus is an educational-focused AI project built manually by Abdul Haadi Hassan and Muhammad Arham, its co-founders. The project is designed around student learning: concise educational guidance, question-focused answer structures, saved conversations, Beaconhouse-aware information, and optional on-demand FLUX visuals. Nimbus is an independently built educational project, so it should not be described as officially owned or endorsed by Beaconhouse unless an official source says so.';
   }
+  if (/\bbeams\b|beaconhouse enterprise application management system/i.test(original)) {
+    return 'BEAMS is the Beaconhouse Enterprise Application Management System. It serves as Beaconhouse\'s internal comprehensive Enterprise Resource Planning (ERP) and digital ecosystem used across staff, employees, and students. Users access connected internal services through their BEAMS ID. Beaconhouse also links BEAMS credentials with services such as PRISM for professional development. Official BEAMS portal: https://beams.beaconhouse.net/home/. PRISM: https://beams.beaconhouse.net/prism/.';
+  }
+
+
 
   if (/\bbisc\b|beaconhouse international student convention/i.test(original)) {
     return 'BISC stands for Beaconhouse International Student Convention. It is an international Beaconhouse student platform that brings learners together to connect, collaborate, compete, and showcase their talents. BISC includes activities across areas such as sports, creativity, knowledge, innovation, debate, gaming, culture, and other student challenges. Its wider purpose includes cross-cultural friendship, healthy competition, teamwork, student agency, global awareness, and collaboration. Official BISC information: https://bisc.beaconhouse.net/ and https://bisc.beaconhouse.net/about-bisc/.';

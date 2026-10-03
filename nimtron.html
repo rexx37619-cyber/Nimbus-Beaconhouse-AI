@@ -17,6 +17,39 @@ body{display:flex;align-items:center;justify-content:center;padding:28px}
 .panel{padding:24px;margin-top:16px}.steps{display:grid;gap:10px}.step{padding:13px 15px;border-left:3px solid var(--cyan);background:rgba(65,223,255,.035)}code{font-family:monospace;color:var(--cyan)}
 .status{font-size:12px;color:var(--green);margin-top:18px}.hash{font:11px monospace;word-break:break-all;color:#91a9b5}.warning{border-left:3px solid #ffc75b;padding:12px 14px;background:rgba(255,199,91,.05);color:#c8d2d7}
 .hidden{display:none!important}@media(max-width:600px){body{padding:14px}.hero{padding:24px}.top{align-items:flex-start;gap:10px}}
+
+/* NIMTRON_V13_JARVIS_STYLE */
+.hero{position:relative;overflow:hidden}
+.hero::before{
+  content:"";position:absolute;inset:-35% -15%;pointer-events:none;
+  background:
+    radial-gradient(circle at 15% 35%,rgba(65,223,255,.10),transparent 26%),
+    radial-gradient(circle at 82% 70%,rgba(65,223,255,.07),transparent 24%);
+  animation:nimtronAura 7s ease-in-out infinite alternate
+}
+.hero>*{position:relative;z-index:1}
+.web-version{
+  margin-top:18px;padding:16px 17px;border:1px solid rgba(65,223,255,.24);
+  border-radius:16px;background:linear-gradient(120deg,rgba(65,223,255,.07),rgba(65,223,255,.015));
+  display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap
+}
+.web-version-copy{display:grid;gap:4px;min-width:230px;flex:1}
+.web-version-copy strong{font-size:15px;color:var(--text)}
+.web-version-copy small{color:var(--muted);line-height:1.45}
+.web-kicker{font:10px monospace;letter-spacing:.16em;color:var(--cyan)}
+.chromeos{
+  color:#001116;background:linear-gradient(135deg,#8cf0ff,#41dfff);
+  box-shadow:0 0 0 1px rgba(65,223,255,.22),0 0 24px rgba(65,223,255,.12);
+  white-space:nowrap
+}
+.chromeos:hover{transform:translateY(-1px);box-shadow:0 0 30px rgba(65,223,255,.22)}
+.btn{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.feature{transition:transform .18s ease,border-color .18s ease,background .18s ease}
+.feature:hover{transform:translateY(-2px);border-color:rgba(65,223,255,.28);background:rgba(65,223,255,.055)}
+@keyframes nimtronAura{from{transform:translate3d(-1%,0,0) scale(1)}to{transform:translate3d(1%,-1%,0) scale(1.04)}}
+@media(prefers-reduced-motion:reduce){.hero::before{animation:none}.btn,.feature{transition:none}}
+@media(max-width:600px){.web-version{align-items:stretch}.chromeos{width:100%}}
+
 </style>
 </head>
 <body>
@@ -27,7 +60,7 @@ body{display:flex;align-items:center;justify-content:center;padding:28px}
   </div>
 
   <section class="hero">
-    <div class="eyebrow">DESKTOP COMPANION • WINDOWS</div>
+    <div class="eyebrow">NIMTRON COMPANION • WINDOWS + CHROMEOS</div>
     <h1>NimTron</h1>
     <p class="tagline">Voice control, vision, hand gestures, local device control, coding assistance and project memory — built as the desktop companion to Nimbus.</p>
 
@@ -48,9 +81,17 @@ body{display:flex;align-items:center;justify-content:center;padding:28px}
       <div class="status">Version <span id="version">1.0.0</span> • Windows build</div>
       <div class="hash">SHA-256: <span id="hash">3afc0f077ca40a8e46d82476ba41ed11823850dea05c9d6f5c654fba19434ffb</span></div>
     </div>
+    <div class="web-version">
+      <div class="web-version-copy">
+        <span class="web-kicker">WEB COMPANION • CHROMEOS</span>
+        <strong>Use NimTron directly in your browser</strong>
+        <small>Designed for Chromebooks and students who do not need the Windows desktop build.</small>
+      </div>
+      <a id="chromeOsBtn" class="btn chromeos" href="https://nimtron-coders-forge.vercel.app" target="_blank" rel="noopener noreferrer">ChromeOS Version</a>
+    </div>
 
     <div id="nonWindows" class="hidden">
-      <p><strong>Windows build available.</strong> More platforms can be added later.</p>
+      <p><strong>Using ChromeOS or another browser-first device?</strong> Open the ChromeOS Version above. The downloadable desktop build remains available for Windows.</p>
     </div>
 
     <p class="warning"><strong>Windows SmartScreen:</strong> because this build is unsigned, Windows may show an “unknown publisher” warning. That can occur with unsigned applications.</p>
