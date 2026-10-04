@@ -2002,6 +2002,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
       button.addEventListener('click',function(event){
         event.preventDefault();
         event.stopPropagation();
+        state.nimbusTaskMode='';
 
         var value=String(input.value||'')
           .replace(/^(?:help\s+me\s+write\s+(?:an\s+)?answer\s+to\s+this\s+question|help\s+me\s+write\s+this\s+answer)\s*:\s*/i,'')

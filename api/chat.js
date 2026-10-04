@@ -791,7 +791,10 @@ export default async function handler(req, res) {
 
     const visualRequested = hasVisualCommand(rawText);
     const userText = removeVisualCommand(rawText) || rawText;
-    const taskMode = normalizeTaskMode(body?.task_mode) || inferTaskMode(userText);
+    const writtenAnswerRequest = hasWrittenAnswerIntent(userText);
+    const taskMode = writtenAnswerRequest
+      ? ''
+      : (normalizeTaskMode(body?.task_mode) || inferTaskMode(userText));
     const questionType = classifyQuestion(userText, taskMode);
     const modelUserText = taskMode ? taskModeInstruction(taskMode, userText) : userText;
     body.current_user_text = userText;
