@@ -75,7 +75,7 @@ LIGHT EDUCATIONAL FORMAT:
 - Answer Structure contains exactly three short roadmap lines.
 - Every Answer Structure line must be 10 words or fewer.
 - The roadmap guides creativity only: define/how formed, explain development, then final result/function/importance. Do not place the actual answer inside Answer Structure.
-- Include one short Example Answer (starter) after Answer Structure. It gives a useful starting idea but must stay incomplete enough to require the student's own wording. Do not add any additional full explanation after Key Fact.
+- Include one very short Example Answer starter fragment (about 10 words), followed by "... Rephrase and finish the answer in your own words." It must not be a complete copy-paste answer.
 - Casual and non-educational questions should remain natural.
 - Never output backend diagnostics, provider errors, internal model details, or loading narration.
 GRADE 7 SCIENCE:
@@ -385,31 +385,28 @@ function nimbusBuildRoadmap(question, words) {
 }
 
 function nimbusBuildExampleAnswer(answer, question, words) {
-  const raw = cleanText(answer || '').replace(/\s+/g, ' ').trim();
+  const raw = cleanText(answer || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   const topic = nimbusTopicFromQuestion(question || '');
-  const topicParts = topic.toLowerCase().split(/\s+/);
-  const useful = (Array.isArray(words) ? words : [])
-    .filter(Boolean)
-    .filter(word => !topicParts.includes(String(word).toLowerCase()))
-    .slice(0, 3);
+  const sentences = raw
+    .split(/(?<=[.!?])\s+/)
+    .map(sentence => sentence.trim())
+    .filter(Boolean);
 
-  const sentences = raw.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
   let starter = sentences[0] || (topic + ' is an important idea to explain clearly.');
-  let starterWords = starter.split(/\s+/).filter(Boolean);
+  starter = starter.replace(/[.!?]+$/,'').trim();
 
-  if (starterWords.length > 24) {
-    starter = starterWords.slice(0, 24).join(' ').replace(/[,:;]+$/,'') + '...';
+  const starterWords = starter.split(/\s+/).filter(Boolean);
+
+  // Keep only a short opening fragment so Nimbus does not give away
+  // a complete copy-paste answer.
+  if (starterWords.length > 10) {
+    starter = starterWords.slice(0, 10).join(' ');
   }
 
-  const continueWith = useful.length ? useful.join(', ') : 'its main process and importance';
-  let example = starter + ' Continue by explaining ' + continueWith + ' in your own words.';
-  const wordsOut = example.split(/\s+/).filter(Boolean);
-
-  if (wordsOut.length > 42) {
-    example = wordsOut.slice(0, 42).join(' ').replace(/[,:;]+$/,'') + '...';
-  }
-
-  return example;
+  return starter + '... Rephrase and finish the answer in your own words.';
 }
 
 function formatEducationalAnswer(answer, question) {

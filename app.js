@@ -1961,3 +1961,66 @@ $('premiumComposer').addEventListener('submit',async e=>{
     run();
   }
 })();
+
+
+/* NIMBUS_V20_WRITE_HELP_AND_WHITE_SIDEBAR */
+(function(){
+  function installNimbusV20UI(){
+    if(window.__NIMBUS_V20_UI__)return;
+    window.__NIMBUS_V20_UI__=true;
+
+    var style=document.createElement('style');
+    style.id='nimbus-v20-ui-style';
+    style.textContent=
+      '#sidebar.sidebar{background:#ffffff!important;color:#111827!important;border-right:1px solid #e5e7eb!important;box-shadow:4px 0 18px rgba(15,23,42,.035)!important}' +
+      '#sidebar .brand strong,#sidebar .new-chat,#sidebar .side-action b,#sidebar .account-copy b,#sidebar .history-item{color:#111827!important}' +
+      '#sidebar .brand span,#sidebar .history-title,#sidebar .history-title span,#sidebar .side-action small,#sidebar .account-copy small{color:#6b7280!important}' +
+      '#sidebar .new-chat,#sidebar .side-action,#sidebar .account,#sidebar .history-item{background:#f8fafc!important;border-color:#e5e7eb!important}' +
+      '#sidebar .new-chat:hover,#sidebar .side-action:hover,#sidebar .account:hover,#sidebar .history-item:hover{background:#f1f5f9!important}' +
+      '#sidebar .history-item.active{background:#eef2ff!important;color:#312e81!important;border-color:#c7d2fe!important}' +
+      '#sidebar #clearAll{color:#6b7280!important}' +
+      '#sidebar #nimtronSidebarBtn{background:linear-gradient(135deg,rgba(34,211,238,.12),rgba(14,165,233,.05))!important;color:#0891b2!important;border-color:rgba(6,182,212,.30)!important}' +
+      '#sidebar #accountAvatar{background:#111827!important;color:#facc15!important}' +
+      '#writeHelpBtn{height:38px;padding:0 12px;border:1px solid #ddd6fe;border-radius:12px;background:#faf5ff;color:#6d28d9;font:650 11px/1.1 system-ui,-apple-system,sans-serif;white-space:nowrap;cursor:pointer;transition:background .16s ease,border-color .16s ease,transform .16s ease}' +
+      '#writeHelpBtn:hover{background:#f3e8ff;border-color:#c4b5fd;transform:translateY(-1px)}' +
+      '@media(max-width:760px){#writeHelpBtn{max-width:118px;padding:0 8px;white-space:normal;font-size:10px}}';
+    document.head.appendChild(style);
+
+    var visual=document.getElementById('visualBtn');
+    var input=document.getElementById('messageInput');
+
+    if(visual&&input&&!document.getElementById('writeHelpBtn')){
+      var button=document.createElement('button');
+      button.type='button';
+      button.id='writeHelpBtn';
+      button.textContent='Help me write this question';
+      button.title='Turn this into a guided written-answer scaffold';
+      button.setAttribute('aria-label','Help me write this question');
+
+      visual.insertAdjacentElement('afterend',button);
+
+      button.addEventListener('click',function(event){
+        event.preventDefault();
+        event.stopPropagation();
+
+        var value=String(input.value||'')
+          .replace(/^help\s+me\s+write\s+(?:an\s+)?answer\s+to\s+this\s+question:\s*/i,'')
+          .trim();
+
+        input.value=value
+          ? 'Help me write an answer to this question: '+value
+          : 'Help me write an answer to this question: ';
+
+        try{input.dispatchEvent(new Event('input',{bubbles:true}));}catch(_){}
+        input.focus();
+        try{input.setSelectionRange(input.value.length,input.value.length);}catch(_){}
+      });
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',installNimbusV20UI,{once:true});
+  }else{
+    installNimbusV20UI();
+  }
+})();
