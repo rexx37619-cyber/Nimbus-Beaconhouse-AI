@@ -71,7 +71,7 @@ CORE BEHAVIOUR:
 - Beaconhouse-specific questions should be factual and should not invent private records, winners, schedules, eligibility rules, or campus-specific facts.
 
 LIGHT EDUCATIONAL FORMAT:
-- For educational/schoolwork questions, the final Nimbus reply uses exactly these sections: Keywords, Answer Structure, Key Fact (8 shuffled words).
+- For written-answer requests, Nimbus uses Keywords, a question-specific Answer Structure or short Hint, a brief Example Answer starter, and one normal Key Fact of no more than 14 words. The Key Fact must be factual and must never be shuffled.
 - Answer Structure contains exactly three short roadmap lines.
 - Every Answer Structure line must be 10 words or fewer.
 - The roadmap guides creativity only: define/how formed, explain development, then final result/function/importance. Do not place the actual answer inside Answer Structure.
@@ -515,18 +515,51 @@ function nimbusBuildExampleAnswer(answer, question, words) {
   return starter + '... Rephrase this answer on your own.';
 }
 
+function nimbusBuildKeyFact(answer, question) {
+  const raw = nimbusCleanAnswerContent(answer);
+  const q = nimbusCleanWrittenQuestion(question);
+
+  const sentences = raw
+    .split(/(?<=[.!?])\s+/)
+    .map(sentence => sentence.trim())
+    .filter(Boolean)
+    .filter(sentence => !/^(?:keywords|answer structure|example answer|hint|key fact)\s*:/i.test(sentence));
+
+  // For short recall questions, prefer an explanatory sentence after the
+  // direct answer when available. For longer writing, prefer the first fact.
+  let fact = nimbusIsShortAnswerQuestion(q)
+    ? (sentences[1] || sentences[0] || '')
+    : (sentences[0] || sentences[1] || '');
+
+  fact = String(fact || '')
+    .replace(/^(?:keywords|answer structure|example answer|hint|key fact)\s*:\s*/i, '')
+    .replace(/\.\.\..*$/,'')
+    .replace(/\s+/g,' ')
+    .trim();
+
+  if (!fact) {
+    const topic = nimbusTopicFromQuestion(q);
+    fact = topic + ' is an important concept to understand accurately.';
+  }
+
+  let tokens = fact.split(/\s+/).filter(Boolean);
+  if (tokens.length > 14) tokens = tokens.slice(0, 14);
+
+  fact = tokens.join(' ')
+    .replace(/[,:;\-]+$/,'')
+    .trim();
+
+  if (!/[.!?]$/.test(fact)) fact += '.';
+  return fact;
+}
+
 function formatEducationalAnswer(answer, question) {
   const q = nimbusCleanWrittenQuestion(question);
   const raw = nimbusCleanAnswerContent(answer);
   const words = nimbusFormatWords(raw, q);
   const keywords = words.slice(0, 6);
   const exampleAnswer = nimbusBuildExampleAnswer(raw, q, words);
-
-  const keyWords = words.slice(0, 8);
-  const shift = keyWords.length
-    ? Array.from(q).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % keyWords.length
-    : 0;
-  const shuffled = keyWords.slice(shift).concat(keyWords.slice(0, shift));
+  const keyFact = nimbusBuildKeyFact(raw, q);
 
   if (nimbusIsShortAnswerQuestion(q)) {
     return [
@@ -536,7 +569,7 @@ function formatEducationalAnswer(answer, question) {
       '',
       'Example Answer (starter): ' + exampleAnswer,
       '',
-      'Key Fact (8 shuffled words): ' + shuffled.slice(0, 8).join(' ')
+      'Key Fact: ' + keyFact
     ].join('\n').trim();
   }
 
@@ -552,7 +585,7 @@ function formatEducationalAnswer(answer, question) {
     '',
     'Example Answer (starter): ' + exampleAnswer,
     '',
-    'Key Fact (8 shuffled words): ' + shuffled.slice(0, 8).join(' ')
+    'Key Fact: ' + keyFact
   ].join('\n').trim();
 }
 
