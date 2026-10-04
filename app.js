@@ -1467,3 +1467,140 @@ $('premiumComposer').addEventListener('submit',async e=>{
     setTimeout(restoreNimbusProgress,0);
   }
 })();
+
+
+/* NIMBUS_V15_MOTION_SPEED_SELECTOR */
+(function(){
+  function installNimbusMotionSpeed(){
+    if(window.__NIMBUS_V15_SPEED__)return;
+    if(typeof state==='undefined')return;
+
+    var composer=document.getElementById('composer');
+    var send=document.getElementById('sendBtn');
+    if(!composer||!send)return;
+
+    window.__NIMBUS_V15_SPEED__=true;
+
+    var speeds=[
+      {id:'xhigh',label:'XHigh',sub:'Normal • 1 RPD'},
+      {id:'rapid',label:'Rapid',sub:'Faster • 2 RPD'},
+      {id:'max',label:'Super Rapid',sub:'Fastest • 3 RPD'}
+    ];
+
+    var saved=String(localStorage.getItem('nimbus_speed_mode')||state.speedMode||'xhigh').toLowerCase();
+    if(!speeds.some(function(item){return item.id===saved;}))saved='xhigh';
+    state.speedMode=saved;
+
+    var style=document.createElement('style');
+    style.id='nimbus-v15-speed-style';
+    style.textContent=
+      '#nimbusMotionSpeedWrap{position:relative;display:flex;align-items:center;flex:0 0 auto}' +
+      '#nimbusMotionSpeedBtn{height:40px;padding:0 12px;border:1px solid rgba(99,102,241,.34);border-radius:13px;background:rgba(99,102,241,.07);color:inherit;display:flex;align-items:center;gap:6px;font:600 12px/1 system-ui,-apple-system,sans-serif;cursor:pointer;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}' +
+      '#nimbusMotionSpeedBtn:hover{border-color:rgba(99,102,241,.65);box-shadow:0 5px 18px rgba(99,102,241,.10);transform:translateY(-1px)}' +
+      '#nimbusMotionSpeedBtn .nimbus-speed-chevron{font-size:10px;opacity:.55;transition:transform .2s ease}' +
+      '#nimbusMotionSpeedWrap.open #nimbusMotionSpeedBtn .nimbus-speed-chevron{transform:rotate(180deg)}' +
+      '#nimbusMotionSpeedMenu{position:absolute;right:0;bottom:52px;width:286px;padding:13px;border:1px solid rgba(15,23,42,.12);border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 18px 55px rgba(15,23,42,.18);backdrop-filter:blur(18px);z-index:80;opacity:0;visibility:hidden;transform:translateY(8px) scale(.985);transform-origin:bottom right;transition:opacity .18s ease,transform .18s ease,visibility .18s ease}' +
+      '#nimbusMotionSpeedWrap.open #nimbusMotionSpeedMenu{opacity:1;visibility:visible;transform:translateY(0) scale(1)}' +
+      '.nimbus-speed-title{font:650 12px/1.2 system-ui,-apple-system,sans-serif;margin:1px 2px 10px;color:#111827}' +
+      '.nimbus-speed-track{position:relative;display:grid;grid-template-columns:repeat(3,1fr);padding:3px;border-radius:14px;background:#eef0f5;overflow:hidden}' +
+      '.nimbus-speed-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px)/3);border-radius:11px;background:#fff;box-shadow:0 2px 10px rgba(15,23,42,.12);transition:transform .28s cubic-bezier(.2,.8,.2,1)}' +
+      '.nimbus-speed-slot{position:relative;z-index:2;border:0;background:transparent;padding:9px 5px;border-radius:11px;color:#6b7280;font:650 11px/1 system-ui,-apple-system,sans-serif;cursor:pointer;transition:color .18s ease}' +
+      '.nimbus-speed-slot.active{color:#111827}' +
+      '.nimbus-speed-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:11px 3px 1px}' +
+      '.nimbus-speed-meta strong{font:650 13px/1.2 system-ui,-apple-system,sans-serif;color:#111827}' +
+      '.nimbus-speed-meta span{font:500 11px/1.2 system-ui,-apple-system,sans-serif;color:#6b7280}' +
+      '.nimbus-speed-motion{height:3px;flex:1;max-width:80px;border-radius:999px;background:#e5e7eb;overflow:hidden;position:relative}' +
+      '.nimbus-speed-motion::after{content:"";position:absolute;inset:0;width:40%;border-radius:inherit;background:linear-gradient(90deg,transparent,#6366f1,transparent);animation:nimbusSpeedSweep 1.8s ease-in-out infinite}' +
+      '@keyframes nimbusSpeedSweep{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}' +
+      '@media(prefers-color-scheme:dark){#nimbusMotionSpeedMenu{background:rgba(24,24,27,.96);border-color:rgba(255,255,255,.10)}.nimbus-speed-title,.nimbus-speed-meta strong{color:#f4f4f5}.nimbus-speed-track{background:#27272a}.nimbus-speed-thumb{background:#3f3f46;box-shadow:0 2px 10px rgba(0,0,0,.3)}.nimbus-speed-slot.active{color:#fff}.nimbus-speed-slot,.nimbus-speed-meta span{color:#a1a1aa}.nimbus-speed-motion{background:#3f3f46}}' +
+      '@media(prefers-reduced-motion:reduce){.nimbus-speed-thumb,#nimbusMotionSpeedMenu,#nimbusMotionSpeedBtn{transition:none}.nimbus-speed-motion::after{animation:none;display:none}}';
+    document.head.appendChild(style);
+
+    var wrap=document.createElement('div');
+    wrap.id='nimbusMotionSpeedWrap';
+    wrap.innerHTML=
+      '<button type="button" id="nimbusMotionSpeedBtn" aria-haspopup="true" aria-expanded="false">' +
+        '<span id="nimbusMotionSpeedLabel">XHigh</span><span class="nimbus-speed-chevron">⌃</span>' +
+      '</button>' +
+      '<div id="nimbusMotionSpeedMenu" role="menu" aria-label="Nimbus response speed">' +
+        '<div class="nimbus-speed-title">Response speed</div>' +
+        '<div class="nimbus-speed-track">' +
+          '<div class="nimbus-speed-thumb"></div>' +
+          '<button type="button" class="nimbus-speed-slot" data-v15-speed="xhigh">XHigh</button>' +
+          '<button type="button" class="nimbus-speed-slot" data-v15-speed="rapid">Rapid</button>' +
+          '<button type="button" class="nimbus-speed-slot" data-v15-speed="max">Super</button>' +
+        '</div>' +
+        '<div class="nimbus-speed-meta">' +
+          '<div><strong id="nimbusMotionSpeedName">XHigh</strong><br><span id="nimbusMotionSpeedSub">Normal • 1 RPD</span></div>' +
+          '<div class="nimbus-speed-motion" aria-hidden="true"></div>' +
+        '</div>' +
+      '</div>';
+
+    composer.insertBefore(wrap,send);
+
+    // Hide only known older public speed controls; memory remains untouched.
+    var oldSpeed=document.getElementById('nimbusSpeedBtnClean');
+    if(oldSpeed)oldSpeed.style.display='none';
+
+    document.querySelectorAll(
+      '.nimbus-speed-v7,.nimbus-speed-v9,.nimbus-speed-v10,[data-clean-speed]'
+    ).forEach(function(el){el.style.display='none';});
+
+    var button=document.getElementById('nimbusMotionSpeedBtn');
+    var menu=document.getElementById('nimbusMotionSpeedMenu');
+    var thumb=menu.querySelector('.nimbus-speed-thumb');
+    var label=document.getElementById('nimbusMotionSpeedLabel');
+    var name=document.getElementById('nimbusMotionSpeedName');
+    var sub=document.getElementById('nimbusMotionSpeedSub');
+
+    function sync(mode){
+      var index=speeds.findIndex(function(item){return item.id===mode;});
+      if(index<0)index=0;
+      var item=speeds[index];
+
+      state.speedMode=item.id;
+      localStorage.setItem('nimbus_speed_mode',item.id);
+
+      label.textContent=item.label;
+      name.textContent=item.label;
+      sub.textContent=item.sub;
+      thumb.style.transform='translateX('+(index*100)+'%)';
+
+      menu.querySelectorAll('[data-v15-speed]').forEach(function(slot){
+        slot.classList.toggle('active',slot.dataset.v15Speed===item.id);
+      });
+    }
+
+    function setOpen(open){
+      wrap.classList.toggle('open',open);
+      button.setAttribute('aria-expanded',open?'true':'false');
+    }
+
+    button.addEventListener('click',function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(!wrap.classList.contains('open'));
+    });
+
+    menu.querySelectorAll('[data-v15-speed]').forEach(function(slot){
+      slot.addEventListener('click',function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        sync(slot.dataset.v15Speed);
+        setOpen(false);
+      });
+    });
+
+    document.addEventListener('click',function(event){
+      if(!wrap.contains(event.target))setOpen(false);
+    });
+
+    sync(saved);
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',installNimbusMotionSpeed,{once:true});
+  }else{
+    installNimbusMotionSpeed();
+  }
+})();
