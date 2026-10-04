@@ -57,7 +57,11 @@ BEAMS KNOWLEDGE
 - Official BEAMS PRISM page: https://beams.beaconhouse.net/prism/
 `;
 
-const BASE_SYSTEM = `
+const BASE_SYSTEM = `KEY FACT SOURCE RULE:
+- For written-answer scaffold requests, internally provide at least two concise factual sentences.
+- The first may support the Example Answer starter; another must contain a different useful fact for Key Fact.
+- Do not repeat the same fact twice.
+
 NIMBUS RESPONSE ROUTING:
 - Use Keywords, Answer Structure, Example Answer, and Key Fact only when the student explicitly wants a written/model/exam/homework answer to rephrase.
 - Requests such as "explain this topic", "summarize this", "give me an overview", "teach me about", or ordinary factual questions must use a natural explanation or summary instead.
@@ -519,37 +523,89 @@ function nimbusBuildKeyFact(answer, question) {
   const raw = nimbusCleanAnswerContent(answer);
   const q = nimbusCleanWrittenQuestion(question);
 
+  const exampleLead = nimbusBuildExampleAnswer(raw, q, [])
+    .split('...')[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+
+  const exampleWords = new Set(
+    exampleLead.split(/\s+/).filter(word => word.length > 2)
+  );
+
   const sentences = raw
     .split(/(?<=[.!?])\s+/)
     .map(sentence => sentence.trim())
     .filter(Boolean)
     .filter(sentence => !/^(?:keywords|answer structure|example answer|hint|key fact)\s*:/i.test(sentence));
 
-  // For short recall questions, prefer an explanatory sentence after the
-  // direct answer when available. For longer writing, prefer the first fact.
-  let fact = nimbusIsShortAnswerQuestion(q)
-    ? (sentences[1] || sentences[0] || '')
-    : (sentences[0] || sentences[1] || '');
+  const firstSentence = sentences[0] || '';
+  const clauses = firstSentence
+    .split(/\s*(?:;|—|–|,|\bbecause\b|\bwhich\b|\bwhereas\b|\bwhile\b|\btherefore\b)\s*/i)
+    .map(part => part.trim())
+    .filter(part => part.split(/\s+/).length >= 4);
 
-  fact = String(fact || '')
-    .replace(/^(?:keywords|answer structure|example answer|hint|key fact)\s*:\s*/i, '')
-    .replace(/\.\.\..*$/,'')
-    .replace(/\s+/g,' ')
-    .trim();
+  // Prefer a different sentence from the Example Answer starter.
+  // If the model returned one sentence, try a different factual clause.
+  const candidates = [
+    ...sentences.slice(1),
+    ...clauses.slice(1),
+    ...sentences
+  ];
+
+  let fact = '';
+
+  for (const candidate of candidates) {
+    const cleaned = String(candidate || '')
+      .replace(/^(?:keywords|answer structure|example answer|hint|key fact)\s*:\s*/i,'')
+      .replace(/\.\.\..*$/,'')
+      .replace(/\s+/g,' ')
+      .trim();
+
+    if (!cleaned) continue;
+
+    const candidateWords = cleaned
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g,' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2);
+
+    if (!candidateWords.length) continue;
+
+    const overlap = candidateWords.filter(word => exampleWords.has(word)).length;
+    const overlapRatio = overlap / candidateWords.length;
+
+    // Avoid a Key Fact that is basically the same starter sentence.
+    if (overlapRatio < 0.65 || !fact) {
+      fact = cleaned;
+      if (overlapRatio < 0.65) break;
+    }
+  }
+
+  // Final fallback: use the tail of the source answer rather than its opening.
+  if (!fact || fact.toLowerCase().startsWith(exampleLead)) {
+    const allWords = raw.split(/\s+/).filter(Boolean);
+    if (allWords.length > 11) {
+      fact = allWords.slice(Math.max(11, allWords.length - 14)).join(' ');
+    }
+  }
 
   if (!fact) {
     const topic = nimbusTopicFromQuestion(q);
-    fact = topic + ' is an important concept to understand accurately.';
+    fact = topic + ' has an important supporting fact students should remember.';
   }
 
   let tokens = fact.split(/\s+/).filter(Boolean);
   if (tokens.length > 14) tokens = tokens.slice(0, 14);
 
   fact = tokens.join(' ')
+    .replace(/^(?:and|but|because|which|while|whereas)\s+/i,'')
     .replace(/[,:;\-]+$/,'')
     .trim();
 
   if (!/[.!?]$/.test(fact)) fact += '.';
+
   return fact;
 }
 
