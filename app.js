@@ -1604,3 +1604,147 @@ $('premiumComposer').addEventListener('submit',async e=>{
     installNimbusMotionSpeed();
   }
 })();
+
+
+/* NIMBUS_V16_COMPOSER_FINALIZER */
+(function(){
+  function installNimbusComposerFinalizer(){
+    if(window.__NIMBUS_V16_COMPOSER_FINALIZER__)return;
+    window.__NIMBUS_V16_COMPOSER_FINALIZER__=true;
+
+    var composer=document.getElementById('composer');
+    var visualButton=document.getElementById('visualBtn');
+    var input=document.getElementById('messageInput');
+
+    if(!composer)return;
+
+    function removeOldSpeedControls(){
+      var newSpeed=document.getElementById('nimbusMotionSpeedWrap');
+
+      [
+        '#nimbusSpeedBtnClean',
+        '#nimbusSpeedBtn',
+        '#nimbusSpeedSelector',
+        '#nimbusSpeedDropdown',
+        '.nimbus-speed-v7',
+        '.nimbus-speed-v9',
+        '.nimbus-speed-v10',
+        '[data-clean-speed]',
+        '[data-nimbus-speed-v7]',
+        '[data-nimbus-speed-v9]',
+        '[data-nimbus-speed-v10]'
+      ].forEach(function(selector){
+        document.querySelectorAll(selector).forEach(function(el){
+          if(!newSpeed || !newSpeed.contains(el)){
+            el.remove();
+          }
+        });
+      });
+
+      // Remove any leftover legacy speed button sitting directly inside
+      // the composer, while preserving the new animated V15 selector.
+      Array.from(composer.querySelectorAll('button')).forEach(function(button){
+        if(newSpeed && newSpeed.contains(button))return;
+        if(button.id==='sendBtn'||button.id==='attachBtn'||button.id==='visualBtn')return;
+
+        var text=String(button.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+        var title=String(button.getAttribute('title')||'').toLowerCase();
+        var aria=String(button.getAttribute('aria-label')||'').toLowerCase();
+
+        var looksLikeLegacySpeed =
+          /^(xhigh|rapid|super rapid|max)(\s*[⌃⌄▲▼^v]?)?$/i.test(text) ||
+          title.includes('speed') ||
+          aria.includes('speed');
+
+        if(looksLikeLegacySpeed){
+          button.remove();
+        }
+      });
+
+      // Remove empty legacy wrappers left behind after deleting speed buttons.
+      [
+        '#nimbusCleanControls',
+        '#nimbusComposerModesV7',
+        '#nimbusComposerModesV9',
+        '#nimbusComposerModesV10'
+      ].forEach(function(selector){
+        var el=document.querySelector(selector);
+        if(!el)return;
+
+        var hasUsefulControl=
+          el.querySelector('#nimbusCleanMemory') ||
+          el.querySelector('[id*="Memory"]') ||
+          el.querySelector('button:not([style*="display: none"])');
+
+        if(!hasUsefulControl){
+          el.remove();
+        }
+      });
+    }
+
+    function installVisualButton(){
+      visualButton=document.getElementById('visualBtn');
+      input=document.getElementById('messageInput');
+      if(!visualButton||!input)return;
+
+      function insertVisualCommand(event){
+        if(event){
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+        }
+
+        var value=String(input.value||'')
+          .replace(/(?:^|\s)\/visual(?:\s|$)/ig,' ')
+          .replace(/\s+/g,' ')
+          .trim();
+
+        input.value=value ? value+' /visual' : '/visual';
+
+        try{
+          input.dispatchEvent(new Event('input',{bubbles:true}));
+          input.dispatchEvent(new Event('change',{bubbles:true}));
+        }catch(_){}
+
+        input.focus();
+        try{
+          input.setSelectionRange(input.value.length,input.value.length);
+        }catch(_){}
+      }
+
+      // Capture phase makes this reliable even if an older onclick handler
+      // was installed elsewhere later in app.js.
+      visualButton.addEventListener('click',insertVisualCommand,true);
+      visualButton.addEventListener('pointerup',function(event){
+        if(event.pointerType==='touch'){
+          insertVisualCommand(event);
+        }
+      },true);
+
+      visualButton.setAttribute('title','Add /visual to this message');
+      visualButton.setAttribute('aria-label','Add /visual to this message');
+    }
+
+    removeOldSpeedControls();
+    installVisualButton();
+
+    // Older UI patches may mount after DOMContentLoaded. Watch briefly and
+    // remove only legacy speed controls if they reappear.
+    var observer=new MutationObserver(function(){
+      removeOldSpeedControls();
+    });
+
+    observer.observe(composer,{childList:true,subtree:true});
+
+    setTimeout(function(){
+      removeOldSpeedControls();
+      observer.disconnect();
+    },4000);
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',installNimbusComposerFinalizer,{once:true});
+  }else{
+    installNimbusComposerFinalizer();
+  }
+})();
