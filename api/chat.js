@@ -13,8 +13,8 @@ const MAX_OUTPUT_TOKENS = 850;
 const BEACONHOUSE_KNOWLEDGE = `
 NIMBUS BEACONHOUSE KNOWLEDGE
 NIMBUS PROJECT FACTS
-- Nimbus is an educational-focused AI project built manually by co-founders Abdul Haadi Hassan and Muhammad Arham.
-- When asked who created, founded, or co-founded Nimbus, explain that Abdul Haadi Hassan and Muhammad Arham manually built it together as co-founders and describe its student-focused educational purpose.
+- Nimbus is an educational-focused AI project built manually by founder Abdul Haadi Hassan.
+- When asked who created or founded Nimbus, explain that Abdul Haadi Hassan manually built it as an educational-focused AI project and describe its student-focused purpose.
 
 BEACONHOUSE TERMS
 - BISC stands for Beaconhouse International Student Convention.
@@ -71,7 +71,7 @@ LIGHT EDUCATIONAL FORMAT:
 - Answer Structure contains exactly three short roadmap lines.
 - Every Answer Structure line must be 10 words or fewer.
 - The roadmap guides creativity only: define/how formed, explain development, then final result/function/importance. Do not place the actual answer inside Answer Structure.
-- Do not add a full explanation, paragraph answer, How It Works section, examples, conclusion, or extra material after the format.
+- Include one short Example Answer (starter) after Answer Structure. It gives a useful starting idea but must stay incomplete enough to require the student's own wording. Do not add any additional full explanation after Key Fact.
 - Casual and non-educational questions should remain natural.
 - Never output backend diagnostics, provider errors, internal model details, or loading narration.
 GRADE 7 SCIENCE:
@@ -259,12 +259,41 @@ function nimbusBuildRoadmap(question, words) {
   return lines.map(nimbusLimitRoadmap);
 }
 
+function nimbusBuildExampleAnswer(answer, question, words) {
+  const raw = cleanText(answer || '').replace(/\s+/g, ' ').trim();
+  const topic = nimbusTopicFromQuestion(question || '');
+  const topicParts = topic.toLowerCase().split(/\s+/);
+  const useful = (Array.isArray(words) ? words : [])
+    .filter(Boolean)
+    .filter(word => !topicParts.includes(String(word).toLowerCase()))
+    .slice(0, 3);
+
+  const sentences = raw.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+  let starter = sentences[0] || (topic + ' is an important idea to explain clearly.');
+  let starterWords = starter.split(/\s+/).filter(Boolean);
+
+  if (starterWords.length > 24) {
+    starter = starterWords.slice(0, 24).join(' ').replace(/[,:;]+$/,'') + '...';
+  }
+
+  const continueWith = useful.length ? useful.join(', ') : 'its main process and importance';
+  let example = starter + ' Continue by explaining ' + continueWith + ' in your own words.';
+  const wordsOut = example.split(/\s+/).filter(Boolean);
+
+  if (wordsOut.length > 42) {
+    example = wordsOut.slice(0, 42).join(' ').replace(/[,:;]+$/,'') + '...';
+  }
+
+  return example;
+}
+
 function formatEducationalAnswer(answer, question) {
   const raw = cleanText(answer || '');
   const q = removeVisualCommand(question || '');
   const words = nimbusFormatWords(raw, q);
   const keywords = words.slice(0, 6);
   const roadmap = nimbusBuildRoadmap(q, words);
+  const exampleAnswer = nimbusBuildExampleAnswer(raw, q, words);
 
   const keyWords = words.slice(0, 8);
   const shift = keyWords.length
@@ -279,6 +308,8 @@ function formatEducationalAnswer(answer, question) {
     '1. ' + roadmap[0].replace(/^\d+\.\s*/, ''),
     '2. ' + roadmap[1].replace(/^\d+\.\s*/, ''),
     '3. ' + roadmap[2].replace(/^\d+\.\s*/, ''),
+    '',
+    'Example Answer (starter): ' + exampleAnswer,
     '',
     'Key Fact (8 shuffled words): ' + shuffled.slice(0, 8).join(' ')
   ].join('\n').trim();
@@ -370,7 +401,7 @@ function instantReply(text) {
   const s = original.toLowerCase();
 
   if (/\b(who\s+(?:made|built|created|founded)|founder|co-?founder|creator)\b.*\bnimbus\b|\bnimbus\b.*\b(founder|co-?founder|creator)\b/i.test(original)) {
-    return 'Nimbus is an educational-focused AI project built manually by Abdul Haadi Hassan and Muhammad Arham, its co-founders. The project is designed around student learning: concise educational guidance, question-focused answer structures, saved conversations, Beaconhouse-aware information, and optional on-demand FLUX visuals. Nimbus is an independently built educational project, so it should not be described as officially owned or endorsed by Beaconhouse unless an official source says so.';
+    return 'Nimbus is an educational-focused AI project built manually by Abdul Haadi Hassan, its founder. The project is designed around student learning: concise educational guidance, question-focused answer structures, saved conversations, Beaconhouse-aware information, and optional on-demand FLUX visuals. Nimbus is independently built and should not be described as officially owned or endorsed by Beaconhouse unless an official source says so.';
   }
   if (/\bbeams\b|beaconhouse enterprise application management system/i.test(original)) {
     return 'BEAMS is the Beaconhouse Enterprise Application Management System. It serves as Beaconhouse\'s internal comprehensive Enterprise Resource Planning (ERP) and digital ecosystem used across staff, employees, and students. Users access connected internal services through their BEAMS ID. Beaconhouse also links BEAMS credentials with services such as PRISM for professional development. Official BEAMS portal: https://beams.beaconhouse.net/home/. PRISM: https://beams.beaconhouse.net/prism/.';

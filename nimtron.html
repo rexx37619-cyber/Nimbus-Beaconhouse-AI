@@ -50,6 +50,34 @@ body{display:flex;align-items:center;justify-content:center;padding:28px}
 @media(prefers-reduced-motion:reduce){.hero::before{animation:none}.btn,.feature{transition:none}}
 @media(max-width:600px){.web-version{align-items:stretch}.chromeos{width:100%}}
 
+
+/* NIMTRON_V14_AIRSPACE_STYLE */
+.hero{position:relative;overflow:hidden;isolation:isolate}
+.hero>*:not(.nimtron-airspace){position:relative;z-index:3}
+.nimtron-airspace{position:absolute!important;inset:0;z-index:0!important;pointer-events:none;overflow:hidden;opacity:.95}
+.air-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(65,223,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(65,223,255,.045) 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.75),transparent 80%);animation:gridDrift 18s linear infinite}
+.air-glow{position:absolute;width:310px;height:310px;border:1px solid rgba(65,223,255,.13);border-radius:50%;right:-80px;top:-95px}
+.air-glow::before,.air-glow::after{content:"";position:absolute;border:1px solid rgba(65,223,255,.10);border-radius:50%;inset:38px}
+.air-glow::after{inset:86px;border-color:rgba(65,223,255,.16)}
+.radar{position:absolute;width:150px;height:150px;border:1px solid rgba(65,223,255,.18);border-radius:50%;right:54px;top:52px;opacity:.7}
+.radar::before,.radar::after{content:"";position:absolute;background:rgba(65,223,255,.12)}
+.radar::before{width:1px;height:100%;left:50%;top:0}.radar::after{height:1px;width:100%;left:0;top:50%}
+.radar-sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(65,223,255,.28),rgba(65,223,255,0) 24%,transparent 100%);animation:radarSpin 5.5s linear infinite}
+.flight-path{position:absolute;height:1px;background:linear-gradient(90deg,transparent,rgba(65,223,255,.35),transparent);transform-origin:left center;opacity:.55}
+.path-a{width:430px;right:-40px;top:150px;transform:rotate(-12deg)}.path-b{width:380px;left:38%;bottom:82px;transform:rotate(8deg)}
+.ship{position:absolute;width:22px;height:10px;background:linear-gradient(90deg,rgba(65,223,255,.2),#8df3ff);clip-path:polygon(0 50%,65% 0,100% 50%,65% 100%);filter:drop-shadow(0 0 8px rgba(65,223,255,.55))}
+.ship::after{content:"";position:absolute;right:100%;top:4px;width:42px;height:2px;background:linear-gradient(90deg,transparent,rgba(65,223,255,.72))}
+.ship-a{top:142px;right:16%;animation:shipCruiseA 8s ease-in-out infinite}.ship-b{bottom:76px;left:56%;transform:scale(.72) rotate(180deg);animation:shipCruiseB 10s ease-in-out infinite}.ship-c{top:88px;left:48%;transform:scale(.5);opacity:.55;animation:shipCruiseC 12s linear infinite}
+.orbit-dot{position:absolute;width:6px;height:6px;border-radius:50%;background:#8df3ff;box-shadow:0 0 12px rgba(65,223,255,.9)}.dot-a{right:119px;top:73px;animation:dotPulse 2.4s ease-in-out infinite}.dot-b{right:68px;top:145px;animation:dotPulse 2.4s .8s ease-in-out infinite}
+.hud-tag{position:absolute;font:9px monospace;letter-spacing:.16em;color:rgba(141,243,255,.58);text-transform:uppercase}.hud-a{right:42px;top:218px}.hud-b{left:48%;bottom:39px}
+.scan-line{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(65,223,255,.32),transparent);box-shadow:0 0 14px rgba(65,223,255,.12);animation:scanHero 7s ease-in-out infinite}
+.web-version{margin-top:18px;padding:16px 17px;border:1px solid rgba(65,223,255,.24);border-radius:16px;background:linear-gradient(120deg,rgba(65,223,255,.07),rgba(65,223,255,.015));display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.web-version-copy{display:grid;gap:4px;min-width:230px;flex:1}.web-version-copy strong{font-size:15px;color:var(--text)}.web-version-copy small{color:var(--muted);line-height:1.45}.web-kicker{font:10px monospace;letter-spacing:.16em;color:var(--cyan)}
+.chromeos{color:#001116;background:linear-gradient(135deg,#8cf0ff,#41dfff);box-shadow:0 0 24px rgba(65,223,255,.12);white-space:nowrap}
+@keyframes gridDrift{to{transform:translate3d(42px,42px,0)}}@keyframes radarSpin{to{transform:rotate(360deg)}}@keyframes dotPulse{0%,100%{opacity:.35;transform:scale(.75)}50%{opacity:1;transform:scale(1.35)}}@keyframes shipCruiseA{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(-105px,-22px,0)}}@keyframes shipCruiseB{0%,100%{transform:translate3d(0,0,0) scale(.72) rotate(180deg)}50%{transform:translate3d(95px,18px,0) scale(.72) rotate(180deg)}}@keyframes shipCruiseC{0%{transform:translate3d(-70px,18px,0) scale(.5);opacity:0}25%{opacity:.55}75%{opacity:.55}100%{transform:translate3d(170px,-25px,0) scale(.5);opacity:0}}@keyframes scanHero{0%,100%{top:8%;opacity:0}15%,85%{opacity:.75}50%{top:92%}}
+@media(prefers-reduced-motion:reduce){.air-grid,.radar-sweep,.ship,.orbit-dot,.scan-line{animation:none!important}}
+@media(max-width:700px){.radar,.air-glow,.hud-tag{opacity:.35}.ship{opacity:.55}}
+
 </style>
 </head>
 <body>
@@ -60,6 +88,16 @@ body{display:flex;align-items:center;justify-content:center;padding:28px}
   </div>
 
   <section class="hero">
+    <!-- NIMTRON_V14_AIRSPACE -->
+    <div class="nimtron-airspace" aria-hidden="true">
+      <div class="air-grid"></div><div class="air-glow"></div>
+      <div class="radar"><div class="radar-sweep"></div></div>
+      <div class="flight-path path-a"></div><div class="flight-path path-b"></div>
+      <span class="ship ship-a"></span><span class="ship ship-b"></span><span class="ship ship-c"></span>
+      <span class="orbit-dot dot-a"></span><span class="orbit-dot dot-b"></span>
+      <span class="hud-tag hud-a">AIRSPACE • ONLINE</span><span class="hud-tag hud-b">NAV • SYNCED</span>
+      <div class="scan-line"></div>
+    </div>
     <div class="eyebrow">NIMTRON COMPANION • WINDOWS + CHROMEOS</div>
     <h1>NimTron</h1>
     <p class="tagline">Voice control, vision, hand gestures, local device control, coding assistance and project memory — built as the desktop companion to Nimbus.</p>
