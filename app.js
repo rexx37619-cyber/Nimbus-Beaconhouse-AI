@@ -330,16 +330,16 @@ async function sendMessage(text){
     if(typeof data.used==='number' && data.used>=state.used) updateUsage(data.used);
     if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
-    let reply=data.reply||'Nimbus did not return a response.';
+    let reply=data.visual_only?'':(data.reply||'Nimbus did not return a response.');
     if(explicitVisualRequest && data.visual?.prompt){
       const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
       const vtitle=data.visual?.title||'Study visual';
       const vkeywords=data.visual?.keywords||'keywords • labels • key concepts • arrows';
-      add('ai',reply);
+      if(reply) add('ai',reply);
       const prompt=data.visual?.prompt||makeAutoVisualPrompt(text,reply);
       try{await generateVisual(prompt,{title:vtitle,type:vtype,keywords:vkeywords});}
       catch(e){console.warn('Visual generation failed',e);}
-    }else add('ai',reply);
+    }else if(reply) add('ai',reply);
     consumeLocalUsage();
   }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
   finally{$('sendBtn').disabled=false;setAgentThinking(false);}

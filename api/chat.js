@@ -205,6 +205,22 @@ function normalizeTaskMode(value) {
   return ['explain_topic','study_plan','quiz','study_file'].includes(mode) ? mode : '';
 }
 
+function nimbusBuildWrittenSourcePrompt(question) {
+  const q = nimbusCleanWrittenQuestion(question);
+
+  return [
+    '[NIMBUS WRITING SOURCE]',
+    'Student question: ' + q,
+    '',
+    'Return exactly these three lines and nothing else:',
+    'NIMBUS_ANSWER_SOURCE: Give 2-3 concise, accurate factual sentences that answer the question.',
+    'NIMBUS_HINT_SOURCE: Give one question-specific clue of at most 14 words. Do not reveal the exact answer.',
+    'NIMBUS_KEY_FACT_SOURCE: Give one different accurate fact of at most 14 words. It must not repeat the answer starter or hint.',
+    '',
+    'The hint and key fact must be specifically about this question, not generic study advice.'
+  ].join('\n');
+}
+
 function hasWrittenAnswerIntent(text) {
   const s = textOf(text).toLowerCase();
 
@@ -300,12 +316,23 @@ function nimbusCleanWrittenQuestion(question) {
     .trim();
 }
 
+function nimbusExtractScaffoldSource(answer, label) {
+  const raw = cleanText(answer || '');
+  const safeLabel = String(label || '').replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&');
+  const rx = new RegExp('(?:^|\\n)\\s*' + safeLabel + '\\s*:\\s*([^\\n]+)', 'i');
+  const match = raw.match(rx);
+  return match && match[1] ? cleanText(match[1]).replace(/\s+/g,' ').trim() : '';
+}
+
 function nimbusCleanAnswerContent(answer) {
   let raw = cleanText(answer || '').trim();
   if (!raw) return '';
 
+  const answerSource = nimbusExtractScaffoldSource(raw, 'NIMBUS_ANSWER_SOURCE');
+  if (answerSource) return answerSource;
+
   const example = raw.match(
-    /(?:^|\n)\s*Example Answer(?:\s*\(starter\))?\s*:\s*([\s\S]*?)(?=\n\s*(?:Key Fact|Keywords|Answer Structure|Hint)\s*:|$)/i
+    /(?:^|\n)\s*Example Answer(?:\s*\(starter\))?\s*:\s*([\s\S]*?)(?=\n\s*(?:Key Fact|Keywords|Answer Structure|Hint|NIMBUS_[A-Z_]+)\s*:|$)/i
   );
 
   if (example && example[1]) {
@@ -313,10 +340,11 @@ function nimbusCleanAnswerContent(answer) {
   }
 
   raw = raw
+    .replace(/^\s*NIMBUS_(?:ANSWER|HINT|KEY_FACT)_SOURCE\s*:[^\n]*\n?/gim,' ')
     .replace(/^\s*Keywords\s*:[^\n]*\n?/gim,' ')
     .replace(/^\s*Key Fact(?:\s*\(8\s*shuffled\s*words\))?\s*:[^\n]*\n?/gim,' ')
     .replace(/^\s*Hint\s*:[^\n]*\n?/gim,' ')
-    .replace(/^\s*Answer Structure\s*:\s*[\s\S]*?(?=^\s*(?:Example Answer|Key Fact|Keywords|Hint)\s*:|$)/gim,' ')
+    .replace(/^\s*Answer Structure\s*:\s*[\s\S]*?(?=^\s*(?:Example Answer|Key Fact|Keywords|Hint|NIMBUS_[A-Z_]+)\s*:|$)/gim,' ')
     .replace(/^\s*Example Answer(?:\s*\(starter\))?\s*:\s*/gim,' ')
     .replace(/\s+/g,' ')
     .trim();
@@ -441,26 +469,58 @@ function nimbusIsShortAnswerQuestion(question) {
   return false;
 }
 
-function nimbusBuildShortHint(question) {
-  const q = nimbusCleanWrittenQuestion(question).toLowerCase();
+function nimbusBuildShortHint(answer, question) {
+  const q = nimbusCleanWrittenQuestion(question);
+  const lower = q.toLowerCase();
 
-  if (/^(?:name|list|state|identify|mention|give)\b/i.test(q)) {
-    return 'Think of the exact number of distinct examples the question asks for.';
+  let sourced = nimbusExtractScaffoldSource(answer, 'NIMBUS_HINT_SOURCE')
+    .replace(/\.\.\..*$/,'')
+    .replace(/\s+/g,' ')
+    .trim();
+
+  if (sourced && !/\b(?:the answer is|answer:|rephrase|own words)\b/i.test(sourced)) {
+    let words = sourced.split(/\s+/).filter(Boolean);
+    if (words.length > 14) words = words.slice(0,14);
+    sourced = words.join(' ').replace(/[,:;\-]+$/,'').trim();
+    if (!/[.!?]$/.test(sourced)) sourced += '.';
+    return sourced;
   }
 
-  if (/^what\s+does\b|\bmean\b/i.test(q)) {
-    return 'Focus on the simplest meaning and one defining idea.';
+  const topic = nimbusTopicFromQuestion(q);
+
+  if (/\bstrongest\b.*\bmuscle\b|\bmuscle\b.*\bstrongest\b/i.test(lower)) {
+    return 'Think about the jaw muscle used when biting with great force.';
   }
 
-  if (/^what\s+(?:is|are)\b|^define\b/i.test(q)) {
-    return 'Think of a short definition, then its most important feature.';
+  if (/\btoxin|pollut|ecosystem|bioaccumul/i.test(lower)) {
+    return 'Think about persistent pollutants that can build up inside living organisms.';
   }
 
-  if (/^which\b/i.test(q)) {
-    return 'Eliminate choices that do not match the key term.';
+  if (/\b(history|empire|war|revolution|medieval|civilization)\b/i.test(lower)) {
+    return 'Focus on the key person, event, cause, or consequence asked about.';
   }
 
-  return 'Focus only on the key fact the question is testing.';
+  if (/\b(geography|river|climate|weather|erosion|population|map)\b/i.test(lower)) {
+    return 'Focus on the location, process, or physical factor named in the question.';
+  }
+
+  if (/\b(math|maths|equation|algebra|geometry|ratio|percentage|fraction)\b/i.test(lower)) {
+    return 'Identify the known values and the relationship or formula connecting them.';
+  }
+
+  if (/^(?:name|list|state|identify|mention|give)\b/i.test(lower)) {
+    return 'Recall the exact number of distinct examples requested for ' + topic + '.';
+  }
+
+  if (/^what\s+does\b|\bmean\b/i.test(lower)) {
+    return 'Focus on the simplest meaning of ' + topic + ' and its defining idea.';
+  }
+
+  if (/^what\s+(?:is|are)\b|^define\b/i.test(lower)) {
+    return 'Think of a short definition of ' + topic + ' and one defining feature.';
+  }
+
+  return 'Focus on the clue words in the question and the key idea of ' + topic + '.';
 }
 
 function nimbusBuildExampleAnswer(answer, question, words) {
@@ -520,8 +580,8 @@ function nimbusBuildExampleAnswer(answer, question, words) {
 }
 
 function nimbusBuildKeyFact(answer, question) {
-  const raw = nimbusCleanAnswerContent(answer);
   const q = nimbusCleanWrittenQuestion(question);
+  const raw = nimbusCleanAnswerContent(answer);
 
   const exampleLead = nimbusBuildExampleAnswer(raw, q, [])
     .split('...')[0]
@@ -530,40 +590,51 @@ function nimbusBuildKeyFact(answer, question) {
     .replace(/\s+/g,' ')
     .trim();
 
-  const exampleWords = new Set(
-    exampleLead.split(/\s+/).filter(word => word.length > 2)
-  );
+  let sourced = nimbusExtractScaffoldSource(answer, 'NIMBUS_KEY_FACT_SOURCE')
+    .replace(/\.\.\..*$/,'')
+    .replace(/\s+/g,' ')
+    .trim();
+
+  const badMeta = /\b(?:rephrase|own words|starter|hint|answer structure|keywords|key fact source)\b/i;
+
+  if (sourced && !badMeta.test(sourced)) {
+    let tokens = sourced.split(/\s+/).filter(Boolean);
+    if (tokens.length > 14) tokens = tokens.slice(0,14);
+    sourced = tokens.join(' ').replace(/[,:;\-]+$/,'').trim();
+
+    const normalized = sourced
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+
+    if (normalized && normalized !== exampleLead) {
+      if (!/[.!?]$/.test(sourced)) sourced += '.';
+      return sourced;
+    }
+  }
+
+  const exampleWords = new Set(exampleLead.split(/\s+/).filter(word => word.length > 2));
 
   const sentences = raw
     .split(/(?<=[.!?])\s+/)
     .map(sentence => sentence.trim())
     .filter(Boolean)
-    .filter(sentence => !/^(?:keywords|answer structure|example answer|hint|key fact)\s*:/i.test(sentence));
+    .filter(sentence => !badMeta.test(sentence));
 
-  const firstSentence = sentences[0] || '';
-  const clauses = firstSentence
-    .split(/\s*(?:;|—|–|,|\bbecause\b|\bwhich\b|\bwhereas\b|\bwhile\b|\btherefore\b)\s*/i)
+  const clauses = sentences
+    .flatMap(sentence => sentence.split(/\s*(?:;|—|–|,|\bbecause\b|\bwhich\b|\bwhereas\b|\bwhile\b|\btherefore\b)\s*/i))
     .map(part => part.trim())
-    .filter(part => part.split(/\s+/).length >= 4);
+    .filter(part => part.split(/\s+/).length >= 4)
+    .filter(part => !badMeta.test(part));
 
-  // Prefer a different sentence from the Example Answer starter.
-  // If the model returned one sentence, try a different factual clause.
-  const candidates = [
-    ...sentences.slice(1),
-    ...clauses.slice(1),
-    ...sentences
-  ];
-
-  let fact = '';
-
-  for (const candidate of candidates) {
-    const cleaned = String(candidate || '')
-      .replace(/^(?:keywords|answer structure|example answer|hint|key fact)\s*:\s*/i,'')
+  for (const candidate of [...sentences.slice(1), ...clauses, ...sentences]) {
+    let cleaned = String(candidate || '')
       .replace(/\.\.\..*$/,'')
       .replace(/\s+/g,' ')
       .trim();
 
-    if (!cleaned) continue;
+    if (!cleaned || badMeta.test(cleaned)) continue;
 
     const candidateWords = cleaned
       .toLowerCase()
@@ -575,38 +646,30 @@ function nimbusBuildKeyFact(answer, question) {
 
     const overlap = candidateWords.filter(word => exampleWords.has(word)).length;
     const overlapRatio = overlap / candidateWords.length;
+    if (overlapRatio >= 0.65) continue;
 
-    // Avoid a Key Fact that is basically the same starter sentence.
-    if (overlapRatio < 0.65 || !fact) {
-      fact = cleaned;
-      if (overlapRatio < 0.65) break;
+    let tokens = cleaned.split(/\s+/).filter(Boolean);
+    if (tokens.length > 14) tokens = tokens.slice(0,14);
+    cleaned = tokens.join(' ').replace(/[,:;\-]+$/,'').trim();
+
+    if (cleaned) {
+      if (!/[.!?]$/.test(cleaned)) cleaned += '.';
+      return cleaned;
     }
   }
 
-  // Final fallback: use the tail of the source answer rather than its opening.
-  if (!fact || fact.toLowerCase().startsWith(exampleLead)) {
-    const allWords = raw.split(/\s+/).filter(Boolean);
-    if (allWords.length > 11) {
-      fact = allWords.slice(Math.max(11, allWords.length - 14)).join(' ');
-    }
+  // Last-resort factual source: use the answer text only if it is not meta.
+  let fallback = sentences.find(sentence => !badMeta.test(sentence)) || '';
+  let tokens = fallback.split(/\s+/).filter(Boolean);
+  if (tokens.length > 14) tokens = tokens.slice(0,14);
+  fallback = tokens.join(' ').replace(/[,:;\-]+$/,'').trim();
+
+  if (fallback) {
+    if (!/[.!?]$/.test(fallback)) fallback += '.';
+    return fallback;
   }
 
-  if (!fact) {
-    const topic = nimbusTopicFromQuestion(q);
-    fact = topic + ' has an important supporting fact students should remember.';
-  }
-
-  let tokens = fact.split(/\s+/).filter(Boolean);
-  if (tokens.length > 14) tokens = tokens.slice(0, 14);
-
-  fact = tokens.join(' ')
-    .replace(/^(?:and|but|because|which|while|whereas)\s+/i,'')
-    .replace(/[,:;\-]+$/,'')
-    .trim();
-
-  if (!/[.!?]$/.test(fact)) fact += '.';
-
-  return fact;
+  return 'Check one accurate supporting fact about this topic in your class notes.';
 }
 
 function formatEducationalAnswer(answer, question) {
@@ -615,13 +678,13 @@ function formatEducationalAnswer(answer, question) {
   const words = nimbusFormatWords(raw, q);
   const keywords = words.slice(0, 6);
   const exampleAnswer = nimbusBuildExampleAnswer(raw, q, words);
-  const keyFact = nimbusBuildKeyFact(raw, q);
+  const keyFact = nimbusBuildKeyFact(answer, q);
 
   if (nimbusIsShortAnswerQuestion(q)) {
     return [
       'Keywords: ' + keywords.join(', '),
       '',
-      'Hint: ' + nimbusBuildShortHint(q),
+      'Hint: ' + nimbusBuildShortHint(answer, q),
       '',
       'Example Answer (starter): ' + exampleAnswer,
       '',
@@ -765,6 +828,29 @@ function visualPayload(question, answer) {
   };
 }
 
+function nimbusPreviousUserTopic(body) {
+  const raw = Array.isArray(body?.history)
+    ? body.history
+    : (Array.isArray(body?.messages) ? body.messages : []);
+
+  for (let i = raw.length - 1; i >= 0; i -= 1) {
+    const item = raw[i];
+    if (normalizeRole(item) !== 'user') continue;
+
+    let text = normalizeMessageText(item);
+    text = removeVisualCommand(text);
+    if (!text) continue;
+
+    if (typeof nimbusCleanWrittenQuestion === 'function') {
+      text = nimbusCleanWrittenQuestion(text) || text;
+    }
+
+    if (text && text.toLowerCase() !== '/visual') return text;
+  }
+
+  return '';
+}
+
 export default async function handler(req, res) {
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   res.setHeader('Cache-Control', 'no-store');
@@ -790,13 +876,36 @@ export default async function handler(req, res) {
     }
 
     const visualRequested = hasVisualCommand(rawText);
-    const userText = removeVisualCommand(rawText) || rawText;
+    const visualText = removeVisualCommand(rawText);
+    const standaloneVisualOnly = visualRequested && !visualText;
+    const previousVisualTopic = standaloneVisualOnly ? nimbusPreviousUserTopic(body) : '';
+    const userText = visualText || previousVisualTopic || rawText;
+
+    if (standaloneVisualOnly) {
+      const visualTopic = previousVisualTopic || 'the previous study topic';
+      return res.status(200).json({
+        ok: true,
+        reply: '',
+        visual_only: true,
+        question_type: 'visual_only',
+        auto_visual: true,
+        visual: visualPayload(visualTopic, ''),
+        model: body.model || 'ror',
+        backend_model: 'visual-router',
+        source_status: 'local',
+        sources: [],
+        limit: DAILY_LIMIT,
+        request_id: requestId
+      });
+    }
     const writtenAnswerRequest = hasWrittenAnswerIntent(userText);
     const taskMode = writtenAnswerRequest
       ? ''
       : (normalizeTaskMode(body?.task_mode) || inferTaskMode(userText));
     const questionType = classifyQuestion(userText, taskMode);
-    const modelUserText = taskMode ? taskModeInstruction(taskMode, userText) : userText;
+    const modelUserText = writtenAnswerRequest
+      ? nimbusBuildWrittenSourcePrompt(userText)
+      : (taskMode ? taskModeInstruction(taskMode, userText) : userText);
     body.current_user_text = userText;
     const science = looksLikeScience(userText);
     const instant = instantReply(userText);
