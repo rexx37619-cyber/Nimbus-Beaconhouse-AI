@@ -1748,3 +1748,216 @@ $('premiumComposer').addEventListener('submit',async e=>{
     installNimbusComposerFinalizer();
   }
 })();
+
+
+/* NIMBUS_V18_1_HOME_ACTIONS */
+(function(){
+  function installNimbusHomeActions(){
+    if(window.__NIMBUS_V18_1_HOME_ACTIONS__)return;
+    window.__NIMBUS_V18_1_HOME_ACTIONS__=true;
+
+    var input=document.getElementById('messageInput');
+    var composer=document.getElementById('composer');
+    var fileInput=document.getElementById('fileInput');
+    var newChat=document.getElementById('newChat');
+    var clearChat=document.getElementById('clearChat');
+
+    if(!input||!composer||!fileInput)return;
+
+    // Only formats the file types the current chat backend actually sends
+    // inline to the model.
+    fileInput.setAttribute('accept','.pdf,.txt,.png,.jpg,.jpeg,.webp');
+
+    state.nimbusTaskMode='';
+
+    function setInput(value){
+      input.value=value;
+      try{input.dispatchEvent(new Event('input',{bubbles:true}));}catch(_){}
+      input.focus();
+      try{input.setSelectionRange(input.value.length,input.value.length);}catch(_){}
+    }
+
+    function identifyHomeCards(){
+      document.querySelectorAll('[data-prompt]').forEach(function(button){
+        var label=String(
+          (button.querySelector('b')&&button.querySelector('b').textContent) ||
+          button.textContent ||
+          ''
+        ).replace(/\s+/g,' ').trim().toLowerCase();
+
+        if(label.includes('explain a topic'))button.dataset.nimbusAction='explain-topic';
+        else if(label.includes('build a study plan'))button.dataset.nimbusAction='study-plan';
+        else if(label.includes('start a quiz'))button.dataset.nimbusAction='start-quiz';
+        else if(label.includes('study a file'))button.dataset.nimbusAction='study-file';
+      });
+    }
+
+    identifyHomeCards();
+
+    document.addEventListener('click',function(event){
+      var button=event.target&&event.target.closest
+        ? event.target.closest('[data-nimbus-action]')
+        : null;
+
+      if(!button)return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      var action=button.dataset.nimbusAction||'';
+
+      if(action==='explain-topic'){
+        state.nimbusTaskMode='';
+        setInput('Explain ');
+        return;
+      }
+
+      if(action==='study-plan'){
+        state.nimbusTaskMode='study_plan';
+        setInput('Build me a practical study plan. First ask for my subjects, exam date, available study time, weak areas, and priorities.');
+        composer.requestSubmit();
+        return;
+      }
+
+      if(action==='start-quiz'){
+        state.nimbusTaskMode='quiz';
+        setInput('Start a quiz. First ask which subject or topic and difficulty I want. Then ask one question at a time and wait for my answer.');
+        composer.requestSubmit();
+        return;
+      }
+
+      if(action==='study-file'){
+        state.nimbusTaskMode='study_file';
+        fileInput.click();
+      }
+    },true);
+
+    // The existing fileInput.onchange stores the selected File in state.file.
+    // This listener runs after selection and submits once that handler finishes.
+    fileInput.addEventListener('change',function(){
+      if(state.nimbusTaskMode!=='study_file')return;
+      if(!fileInput.files||!fileInput.files[0])return;
+
+      setInput('Study this file. Summarize the key ideas, identify important terms, explain what I should revise, and highlight likely exam-focus areas.');
+
+      setTimeout(function(){
+        composer.requestSubmit();
+      },0);
+    });
+
+    // New chat exits plan/quiz modes.
+    [newChat,clearChat].forEach(function(button){
+      if(!button)return;
+      button.addEventListener('click',function(){
+        state.nimbusTaskMode='';
+      },true);
+    });
+
+    // Add task_mode to the existing request without rewriting sendMessage,
+    // saved chats, memory, speed, or visual wrappers.
+    if(!window.__NIMBUS_V18_1_TASK_FETCH__){
+      window.__NIMBUS_V18_1_TASK_FETCH__=true;
+      var previousFetch=window.fetch.bind(window);
+
+      window.fetch=async function(inputArg,init){
+        var url=typeof inputArg==='string' ? inputArg : ((inputArg&&inputArg.url)||'');
+        var method=String((init&&init.method)||'GET').toUpperCase();
+        var mode=String(state.nimbusTaskMode||'');
+
+        if(method==='POST' && /\/api\/chat(?:\?|$)/i.test(url) && init && typeof init.body==='string'){
+          try{
+            var payload=JSON.parse(init.body);
+            var message=String(payload.message||'');
+
+            // Allow the student to leave an interactive mode naturally.
+            if(/\b(?:stop|end|exit|cancel)\s+(?:the\s+)?(?:quiz|study\s+plan|plan)\b/i.test(message)){
+              mode='';
+              state.nimbusTaskMode='';
+            }
+
+            payload.task_mode=mode;
+            init=Object.assign({},init,{body:JSON.stringify(payload)});
+          }catch(_){}
+        }
+
+        try{
+          return await previousFetch(inputArg,init);
+        }finally{
+          // File study is one request. Quiz/study-plan remain active for
+          // follow-up answers until New Chat or an explicit stop command.
+          if(method==='POST' && /\/api\/chat(?:\?|$)/i.test(url) && mode==='study_file'){
+            state.nimbusTaskMode='';
+          }
+        }
+      };
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',installNimbusHomeActions,{once:true});
+  }else{
+    installNimbusHomeActions();
+  }
+})();
+
+
+/* NIMBUS_V18_1_REMOVE_LEGACY_SPEED */
+(function(){
+  function removeLegacyNimbusSpeed(){
+    var composer=document.getElementById('composer');
+    var newSpeed=document.getElementById('nimbusMotionSpeedWrap');
+    if(!composer||!newSpeed)return;
+
+    var keepIds=new Set(['sendBtn','attachBtn','visualBtn','nimbusMotionSpeedBtn']);
+
+    composer.querySelectorAll('button').forEach(function(button){
+      if(newSpeed.contains(button))return;
+      if(keepIds.has(button.id))return;
+
+      var text=String(button.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+      var id=String(button.id||'').toLowerCase();
+      var cls=String(button.className||'').toLowerCase();
+      var title=String(button.getAttribute('title')||'').toLowerCase();
+      var aria=String(button.getAttribute('aria-label')||'').toLowerCase();
+
+      var oldSpeed =
+        /\b(xhigh|rapid|super rapid|max)\b/i.test(text) ||
+        id.includes('speed') ||
+        cls.includes('speed') ||
+        title.includes('speed') ||
+        aria.includes('speed') ||
+        button.hasAttribute('data-clean-speed') ||
+        button.hasAttribute('data-nimbus-speed') ||
+        button.hasAttribute('data-nimbus-speed-v7') ||
+        button.hasAttribute('data-nimbus-speed-v9') ||
+        button.hasAttribute('data-nimbus-speed-v10');
+
+      if(oldSpeed)button.remove();
+    });
+  }
+
+  function run(){
+    removeLegacyNimbusSpeed();
+
+    var composer=document.getElementById('composer');
+    if(!composer)return;
+
+    var observer=new MutationObserver(removeLegacyNimbusSpeed);
+    observer.observe(composer,{childList:true,subtree:true});
+
+    setTimeout(removeLegacyNimbusSpeed,250);
+    setTimeout(removeLegacyNimbusSpeed,900);
+    setTimeout(removeLegacyNimbusSpeed,2200);
+    setTimeout(function(){
+      removeLegacyNimbusSpeed();
+      observer.disconnect();
+    },6000);
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',run,{once:true});
+  }else{
+    run();
+  }
+})();

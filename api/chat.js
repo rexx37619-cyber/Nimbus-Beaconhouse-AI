@@ -58,6 +58,11 @@ BEAMS KNOWLEDGE
 `;
 
 const BASE_SYSTEM = `
+NIMBUS RESPONSE ROUTING:
+- Use Keywords, Answer Structure, Example Answer, and Key Fact only for direct academic explanation, definition, comparison, process, or problem-solving questions.
+- General chat, Beaconhouse questions, founder/project questions, study plans, quizzes, and attached-file analysis must use a natural response instead.
+- A study-plan request should produce planning help, a quiz request should run an interactive quiz, and a file-study request should analyse the attachment.
+
 You are Nimbus, a rapid educational AI assistant for Beaconhouse students.
 
 CORE BEHAVIOUR:
@@ -106,35 +111,78 @@ function normalizeMessageText(item) {
 }
 
 function buildContents(body, currentUserText) {
-  const raw = Array.isArray(body?.history) ? body.history : (Array.isArray(body?.messages) ? body.messages : []);
+  const raw = Array.isArray(body?.history)
+    ? body.history
+    : (Array.isArray(body?.messages) ? body.messages : []);
+
+  const duplicateText = textOf(body?.current_user_text || currentUserText);
   const cleaned = [];
+
   for (const item of raw) {
     const content = normalizeMessageText(item);
     if (!content) continue;
     cleaned.push({ role: normalizeRole(item), text: content });
   }
 
-  while (cleaned.length && cleaned.at(-1).role === 'user' && cleaned.at(-1).text === currentUserText) {
+  while (
+    cleaned.length &&
+    cleaned.at(-1).role === 'user' &&
+    cleaned.at(-1).text === duplicateText
+  ) {
     cleaned.pop();
   }
 
   const merged = [];
   for (const item of cleaned) {
     const last = merged.at(-1);
-    if (last && last.role === item.role) last.text += `\n${item.text}`;
+    if (last && last.role === item.role) last.text += '\n' + item.text;
     else merged.push({ ...item });
   }
 
-  let chars = MAX_HISTORY_CHARS;
+  const maxMessages = typeof MAX_HISTORY_MESSAGES === 'number' ? MAX_HISTORY_MESSAGES : 12;
+  let chars = typeof MAX_HISTORY_CHARS === 'number' ? MAX_HISTORY_CHARS : 14000;
   const bounded = [];
-  for (let i = merged.length - 1; i >= 0 && bounded.length < MAX_HISTORY_MESSAGES; i -= 1) {
+
+  for (let i = merged.length - 1; i >= 0 && bounded.length < maxMessages; i -= 1) {
     if (merged[i].text.length > chars) break;
     bounded.unshift(merged[i]);
     chars -= merged[i].text.length;
   }
+
   while (bounded.length && bounded[0].role === 'model') bounded.shift();
 
-  return bounded.map(item => ({ role: item.role, parts: [{ text: item.text }] }));
+  const contents = bounded.map(item => ({
+    role: item.role,
+    parts: [{ text: item.text }]
+  }));
+
+  const parts = [];
+  const attachment = body?.attachment;
+  const allowed = new Set([
+    'application/pdf',
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'text/plain'
+  ]);
+
+  if (
+    attachment?.data &&
+    attachment?.mimeType &&
+    allowed.has(String(attachment.mimeType).toLowerCase())
+  ) {
+    parts.push({
+      inlineData: {
+        mimeType: attachment.mimeType,
+        data: attachment.data
+      }
+    });
+  }
+
+  parts.push({ text: currentUserText });
+  contents.push({ role: 'user', parts });
+
+  return contents;
 }
 
 function looksLikeScience(text) {
@@ -149,12 +197,77 @@ function removeVisualCommand(text) {
   return textOf(text).split(/\s+/).filter(word => word.toLowerCase() !== '/visual').join(' ').trim();
 }
 
-function classifyQuestion(text) {
+function normalizeTaskMode(value) {
+  const mode = textOf(value).toLowerCase().replace(/-/g,'_');
+  return ['study_plan','quiz','study_file'].includes(mode) ? mode : '';
+}
+
+function inferTaskMode(text) {
   const s = textOf(text).toLowerCase();
+
+  if (/\b(?:build|make|create)\b.*\b(?:study|revision)\s+plan\b|\b(?:study|revision)\s+plan\b/i.test(s)) {
+    return 'study_plan';
+  }
+
+  if (/\b(?:start\s+(?:a\s+)?quiz|quiz\s+me|test\s+me)\b/i.test(s)) {
+    return 'quiz';
+  }
+
+  if (/\b(?:study|analyse|analyze|summari[sz]e|review)\b.*\b(?:attached|attachment|file|document|pdf)\b/i.test(s)) {
+    return 'study_file';
+  }
+
+  return '';
+}
+
+function taskModeInstruction(mode, text) {
+  const request = textOf(text);
+
+  if (mode === 'study_plan') {
+    return '[STUDY PLAN MODE]\nDo not use Keywords, Answer Structure, Example Answer, or Key Fact. If important details are missing, ask concise questions about subjects/topics, exam date, available study time, weak areas, and priorities. Once enough details are known, build a practical schedule with sessions, breaks, revision, practice, and checkpoints.\nUser request: ' + request;
+  }
+
+  if (mode === 'quiz') {
+    return '[QUIZ MODE]\nDo not use Keywords, Answer Structure, Example Answer, or Key Fact. If topic or difficulty is missing, ask for it first. Then ask exactly one quiz question at a time and wait for the student answer before continuing. Give brief feedback after each answer without revealing future answers.\nUser request: ' + request;
+  }
+
+  if (mode === 'study_file') {
+    return '[STUDY FILE MODE]\nUse the attached file as the primary source. Do not use Keywords, Answer Structure, Example Answer, or Key Fact. Summarize important ideas, identify key terms, explain what the student should revise, and highlight likely exam-focus areas. Do not invent content not supported by the attachment.\nUser request: ' + request;
+  }
+
+  return request;
+}
+
+function classifyQuestion(text, taskMode = '') {
+  const s = textOf(text).toLowerCase();
+  const mode = normalizeTaskMode(taskMode) || inferTaskMode(s);
+
   if (!s) return 'empty';
-  if (/^(hi|hello|hey|yo|sup|thanks|thank you|ok|okay|bye|good morning|good afternoon|good evening|good night)[!.?,\s]*$/i.test(s)) return 'casual';
-  if (/\bbeaconhouse\b|\bbisc\b|\bbeams\b|\bprism\b|\brise\b|\blap\b|\bboss\b|\bbooklist\b|\bcampus\b|\badmissions?\b|\bcompetition\b/i.test(s)) return 'beaconhouse';
-  if (looksLikeScience(s) || /\b(?:math|maths|algebra|geometry|equation|fraction|percentage|ratio|history|geography|english|grammar|homework|schoolwork|lesson|chapter|exam|revision|study|grade\s*\d+|class\s*\d+)\b/i.test(s)) return 'educational';
+  if (mode) return 'task';
+
+  if (/^(hi|hello|hey|yo|sup|thanks|thank you|ok|okay|bye|good morning|good afternoon|good evening|good night)[!.?,\s]*$/i.test(s)) {
+    return 'casual';
+  }
+
+  if (/\bbeaconhouse\b|\bbisc\b|\bbeams\b|\bprism\b|\brise\b|\bilap\b|\blap\b|\bboss\b|\bbooklist\b|\bcampus\b|\badmissions?\b|\bcompetition\b/i.test(s)) {
+    return 'beaconhouse';
+  }
+
+  const mathProblem =
+    /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|×)|\b(?:solve|calculate|evaluate|simplify|factorise|factorize|expand|differentiate|integrate)\b/i.test(s);
+
+  const academicContext =
+    looksLikeScience(s) ||
+    mathProblem ||
+    /\b(?:math|maths|algebra|geometry|equation|fraction|percentage|ratio|history|geography|english|grammar|literature|computer\s+science|computing|economics|business\s+studies|urdu|islamiyat|pakistan\s+studies|chapter)\b/i.test(s);
+
+  const academicIntent =
+    /\b(?:explain|describe|define|compare|contrast|difference\s+between|what\s+is|what\s+are|how\s+does|how\s+do|how\s+is|why\s+does|why\s+do|why\s+is|function\s+of|purpose\s+of|process\s+of|stages?\s+of|causes?\s+of|effects?\s+of|teach\s+me\s+about|tell\s+me\s+about|help\s+me\s+understand|notes?\s+on|revise|revision|solve|calculate|evaluate|simplify|prove|derive)\b/i.test(s);
+
+  if (mathProblem || (academicContext && academicIntent)) {
+    return 'educational';
+  }
+
   return 'general';
 }
 
@@ -461,7 +574,10 @@ export default async function handler(req, res) {
 
     const visualRequested = hasVisualCommand(rawText);
     const userText = removeVisualCommand(rawText) || rawText;
-    const questionType = classifyQuestion(userText);
+    const taskMode = normalizeTaskMode(body?.task_mode) || inferTaskMode(userText);
+    const questionType = classifyQuestion(userText, taskMode);
+    const modelUserText = taskMode ? taskModeInstruction(taskMode, userText) : userText;
+    body.current_user_text = userText;
     const science = looksLikeScience(userText);
     const instant = instantReply(userText);
 
@@ -491,7 +607,7 @@ export default async function handler(req, res) {
         apiKey,
         model: PRIMARY_MODEL,
         body,
-        currentUserText: userText,
+        currentUserText: modelUserText,
         science,
         useFileSearch: science && Boolean(SCIENCE_STORE_NAME),
         timeoutMs: science ? SCIENCE_TIMEOUT_MS : NORMAL_TIMEOUT_MS
@@ -506,7 +622,7 @@ export default async function handler(req, res) {
             apiKey,
             model: PRIMARY_MODEL,
             body,
-            currentUserText: userText,
+            currentUserText: modelUserText,
             science,
             useFileSearch: false,
             timeoutMs: FALLBACK_TIMEOUT_MS
@@ -523,7 +639,7 @@ export default async function handler(req, res) {
             apiKey,
             model: FALLBACK_MODEL,
             body,
-            currentUserText: userText,
+            currentUserText: modelUserText,
             science: false,
             useFileSearch: false,
             timeoutMs: FALLBACK_TIMEOUT_MS
