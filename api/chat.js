@@ -75,7 +75,7 @@ LIGHT EDUCATIONAL FORMAT:
 - Answer Structure contains exactly three short roadmap lines.
 - Every Answer Structure line must be 10 words or fewer.
 - The roadmap guides creativity only: define/how formed, explain development, then final result/function/importance. Do not place the actual answer inside Answer Structure.
-- Include one very short Example Answer starter fragment (about 10 words), followed by "... Rephrase and finish the answer in your own words." It must not be a complete copy-paste answer.
+- Include one very short Example Answer starter fragment (about 10 words), followed by "... Rephrase this answer on your own." It must not be a complete copy-paste answer.
 - Casual and non-educational questions should remain natural.
 - Never output backend diagnostics, provider errors, internal model details, or loading narration.
 GRADE 7 SCIENCE:
@@ -284,9 +284,50 @@ function classifyQuestion(text, taskMode = '') {
 }
 
 /* NIMBUS_V9_EDUCATIONAL_FORMATTER */
+function nimbusCleanWrittenQuestion(question) {
+  return removeVisualCommand(question || '')
+    .replace(/^help\s+me\s+write\s+this\s+answer\s*:\s*/i, '')
+    .replace(/^help\s+me\s+write\s+(?:an\s+)?answer\s+to\s+this\s+question\s*:\s*/i, '')
+    .replace(/^help\s+me\s+write\s+this\s+question\s*:\s*/i, '')
+    .replace(/^help\s+me\s+answer\s+this\s+question\s*:\s*/i, '')
+    .replace(/^answer\s+this\s+question\s*:\s*/i, '')
+    .replace(/^write\s+(?:an\s+)?answer\s+(?:to|for)\s+(?:this\s+)?question\s*:\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function nimbusCleanAnswerContent(answer) {
+  let raw = cleanText(answer || '').trim();
+  if (!raw) return '';
+
+  const example = raw.match(
+    /(?:^|\n)\s*Example Answer(?:\s*\(starter\))?\s*:\s*([\s\S]*?)(?=\n\s*(?:Key Fact|Keywords|Answer Structure|Hint)\s*:|$)/i
+  );
+
+  if (example && example[1]) {
+    return cleanText(example[1]).replace(/\s+/g,' ').trim();
+  }
+
+  raw = raw
+    .replace(/^\s*Keywords\s*:[^\n]*\n?/gim,' ')
+    .replace(/^\s*Key Fact(?:\s*\(8\s*shuffled\s*words\))?\s*:[^\n]*\n?/gim,' ')
+    .replace(/^\s*Hint\s*:[^\n]*\n?/gim,' ')
+    .replace(/^\s*Answer Structure\s*:\s*[\s\S]*?(?=^\s*(?:Example Answer|Key Fact|Keywords|Hint)\s*:|$)/gim,' ')
+    .replace(/^\s*Example Answer(?:\s*\(starter\))?\s*:\s*/gim,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+
+  return raw;
+}
+
 function nimbusFormatWords(answer, question) {
-  const stop = new Set('the a an and or of to in on for with is are was were be been being this that these those how what why does do did it its their our your from by as at into about than then can could should would may might will shall explain explanation main very more less also keyword keywords answer structure key fact facts section sections'.split(/\s+/));
-  const source = (String(question||'')+' '+String(answer||'')).replace(/https?:\/\/\S+/g,' ');
+  const stop = new Set(
+    'the a an and or of to in on for with is are was were be been being this that these those how what why does do did it its their our your from by as at into about than then can could should would may might will shall explain explanation main very more less also keyword keywords answer structure key fact facts section sections help write writing question questions answer answers name list state give identify mention tell one two three four five six seven eight nine ten thing things rephrase own words'.split(/\s+/)
+  );
+
+  const q = nimbusCleanWrittenQuestion(question);
+  const cleanAnswer = nimbusCleanAnswerContent(answer);
+  const source = (q + ' ' + cleanAnswer).replace(/https?:\/\/\S+/g,' ');
   const candidates = source.match(/[A-Za-z][A-Za-z-]*/g) || [];
   const words = [];
 
@@ -297,27 +338,28 @@ function nimbusFormatWords(answer, question) {
     if (words.length >= 12) break;
   }
 
-  const fallback = ['structure','function','process','system','change','movement','result','importance','concept','stage','purpose','sequence'];
+  const fallback = ['concept','process','function','example','result','importance','system','change','stage','purpose','effect','relationship'];
   for (const word of fallback) {
     if (words.length >= 12) break;
     if (!words.includes(word)) words.push(word);
   }
+
   return words;
 }
 
 function nimbusTopicFromQuestion(question) {
-  const cleaned = removeVisualCommand(question || '')
+  const cleaned = nimbusCleanWrittenQuestion(question)
     .replace(/[?!.:,;()[\]{}]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
   const ignore = new Set(
-    'explain describe define discuss tell show give write make what whats what\'s is are was were how does do did why who when where compare difference between the a an of to in on for with and or please about work works working formed form formation happens happened happen process stages steps'.split(/\s+/)
+    'explain describe define discuss tell show give write make name list state identify mention what whats what\'s is are was were how does do did why who when where compare difference between the a an of to in on for with and or please about work works working formed form formation happens happened happen process stages steps help answer question one two three four five six seven eight nine ten'.split(/\s+/)
   );
 
   const words = (cleaned.match(/[A-Za-z][A-Za-z-]*/g) || [])
     .filter(word => !ignore.has(word.toLowerCase()))
-    .slice(0, 3);
+    .slice(0, 4);
 
   return words.join(' ') || 'the topic';
 }
@@ -384,37 +426,100 @@ function nimbusBuildRoadmap(question, words) {
   return lines.map(nimbusLimitRoadmap);
 }
 
-function nimbusBuildExampleAnswer(answer, question, words) {
-  const raw = cleanText(answer || '')
-    .replace(/\s+/g, ' ')
-    .trim();
+function nimbusIsShortAnswerQuestion(question) {
+  const q = nimbusCleanWrittenQuestion(question).toLowerCase();
+  const count = (q.match(/[A-Za-z0-9-]+/g) || []).length;
 
-  const topic = nimbusTopicFromQuestion(question || '');
+  if (/^(?:name|list|state|identify|mention|give)\b/i.test(q) && count <= 18) return true;
+  if (/^(?:what\s+does|what\s+is|what\s+are|define|which)\b/i.test(q) && count <= 14) return true;
+  if (/\b(?:one|two|three|four|five|\d+)\s+(?:examples?|things?|types?|reasons?|causes?|effects?|functions?|features?|toxins?|items?)\b/i.test(q) && count <= 18) return true;
+
+  return false;
+}
+
+function nimbusBuildShortHint(question) {
+  const q = nimbusCleanWrittenQuestion(question).toLowerCase();
+
+  if (/^(?:name|list|state|identify|mention|give)\b/i.test(q)) {
+    return 'Think of the exact number of distinct examples the question asks for.';
+  }
+
+  if (/^what\s+does\b|\bmean\b/i.test(q)) {
+    return 'Focus on the simplest meaning and one defining idea.';
+  }
+
+  if (/^what\s+(?:is|are)\b|^define\b/i.test(q)) {
+    return 'Think of a short definition, then its most important feature.';
+  }
+
+  if (/^which\b/i.test(q)) {
+    return 'Eliminate choices that do not match the key term.';
+  }
+
+  return 'Focus only on the key fact the question is testing.';
+}
+
+function nimbusBuildExampleAnswer(answer, question, words) {
+  const q = nimbusCleanWrittenQuestion(question);
+  const topic = nimbusTopicFromQuestion(q);
+  const raw = nimbusCleanAnswerContent(answer);
+
+  let match = q.match(/^\s*name\s+(one|two|three|four|five|\d+)\s+(.+?)[?.!]*$/i);
+  if (match) {
+    const number = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+    return number + ' ' + match[2].replace(/[?.!]+$/,'').trim() + ' include... Rephrase this answer on your own.';
+  }
+
+  match = q.match(/^\s*(?:list|state|identify|mention|give)\s+(one|two|three|four|five|\d+)\s+(.+?)[?.!]*$/i);
+  if (match) {
+    const number = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+    return number + ' ' + match[2].replace(/[?.!]+$/,'').trim() + ' are... Rephrase this answer on your own.';
+  }
+
+  match = q.match(/^\s*what\s+does\s+(.+?)\s+mean[?.!]*$/i);
+  if (match) {
+    return match[1].trim() + ' means... Rephrase this answer on your own.';
+  }
+
+  match = q.match(/^\s*define\s+(.+?)[?.!]*$/i);
+  if (match) {
+    return match[1].trim() + ' can be defined as... Rephrase this answer on your own.';
+  }
+
+  match = q.match(/^\s*what\s+(?:is|are)\s+(.+?)[?.!]*$/i);
+  if (match) {
+    return match[1].trim() + ' can be described as... Rephrase this answer on your own.';
+  }
+
+  if (/^\s*which\b/i.test(q)) {
+    return 'The best answer can be identified by... Rephrase this answer on your own.';
+  }
+
   const sentences = raw
     .split(/(?<=[.!?])\s+/)
     .map(sentence => sentence.trim())
     .filter(Boolean);
 
-  let starter = sentences[0] || (topic + ' is an important idea to explain clearly.');
-  starter = starter.replace(/[.!?]+$/,'').trim();
+  let starter = sentences[0] || (topic + ' can be explained by');
+  starter = starter
+    .replace(/^\s*(?:Keywords|Answer Structure|Example Answer|Key Fact|Hint)\s*:\s*/i,'')
+    .replace(/[.!?]+$/,'')
+    .trim();
 
-  const starterWords = starter.split(/\s+/).filter(Boolean);
+  let starterWords = starter.split(/\s+/).filter(Boolean);
+  if (starterWords.length > 11) starterWords = starterWords.slice(0, 11);
 
-  // Keep only a short opening fragment so Nimbus does not give away
-  // a complete copy-paste answer.
-  if (starterWords.length > 10) {
-    starter = starterWords.slice(0, 10).join(' ');
-  }
+  starter = starterWords.join(' ');
+  if (!starter) starter = topic + ' can be explained by';
 
-  return starter + '... Rephrase and finish the answer in your own words.';
+  return starter + '... Rephrase this answer on your own.';
 }
 
 function formatEducationalAnswer(answer, question) {
-  const raw = cleanText(answer || '');
-  const q = removeVisualCommand(question || '');
+  const q = nimbusCleanWrittenQuestion(question);
+  const raw = nimbusCleanAnswerContent(answer);
   const words = nimbusFormatWords(raw, q);
   const keywords = words.slice(0, 6);
-  const roadmap = nimbusBuildRoadmap(q, words);
   const exampleAnswer = nimbusBuildExampleAnswer(raw, q, words);
 
   const keyWords = words.slice(0, 8);
@@ -422,6 +527,20 @@ function formatEducationalAnswer(answer, question) {
     ? Array.from(q).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % keyWords.length
     : 0;
   const shuffled = keyWords.slice(shift).concat(keyWords.slice(0, shift));
+
+  if (nimbusIsShortAnswerQuestion(q)) {
+    return [
+      'Keywords: ' + keywords.join(', '),
+      '',
+      'Hint: ' + nimbusBuildShortHint(q),
+      '',
+      'Example Answer (starter): ' + exampleAnswer,
+      '',
+      'Key Fact (8 shuffled words): ' + shuffled.slice(0, 8).join(' ')
+    ].join('\n').trim();
+  }
+
+  const roadmap = nimbusBuildRoadmap(q, words);
 
   return [
     'Keywords: ' + keywords.join(', '),

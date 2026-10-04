@@ -1993,9 +1993,9 @@ $('premiumComposer').addEventListener('submit',async e=>{
       var button=document.createElement('button');
       button.type='button';
       button.id='writeHelpBtn';
-      button.textContent='Help me write this question';
-      button.title='Turn this into a guided written-answer scaffold';
-      button.setAttribute('aria-label','Help me write this question');
+      button.textContent='Help me write this answer';
+      button.title='Help me build this answer without giving it all away';
+      button.setAttribute('aria-label','Help me write this answer');
 
       visual.insertAdjacentElement('afterend',button);
 
@@ -2004,12 +2004,12 @@ $('premiumComposer').addEventListener('submit',async e=>{
         event.stopPropagation();
 
         var value=String(input.value||'')
-          .replace(/^help\s+me\s+write\s+(?:an\s+)?answer\s+to\s+this\s+question:\s*/i,'')
+          .replace(/^(?:help\s+me\s+write\s+(?:an\s+)?answer\s+to\s+this\s+question|help\s+me\s+write\s+this\s+answer)\s*:\s*/i,'')
           .trim();
 
         input.value=value
-          ? 'Help me write an answer to this question: '+value
-          : 'Help me write an answer to this question: ';
+          ? 'Help me write this answer: '+value
+          : 'Help me write this answer: ';
 
         try{input.dispatchEvent(new Event('input',{bubbles:true}));}catch(_){}
         input.focus();
