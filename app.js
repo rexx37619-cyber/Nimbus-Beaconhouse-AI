@@ -1808,8 +1808,8 @@ $('premiumComposer').addEventListener('submit',async e=>{
       var action=button.dataset.nimbusAction||'';
 
       if(action==='explain-topic'){
-        state.nimbusTaskMode='';
-        setInput('Explain ');
+        state.nimbusTaskMode='explain_topic';
+        setInput('Explain and summarize this topic clearly: ');
         return;
       }
 
@@ -1886,7 +1886,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
         }finally{
           // File study is one request. Quiz/study-plan remain active for
           // follow-up answers until New Chat or an explicit stop command.
-          if(method==='POST' && /\/api\/chat(?:\?|$)/i.test(url) && mode==='study_file'){
+          if(method==='POST' && /\/api\/chat(?:\?|$)/i.test(url) && (mode==='study_file' || mode==='explain_topic')){
             state.nimbusTaskMode='';
           }
         }

@@ -59,11 +59,10 @@ BEAMS KNOWLEDGE
 
 const BASE_SYSTEM = `
 NIMBUS RESPONSE ROUTING:
-- Use Keywords, Answer Structure, Example Answer, and Key Fact only for direct academic explanation, definition, comparison, process, or problem-solving questions.
-- General chat, Beaconhouse questions, founder/project questions, study plans, quizzes, and attached-file analysis must use a natural response instead.
-- A study-plan request should produce planning help, a quiz request should run an interactive quiz, and a file-study request should analyse the attachment.
-
-You are Nimbus, a rapid educational AI assistant for Beaconhouse students.
+- Use Keywords, Answer Structure, Example Answer, and Key Fact only when the student explicitly wants a written/model/exam/homework answer to rephrase.
+- Requests such as "explain this topic", "summarize this", "give me an overview", "teach me about", or ordinary factual questions must use a natural explanation or summary instead.
+- Study plans, quizzes, attached-file analysis, Beaconhouse questions, founder/project questions, and general chat must stay natural.
+- The structured answer format is a writing scaffold, not Nimbus's default response style.
 
 CORE BEHAVIOUR:
 - Answer the current user request first. Use chat history only when it helps resolve references.
@@ -199,7 +198,16 @@ function removeVisualCommand(text) {
 
 function normalizeTaskMode(value) {
   const mode = textOf(value).toLowerCase().replace(/-/g,'_');
-  return ['study_plan','quiz','study_file'].includes(mode) ? mode : '';
+  return ['explain_topic','study_plan','quiz','study_file'].includes(mode) ? mode : '';
+}
+
+function hasWrittenAnswerIntent(text) {
+  const s = textOf(text).toLowerCase();
+
+  return /\b(?:write|draft|compose|prepare)\b.{0,28}\b(?:answer|response|paragraph)\b/i.test(s) ||
+    /\b(?:help\s+me\s+answer|how\s+(?:should|do)\s+i\s+answer|what\s+should\s+i\s+write|answer\s+this\s+question|give\s+me\s+an\s+answer|model\s+answer|sample\s+answer|exam[-\s]?style\s+answer|homework\s+answer|written\s+answer|short\s+answer|long\s+answer)\b/i.test(s) ||
+    /\b(?:for|worth)\s+\d+\s*marks?\b/i.test(s) ||
+    /\b\d+\s*mark\s+(?:question|answer)\b/i.test(s);
 }
 
 function inferTaskMode(text) {
@@ -217,11 +225,23 @@ function inferTaskMode(text) {
     return 'study_file';
   }
 
+  // Explain/summary requests are learning requests, not written-answer tasks.
+  // Explicit answer-writing intent always wins instead.
+  if (!hasWrittenAnswerIntent(s) && (
+      /\b(?:summari[sz]e|summary|overview|explain\s+(?:this|the|a|an)?\s*topic|explain\s+.+|teach\s+me\s+about|give\s+me\s+(?:a\s+)?summary)\b/i.test(s)
+    )) {
+    return 'explain_topic';
+  }
+
   return '';
 }
 
 function taskModeInstruction(mode, text) {
   const request = textOf(text);
+
+  if (mode === 'explain_topic') {
+    return '[EXPLAIN TOPIC MODE]\nGive a clear, concise student-friendly explanation or summary. Use normal headings or short paragraphs only when useful. Do NOT use Keywords, Answer Structure, Example Answer, or Key Fact. Focus on understanding the topic, not on drafting an exam answer for the student.\nUser request: ' + request;
+  }
 
   if (mode === 'study_plan') {
     return '[STUDY PLAN MODE]\nDo not use Keywords, Answer Structure, Example Answer, or Key Fact. If important details are missing, ask concise questions about subjects/topics, exam date, available study time, weak areas, and priorities. Once enough details are known, build a practical schedule with sessions, breaks, revision, practice, and checkpoints.\nUser request: ' + request;
@@ -253,18 +273,10 @@ function classifyQuestion(text, taskMode = '') {
     return 'beaconhouse';
   }
 
-  const mathProblem =
-    /(?:\d|x|y)\s*(?:[+\-*/^=]|÷|×)|\b(?:solve|calculate|evaluate|simplify|factorise|factorize|expand|differentiate|integrate)\b/i.test(s);
-
-  const academicContext =
-    looksLikeScience(s) ||
-    mathProblem ||
-    /\b(?:math|maths|algebra|geometry|equation|fraction|percentage|ratio|history|geography|english|grammar|literature|computer\s+science|computing|economics|business\s+studies|urdu|islamiyat|pakistan\s+studies|chapter)\b/i.test(s);
-
-  const academicIntent =
-    /\b(?:explain|describe|define|compare|contrast|difference\s+between|what\s+is|what\s+are|how\s+does|how\s+do|how\s+is|why\s+does|why\s+do|why\s+is|function\s+of|purpose\s+of|process\s+of|stages?\s+of|causes?\s+of|effects?\s+of|teach\s+me\s+about|tell\s+me\s+about|help\s+me\s+understand|notes?\s+on|revise|revision|solve|calculate|evaluate|simplify|prove|derive)\b/i.test(s);
-
-  if (mathProblem || (academicContext && academicIntent)) {
+  // The special learning format is ONLY for written-answer intent.
+  // A normal "explain", "summarize", "what is", or "teach me" request
+  // should be answered naturally instead.
+  if (hasWrittenAnswerIntent(s)) {
     return 'educational';
   }
 
