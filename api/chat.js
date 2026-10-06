@@ -212,12 +212,15 @@ function nimbusBuildWrittenSourcePrompt(question) {
     '[NIMBUS WRITING SOURCE]',
     'Student question: ' + q,
     '',
-    'Return exactly these three lines and nothing else:',
+    'Return exactly these five lines and nothing else:',
     'NIMBUS_ANSWER_SOURCE: Give 2-3 concise, accurate factual sentences that answer the question.',
+    'NIMBUS_KEYWORDS_SOURCE: Give 4-6 subject-specific academic keywords or short phrases relevant to the answer. Do not include command words such as who, what, define, explain, write, question, answer, or duplicate terms.',
+    'NIMBUS_STRUCTURE_SOURCE: Give exactly one complete sentence explaining how the student should organize the answer. Make it question-specific, concise, unnumbered, and do not provide the actual explanation or factual answer.',
     'NIMBUS_HINT_SOURCE: Give one question-specific clue of at most 14 words. Do not reveal the exact answer.',
     'NIMBUS_KEY_FACT_SOURCE: Give one different accurate fact of at most 14 words. It must not repeat the answer starter or hint.',
     '',
-    'The hint and key fact must be specifically about this question, not generic study advice.'
+    'Keywords must represent the topic and concepts, not filler or instruction words from the question.',
+    'The Answer Structure must be one natural sentence, never three numbered lines.'
   ].join('\n');
 }
 
@@ -400,6 +403,51 @@ function nimbusLimitRoadmap(line) {
   const words = String(line || '').trim().split(/\s+/).filter(Boolean);
   if (words.length <= 10) return words.join(' ');
   return words.slice(0, 10).join(' ').replace(/[,:;]+$/,'') + '.';
+}
+
+function nimbusBuildKeywords(answer, question) {
+  const banned = new Set('who what why how when where which define explain describe discuss write writing question answer help please tell give name list state identify mention this that these those one two three four five'.split(/\s+/));
+  const sourced = nimbusExtractScaffoldSource(answer, 'NIMBUS_KEYWORDS_SOURCE');
+  const result = [];
+
+  for (let item of sourced.split(/[,;|]/).map(x => x.trim()).filter(Boolean)) {
+    item = item.replace(/^\d+[\).\s-]*/,'').replace(/[.!?]+$/,'').replace(/\s+/g,' ').trim();
+    const lower = item.toLowerCase();
+    const itemWords = lower.match(/[a-z][a-z-]*/g) || [];
+    if (!itemWords.length || itemWords.every(w => banned.has(w)) || banned.has(lower)) continue;
+    if (result.some(x => x.toLowerCase() === lower)) continue;
+    result.push(item);
+    if (result.length >= 6) break;
+  }
+
+  if (result.length >= 4) return result;
+
+  return nimbusFormatWords(nimbusCleanAnswerContent(answer), nimbusCleanWrittenQuestion(question))
+    .filter(word => !banned.has(String(word).toLowerCase()))
+    .filter((word,index,arr) => arr.findIndex(x => String(x).toLowerCase() === String(word).toLowerCase()) === index)
+    .slice(0,6);
+}
+
+function nimbusBuildAnswerStructure(answer, question) {
+  let structure = nimbusExtractScaffoldSource(answer, 'NIMBUS_STRUCTURE_SOURCE')
+    .replace(/^(?:Answer Structure|Structure)\s*:\s*/i,'')
+    .replace(/^\s*\d+[\).\s-]*/,'')
+    .replace(/\s*\n+\s*/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+
+  if (structure) {
+    structure = structure.replace(/\s+\d+[\).]\s+/g, ', then ').replace(/\s*[-•]\s+/g, ', then ').replace(/,{2,}/g, ',').trim();
+    const firstSentence = structure.match(/^.*?[.!?](?:\s|$)/);
+    if (firstSentence) structure = firstSentence[0].trim();
+    let tokens = structure.split(/\s+/).filter(Boolean);
+    if (tokens.length > 20) structure = tokens.slice(0,20).join(' ').replace(/[,:;\-]+$/,'').trim();
+    if (!/[.!?]$/.test(structure)) structure += '.';
+    return structure;
+  }
+
+  const topic = nimbusTopicFromQuestion(question);
+  return 'Define ' + topic + ', explain the main points, then conclude with their significance.';
 }
 
 function nimbusBuildRoadmap(question, words) {
@@ -676,7 +724,7 @@ function formatEducationalAnswer(answer, question) {
   const q = nimbusCleanWrittenQuestion(question);
   const raw = nimbusCleanAnswerContent(answer);
   const words = nimbusFormatWords(raw, q);
-  const keywords = words.slice(0, 6);
+  const keywords = nimbusBuildKeywords(answer, q);
   const exampleAnswer = nimbusBuildExampleAnswer(raw, q, words);
   const keyFact = nimbusBuildKeyFact(answer, q);
 
@@ -692,15 +740,12 @@ function formatEducationalAnswer(answer, question) {
     ].join('\n').trim();
   }
 
-  const roadmap = nimbusBuildRoadmap(q, words);
+  const answerStructure = nimbusBuildAnswerStructure(answer, q);
 
   return [
     'Keywords: ' + keywords.join(', '),
     '',
-    'Answer Structure:',
-    '1. ' + roadmap[0].replace(/^\d+\.\s*/, ''),
-    '2. ' + roadmap[1].replace(/^\d+\.\s*/, ''),
-    '3. ' + roadmap[2].replace(/^\d+\.\s*/, ''),
+    'Answer Structure: ' + answerStructure,
     '',
     'Example Answer (starter): ' + exampleAnswer,
     '',
