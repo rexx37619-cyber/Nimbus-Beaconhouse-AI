@@ -212,15 +212,17 @@ function nimbusBuildWrittenSourcePrompt(question) {
     '[NIMBUS WRITING SOURCE]',
     'Student question: ' + q,
     '',
-    'Return exactly these five lines and nothing else:',
+    'Return exactly these six lines and nothing else:',
     'NIMBUS_ANSWER_SOURCE: Give 2-3 concise, accurate factual sentences that answer the question.',
     'NIMBUS_KEYWORDS_SOURCE: Give 4-6 subject-specific academic keywords or short phrases relevant to the answer. Do not include command words such as who, what, define, explain, write, question, answer, or duplicate terms.',
     'NIMBUS_STRUCTURE_SOURCE: Give exactly one complete sentence explaining how the student should organize the answer. Make it question-specific, concise, unnumbered, and do not provide the actual explanation or factual answer.',
+    'NIMBUS_STARTER_SOURCE: Give one natural opening sentence fragment of 8-14 words that directly begins a correct answer. It must contain real subject content, must not copy the wording of the question, must not use generic phrases such as "can be described as", and must stay incomplete enough that the student must continue it.',
     'NIMBUS_HINT_SOURCE: Give one question-specific clue of at most 14 words. Do not reveal the exact answer.',
     'NIMBUS_KEY_FACT_SOURCE: Give one different accurate fact of at most 14 words. It must not repeat the answer starter or hint.',
     '',
-    'Keywords must represent the topic and concepts, not filler or instruction words from the question.',
-    'The Answer Structure must be one natural sentence, never three numbered lines.'
+    'The starter must sound like the beginning of a real student answer, not a rewritten question.',
+    'For multi-part questions, begin with the first required idea and leave the rest for the student.',
+    'Do not end the starter with a complete conclusion.'
   ].join('\n');
 }
 
@@ -343,7 +345,7 @@ function nimbusCleanAnswerContent(answer) {
   }
 
   raw = raw
-    .replace(/^\s*NIMBUS_(?:ANSWER|HINT|KEY_FACT)_SOURCE\s*:[^\n]*\n?/gim,' ')
+    .replace(/^\s*NIMBUS_(?:ANSWER|KEYWORDS|STRUCTURE|STARTER|HINT|KEY_FACT)_SOURCE\s*:[^\n]*\n?/gim,' ')
     .replace(/^\s*Keywords\s*:[^\n]*\n?/gim,' ')
     .replace(/^\s*Key Fact(?:\s*\(8\s*shuffled\s*words\))?\s*:[^\n]*\n?/gim,' ')
     .replace(/^\s*Hint\s*:[^\n]*\n?/gim,' ')
@@ -573,56 +575,65 @@ function nimbusBuildShortHint(answer, question) {
 
 function nimbusBuildExampleAnswer(answer, question, words) {
   const q = nimbusCleanWrittenQuestion(question);
-  const topic = nimbusTopicFromQuestion(q);
   const raw = nimbusCleanAnswerContent(answer);
 
-  let match = q.match(/^\s*name\s+(one|two|three|four|five|\d+)\s+(.+?)[?.!]*$/i);
-  if (match) {
-    const number = match[1].charAt(0).toUpperCase() + match[1].slice(1);
-    return number + ' ' + match[2].replace(/[?.!]+$/,'').trim() + ' include... Rephrase this answer on your own.';
-  }
-
-  match = q.match(/^\s*(?:list|state|identify|mention|give)\s+(one|two|three|four|five|\d+)\s+(.+?)[?.!]*$/i);
-  if (match) {
-    const number = match[1].charAt(0).toUpperCase() + match[1].slice(1);
-    return number + ' ' + match[2].replace(/[?.!]+$/,'').trim() + ' are... Rephrase this answer on your own.';
-  }
-
-  match = q.match(/^\s*what\s+does\s+(.+?)\s+mean[?.!]*$/i);
-  if (match) {
-    return match[1].trim() + ' means... Rephrase this answer on your own.';
-  }
-
-  match = q.match(/^\s*define\s+(.+?)[?.!]*$/i);
-  if (match) {
-    return match[1].trim() + ' can be defined as... Rephrase this answer on your own.';
-  }
-
-  match = q.match(/^\s*what\s+(?:is|are)\s+(.+?)[?.!]*$/i);
-  if (match) {
-    return match[1].trim() + ' can be described as... Rephrase this answer on your own.';
-  }
-
-  if (/^\s*which\b/i.test(q)) {
-    return 'The best answer can be identified by... Rephrase this answer on your own.';
-  }
-
-  const sentences = raw
-    .split(/(?<=[.!?])\s+/)
-    .map(sentence => sentence.trim())
-    .filter(Boolean);
-
-  let starter = sentences[0] || (topic + ' can be explained by');
-  starter = starter
-    .replace(/^\s*(?:Keywords|Answer Structure|Example Answer|Key Fact|Hint)\s*:\s*/i,'')
-    .replace(/[.!?]+$/,'')
+  let starter = nimbusExtractScaffoldSource(answer, 'NIMBUS_STARTER_SOURCE')
+    .replace(/^(?:Example Answer|Starter)\s*:\s*/i,'')
+    .replace(/\.\.\..*$/,'')
+    .replace(/\s+/g,' ')
     .trim();
 
-  let starterWords = starter.split(/\s+/).filter(Boolean);
-  if (starterWords.length > 11) starterWords = starterWords.slice(0, 11);
+  const badGeneric =
+    /\b(?:can be described as|can be defined as|is an important idea|the answer is|this question|rephrase|own words)\b/i;
 
-  starter = starterWords.join(' ');
-  if (!starter) starter = topic + ' can be explained by';
+  // Reject a starter that is basically just the question repeated.
+  const qWords = new Set(
+    q.toLowerCase()
+      .replace(/[^a-z0-9\s-]/g,' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2)
+  );
+
+  function overlapRatio(text){
+    const parts = String(text||'')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g,' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2);
+
+    if(!parts.length) return 1;
+    const overlap=parts.filter(word=>qWords.has(word)).length;
+    return overlap/parts.length;
+  }
+
+  if (!starter || badGeneric.test(starter) || overlapRatio(starter) > 0.72) {
+    const sentences = raw
+      .split(/(?<=[.!?])\s+/)
+      .map(sentence => sentence.trim())
+      .filter(Boolean);
+
+    starter = sentences.find(sentence =>
+      sentence &&
+      !badGeneric.test(sentence) &&
+      overlapRatio(sentence) <= 0.72
+    ) || sentences[0] || '';
+  }
+
+  starter = String(starter||'')
+    .replace(/^(?:Keywords|Answer Structure|Example Answer|Key Fact|Hint)\s*:\s*/i,'')
+    .replace(/[.!?]+$/,'')
+    .replace(/\s+/g,' ')
+    .trim();
+
+  let starterWords=starter.split(/\s+/).filter(Boolean);
+  if(starterWords.length>14) starterWords=starterWords.slice(0,14);
+
+  starter=starterWords.join(' ').replace(/[,:;\-]+$/,'').trim();
+
+  if(!starter){
+    const topic=nimbusTopicFromQuestion(q);
+    starter=topic + ' begins with';
+  }
 
   return starter + '... Rephrase this answer on your own.';
 }
@@ -725,7 +736,7 @@ function formatEducationalAnswer(answer, question) {
   const raw = nimbusCleanAnswerContent(answer);
   const words = nimbusFormatWords(raw, q);
   const keywords = nimbusBuildKeywords(answer, q);
-  const exampleAnswer = nimbusBuildExampleAnswer(raw, q, words);
+  const exampleAnswer = nimbusBuildExampleAnswer(answer, q, words);
   const keyFact = nimbusBuildKeyFact(answer, q);
 
   if (nimbusIsShortAnswerQuestion(q)) {
