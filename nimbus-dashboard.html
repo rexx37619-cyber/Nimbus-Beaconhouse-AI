@@ -77,13 +77,54 @@ a{text-decoration:none;color:inherit}
 .footer{padding:26px 2px 8px;color:#98a2b3;font-size:11px}
 @media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}.tools{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr}.hero-logo{display:none}}
 @media(max-width:760px){.shell{grid-template-columns:1fr}.side{display:none}.content{padding:18px}.grid,.tools,.two{grid-template-columns:1fr}.top{padding:0 18px}.hero{padding:24px}.hero h2{font-size:28px}.search{display:none}}
+
+/* Nimbus dashboard V3: restrained company-workspace refinements */
+:root{--bg:#f3f6fb;--panel:#fff;--navy:#071932;--line:#e5eaf2;--shadow:0 16px 42px rgba(12,31,68,.08)}
+html{scroll-behavior:smooth}
+body{background:linear-gradient(135deg,#f4f7fc,#f7f9fd 62%,#edf4ff)}
+.side{background:linear-gradient(180deg,#071931 0%,#07152e 100%);box-shadow:8px 0 28px rgba(8,27,54,.06)}
+.side .brand{padding-bottom:22px;border-bottom:1px solid rgba(255,255,255,.08)}
+.nav{margin-top:1px;gap:7px}
+.nav a,.nav button{font-weight:600;font-size:13px;transition:background .2s ease,color .2s ease;min-height:45px;width:100%}
+.nav a:focus-visible,.nav button:focus-visible,.tool:focus-visible,.top-btn:focus-visible{outline:3px solid #79aaff;outline-offset:2px}
+.nav .active{background:#16345c;box-shadow:inset 3px 0 0 #61a6ff}
+.main{background:transparent}
+.top{background:rgba(255,255,255,.94);border-bottom:1px solid #e6eaf1}
+.top h1{font-size:19px;letter-spacing:-.035em}
+.top-btn{font-weight:650;font-size:12px}
+.top-btn.primary:hover{background:#0d2b57}
+.content{padding:32px 34px 24px}
+.hero{background:linear-gradient(110deg,#071933 0%,#0c2c5e 68%,#1456b8 100%);border-radius:27px;min-height:295px;isolation:isolate}
+.hero:after{width:410px;height:410px;background:radial-gradient(circle,rgba(109,166,245,.19),rgba(109,166,245,0) 70%);right:-95px;top:-100px}
+.hero:before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.18;background-image:linear-gradient(rgba(255,255,255,.13) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.13) 1px,transparent 1px);background-size:46px 46px;mask-image:linear-gradient(100deg,transparent 36%,#000 100%)}
+.hero h2{font-size:37px;font-weight:800;line-height:1.12;letter-spacing:-.048em}
+.hero-kicker{letter-spacing:.18em}
+.hero-actions a{box-shadow:0 2px 8px rgba(1,8,26,.07)}
+.hero-actions a.secondary:hover{background:rgba(255,255,255,.2)}
+.hero-logo img{width:min(240px,85%);border:5px solid rgba(255,255,255,.1);border-radius:26px}
+.stat,.card{border-color:#e2e7f0;box-shadow:0 8px 25px rgba(9,32,68,.045)}
+.stat{padding:22px;min-height:140px}
+.stat small{color:#687894;letter-spacing:.1em}
+.stat strong{letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.section-head{margin-top:34px;margin-bottom:16px}
+.section-head h3{font-size:20px;letter-spacing:-.034em}
+.tool{padding:22px;min-height:173px;display:block}
+.icon{background:linear-gradient(135deg,#eaf2ff,#f4f7ff);width:44px;height:44px;font-size:14px}
+.tool:hover{box-shadow:0 18px 38px rgba(17,65,143,.10);transform:translateY(-2px)}
+.card h4{font-size:15px}
+.engine-icon{border-radius:12px}
+.badge{border:1px solid #d3efdc}
+.footer{padding-top:32px}
+@media(max-width:1100px){.content{padding:22px}.hero h2{font-size:32px}}
+@media(max-width:760px){.shell{grid-template-columns:1fr}.side{display:flex;padding:13px;gap:8px}.side .brand{display:none}.side .nav{display:flex;flex-direction:row;overflow-x:auto;gap:4px;margin:0}.nav a,.nav button{width:auto;min-width:max-content;padding:8px 10px;font-size:12px;min-height:40px}.side-bottom{display:none}.top{height:auto;min-height:72px;padding:12px 15px}.content{padding:16px}.hero{padding:23px;min-height:unset}.hero h2{font-size:28px}.stat{min-height:120px}}
+
 </style>
 </head>
 <body>
 <div class="shell">
   <aside class="side">
     <div class="brand">
-      <img src="/assets/nimbus-logo.png" alt="Nimbus">
+      <img src="/assets/nimbus-logo.png" onerror="if(!this.dataset.fallback){this.dataset.fallback=1;this.src='nimbus-logo.png'}" alt="Nimbus">
       <div><strong>NIMBUS</strong><span>COMPANY DASHBOARD</span></div>
     </div>
     <nav class="nav">
@@ -101,7 +142,7 @@ a{text-decoration:none;color:inherit}
 
   <main class="main">
     <header class="top">
-      <div><h1>Nimbus Dashboard</h1><p>Overview of your Nimbus learning workspace</p></div>
+      <div><h1>Nimbus Dashboard</h1><p>Company workspace / Platform overview</p></div>
       <div class="top-actions">
         <div class="search"><span>⌕</span><input id="searchBox" placeholder="Search saved chats"></div>
         <a href="/" class="top-btn primary">Open Nimbus</a>
@@ -112,15 +153,15 @@ a{text-decoration:none;color:inherit}
       <section class="hero">
         <div>
           <div class="hero-kicker">Nimbus • Beaconhouse Intelligence</div>
-          <h2>One workspace for learning, writing, visuals and study.</h2>
-          <p>Nimbus brings educational chat, structured writing support, saved conversations, study tools, FLUX visuals and Beaconhouse-aware context into one focused student workspace.</p>
+          <h2>Intelligence for every part of learning.</h2>
+          <p>Explore a connected learning platform with educational AI, guided writing, saved conversations, visual learning and Beaconhouse-focused tools.</p>
           <div class="hero-actions">
             <a href="/">Start a conversation</a>
             <a class="secondary" href="/?action=write">Help me write</a>
             <a class="secondary" href="/?action=visual">Create a visual</a>
           </div>
         </div>
-        <div class="hero-logo"><img src="/assets/nimbus-logo.png" alt="Nimbus owl logo"></div>
+        <div class="hero-logo"><img src="/assets/nimbus-logo.png" onerror="if(!this.dataset.fallback){this.dataset.fallback=1;this.src='nimbus-logo.png'}" alt="Nimbus owl logo"></div>
       </section>
 
       <section class="grid">
@@ -131,7 +172,7 @@ a{text-decoration:none;color:inherit}
       </section>
 
       <div class="section-head">
-        <div><h3>Learning tools</h3><p>Jump directly into the most useful Nimbus workflows.</p></div>
+        <div><h3>Learning tools</h3><p>Explore Nimbus capabilities and return to chat to use them.</p></div>
       </div>
       <section class="tools">
         <a class="card tool" href="/?action=explain"><div class="icon">E</div><b>Explain a topic</b><p>Get a clear explanation or concise summary without forcing the written-answer scaffold.</p></a>
@@ -154,7 +195,7 @@ a{text-decoration:none;color:inherit}
         <div class="card">
           <h4>Nimbus engines</h4>
           <div class="sub">Core capabilities available in the Nimbus experience.</div>
-          <div class="engine"><div class="engine-icon">AI</div><div><b>Nimbus 4.5 ROR</b><span>Educational conversation and study assistance</span></div><span class="badge">Active</span></div>
+          <div class="engine"><div class="engine-icon">AI</div><div><b>Nimbus 4.5 ROR</b><span>Educational conversation and study assistance</span></div><span class="badge">Core</span></div>
           <div class="engine"><div class="engine-icon">FX</div><div><b>FLUX Visuals</b><span>Topic-specific visuals for understanding</span></div><span class="badge">Available</span></div>
           <div class="engine"><div class="engine-icon">NT</div><div><b>NimTron</b><span>Nimbus companion experience</span></div><span class="badge">Linked</span></div>
         </div>
@@ -180,7 +221,7 @@ a{text-decoration:none;color:inherit}
       var raw=localStorage.getItem('nimbus_chats');
       var parsed=raw?JSON.parse(raw):[];
       if(Array.isArray(parsed)) return parsed;
-      if(parsed && typeof parsed==='object') return Object.values(parsed);
+      if(parsed && typeof parsed==='object'){if(Array.isArray(parsed.chats)) return parsed.chats;if(Array.isArray(parsed.conversations)) return parsed.conversations;return Object.values(parsed).filter(function(x){return x && typeof x==='object' && !Array.isArray(x)});}
     }catch(e){}
     return [];
   }
