@@ -1,0 +1,251 @@
+/* Nimbus UI Polish V27 — VISUAL STYLES ONLY.
+   These selectors intentionally DO NOT target the home action cards, chat composer,
+   messages, attachments, visual cards, model logic, or Nimbus backend. */
+
+/* Main workspace surface */
+#app .main {
+  background: radial-gradient(ellipse at 79% 0%, rgba(218,231,255,.22), transparent 34%), #f8faff;
+}
+
+/* Sidebar: crisp enterprise surface rather than floating buttons */
+#app #sidebar {
+  background: linear-gradient(170deg, #ffffff 0%, #fbfcff 66%, #f5f8fd 100%) !important;
+  border-right: 1px solid #e5eaf3 !important;
+  box-shadow: 10px 0 35px -32px rgba(24,48,87,.25);
+}
+#app #sidebar .brand {
+  padding-top: 7px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #eef1f6;
+  margin-bottom: 16px;
+}
+#app #sidebar .brand img {
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgba(12,37,84,.05);
+}
+#app #sidebar .brand strong { font-weight: 800; letter-spacing: .105em; }
+#app #sidebar .brand span { color:#71829b; letter-spacing:.02em; }
+
+#app #newChat {
+  background: #10274c !important;
+  border: 1px solid #10274c !important;
+  color: #fff !important;
+  border-radius: 14px !important;
+  box-shadow: 0 6px 14px rgba(11,32,71,.13) !important;
+  font-weight: 750 !important;
+  transition: transform .18s ease,box-shadow .18s ease,background .18s ease !important;
+}
+#app #newChat:hover {
+  background: #193966 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 11px 20px rgba(11,32,71,.18) !important;
+}
+#app #newChat:focus-visible,
+#app #nimtronSidebarBtn:focus-visible,
+#app #modelPickerBtn:focus-visible,
+#app #premiumModelsBtn:focus-visible,
+#app #sidebar .side-action:focus-visible {
+  outline: 3px solid #7ca9f5 !important;
+  outline-offset: 3px !important;
+}
+
+/* NimTron retains its own color identity */
+#app #nimtronSidebarBtn {
+  border: 1px solid #d3e3f6 !important;
+  color: #09629c !important;
+  background: linear-gradient(105deg,#edf8fd,#f1f6ff) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  transition: border-color .2s ease,transform .2s ease !important;
+}
+#app #nimtronSidebarBtn:hover {
+  border-color: #9cc9ec !important;
+  transform: translateY(-1px);
+}
+#app #sidebar .history-title {
+  color: #6c7d95;
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-top: 22px;
+}
+#app #sidebar #clearAll {
+  letter-spacing: 0;
+  text-transform:none;
+  color:#536b8c;
+  font-weight:600;
+}
+#app #sidebar .history > * { border-radius: 11px; }
+#app #sidebar .side-bottom { gap: 7px; }
+#app #sidebar .side-action,
+#app #sidebar .account {
+  background: #f8fafd !important;
+  border: 1px solid #e9edf4 !important;
+  border-radius: 14px !important;
+  transition: background .18s ease,border-color .18s ease !important;
+}
+#app #sidebar .side-action:hover,
+#app #sidebar .account:hover {
+  background: #f1f5fc !important;
+  border-color: #d6e1f2 !important;
+}
+
+/* Topbar: premium but restrained */
+#app .topbar {
+  background: rgba(255,255,255,.95) !important;
+  border-bottom: 1px solid #e8ecf4 !important;
+  box-shadow: 0 3px 17px rgba(21,43,83,.025);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  overflow: visible !important;
+  position: relative;
+  z-index: 30;
+}
+#app .topbar .page-brand {
+  color:#132744 !important;
+  font-weight: 800 !important;
+  letter-spacing:-.03em;
+}
+#app #desktopSidebarToggle,
+#app #mobileMenu {
+  color: #64748b;
+  border-radius: 11px;
+  transition: background .18s ease;
+}
+#app #desktopSidebarToggle:hover,
+#app #mobileMenu:hover { background:#f0f4fa; }
+#app #premiumModelsBtn {
+  background: #f5f7fc !important;
+  border: 1px solid #e2e7f1 !important;
+  color: #425a7a !important;
+  box-shadow: none !important;
+  border-radius: 11px !important;
+  font-weight: 700 !important;
+  padding: 10px 15px !important;
+  min-height: 42px;
+  transition: background .18s ease,border-color .18s ease,transform .18s ease !important;
+}
+#app #premiumModelsBtn:hover {
+  background: #edf3ff !important;
+  border-color: #cad9f2 !important;
+  transform: translateY(-1px);
+}
+#app .topbar .top-btn {
+  border: 1px solid #e6eaf2 !important;
+  background: #fff !important;
+  color: #4b5f78 !important;
+  border-radius: 11px !important;
+  font-weight: 600 !important;
+  transition: background .18s ease;
+}
+#app .topbar .top-btn:hover { background:#f4f7fb !important; }
+#app .topbar .avatar-small { box-shadow: 0 0 0 4px #f2f5fa; }
+
+/* Model picker: redesigned visual surface; existing click behavior is preserved */
+#app #modelPicker { position: relative; z-index: 50; }
+#app #modelPickerBtn {
+  appearance: none;
+  background: linear-gradient(115deg,#ffffff 0%,#f7faff 100%) !important;
+  color:#182b49 !important;
+  border: 1px solid #d7e1f0 !important;
+  border-radius: 15px !important;
+  min-height: 52px !important;
+  padding: 7px 14px 7px 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  box-shadow: 0 4px 13px rgba(20,44,87,.045),inset 0 1px 0 #fff !important;
+  transition: border-color .18s ease,box-shadow .18s ease,transform .18s ease !important;
+  cursor: pointer !important;
+}
+#app #modelPickerBtn:hover {
+  border-color: #adc4e8 !important;
+  box-shadow: 0 8px 20px rgba(20,44,87,.075) !important;
+  transform: translateY(-1px);
+}
+#app #modelPickerBtn[aria-expanded="true"] {
+  border-color:#93b5eb !important;
+  box-shadow:0 0 0 3px #e8f1ff !important;
+}
+#app #modelPickerBtn .model-logo {
+  width: 34px !important;
+  height: 34px !important;
+  min-width:34px;
+  border-radius: 10px !important;
+  border: 1px solid #e8eef8;
+  background:#fff;
+  object-fit: cover;
+}
+#app #modelPickerBtn #activeModelLabel {
+  font-weight: 750 !important;
+  letter-spacing: -.015em !important;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+#app #modelPickerBtn .model-chevron {
+  display: grid;
+  place-items: center;
+  margin-left: 4px;
+  color: #627c9e !important;
+  font-size: 14px !important;
+  transform-origin: 50% 50%;
+  transition: transform .2s ease;
+}
+#app #modelPickerBtn[aria-expanded="true"] .model-chevron { transform:rotate(180deg); }
+
+/* Existing model menu gets consistent styling; no controls or options are replaced. */
+#app #modelPicker #modelMenu:not(.hidden) {
+  position: absolute !important;
+  top: calc(100% + 10px) !important;
+  left: 0 !important;
+  right: auto !important;
+  min-width: 252px;
+  max-width: min(350px, calc(100vw - 32px));
+  padding: 8px !important;
+  border: 1px solid #e1e7f2 !important;
+  background: #fff !important;
+  border-radius: 17px !important;
+  box-shadow: 0 24px 60px rgba(15,33,66,.18) !important;
+  z-index: 300 !important;
+}
+#app #modelPicker #modelMenu.hidden { display: none !important; }
+#app #modelPicker #modelMenu button,
+#app #modelPicker #modelMenu [data-model] {
+  border-radius: 11px !important;
+  transition: background .17s ease !important;
+}
+#app #modelPicker #modelMenu button:hover,
+#app #modelPicker #modelMenu [data-model]:hover { background: #f1f6ff !important; }
+
+/* Hero typography/brand only. Learning cards and composer remain entirely untouched. */
+#app .welcome .eyebrow { color:#677b9b !important; letter-spacing: .17em !important; }
+#app .welcome h1 {
+  font-weight: 800 !important;
+  letter-spacing: -.055em !important;
+  color: #10213d !important;
+  text-wrap: balance;
+}
+#app .welcome > p { color:#75849b !important; }
+#app .welcome-logo img {
+  border: 1px solid #edf1f7;
+  box-shadow: 0 8px 24px rgba(17,39,75,.08);
+  border-radius: 20px;
+}
+
+@media (max-width: 950px) {
+  #app #modelPickerBtn { min-height: 46px !important; padding-right: 10px !important; }
+  #app #modelPickerBtn .model-logo { width: 29px !important; height: 29px !important; min-width:29px; }
+  #app #premiumModelsBtn { min-height: 40px; padding: 8px 10px !important; }
+}
+@media (max-width: 650px) {
+  #app #modelPickerBtn { gap: 5px !important; }
+  #app #modelPickerBtn #activeModelLabel { font-size: 11px !important; }
+  #app .topbar { gap: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #app #newChat,
+  #app #nimtronSidebarBtn,
+  #app #modelPickerBtn,
+  #app #premiumModelsBtn { transition:none !important; transform:none !important; }
+}
