@@ -76,7 +76,7 @@ CORE BEHAVIOUR:
 
 LIGHT EDUCATIONAL FORMAT:
 - For written-answer requests, Nimbus uses Keywords, a question-specific Answer Structure or short Hint, a brief Example Answer starter, and one normal Key Fact of no more than 14 words. The Key Fact must be factual and must never be shuffled.
-- Answer Structure is one concise, complete sentence tailored to the actual question, giving an order to follow rather than the full answer. For short questions, use a short, relevant Hint instead.
+- Answer Structure MUST be one complete roadmap sentence of at most 10 words, containing only writing steps, never facts or an explanation. Short questions get a relevant Hint instead.
 - Include one very short Example Answer starter fragment (about 10 words), followed by "... Rephrase this answer on your own." It must not be a complete copy-paste answer.
 - Casual and non-educational questions should remain natural.
 - Never output backend diagnostics, provider errors, internal model details, or loading narration.
@@ -228,10 +228,10 @@ function nimbusBuildWrittenSourcePrompt(question) {
     'Return exactly these six lines and nothing else:',
     'NIMBUS_ANSWER_SOURCE: Give 2-3 concise, accurate factual sentences that answer the question.',
     'NIMBUS_KEYWORDS_SOURCE: Give 4-6 subject-specific academic keywords or short phrases relevant to the answer. Do not include command words such as who, what, define, explain, write, question, answer, or duplicate terms.',
-    'NIMBUS_STRUCTURE_SOURCE: Give exactly one complete sentence explaining how the student should organize the answer. Make it question-specific, concise, unnumbered, and do not provide the actual explanation or factual answer.',
+    'NIMBUS_STRUCTURE_SOURCE: Give one question-specific roadmap of 10 words maximum: only steps for composing the answer, never explanatory facts, and no lists.',
     'NIMBUS_STARTER_SOURCE: Give one natural opening sentence fragment of 8-14 words that directly begins a correct answer. It must contain real subject content, must not copy the wording of the question, must not use generic phrases such as "can be described as", and must stay incomplete enough that the student must continue it.',
     'NIMBUS_HINT_SOURCE: Give one question-specific clue of at most 14 words. Do not reveal the exact answer.',
-    'NIMBUS_KEY_FACT_SOURCE: Give one different accurate fact of at most 14 words. It must not repeat the answer starter or hint.',
+    'NIMBUS_KEY_FACT_SOURCE: Give exactly one accurate, relevant, distinct supporting FACT (14 words maximum). No explanation, instructions, or repetition of the starter.',
     '',
     'The starter must sound like the beginning of a real student answer, not a rewritten question.',
     'For multi-part questions, begin with the first required idea and leave the rest for the student.',
@@ -467,25 +467,41 @@ function nimbusBuildKeywords(answer, question) {
 }
 
 function nimbusBuildAnswerStructure(answer, question) {
-  let structure = nimbusExtractScaffoldSource(answer, 'NIMBUS_STRUCTURE_SOURCE')
-    .replace(/^(?:Answer Structure|Structure)\s*:\s*/i,'')
-    .replace(/^\s*\d+[\).\s-]*/,'')
-    .replace(/\s*\n+\s*/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
+  // A writing roadmap, not a miniature explanation. Deliberately do not copy
+  // Gemini's structure source: it can contain subject facts and full answers.
+  const q = nimbusCleanWrittenQuestion(question).toLowerCase();
+  const topicWords = nimbusTopicFromQuestion(question).split(/\s+/).filter(Boolean).slice(0, 3);
+  const topic = topicWords.join(' ') || 'the topic';
+  let guide;
 
-  if (structure) {
-    structure = structure.replace(/\s+\d+[\).]\s+/g, ', then ').replace(/\s*[-•]\s+/g, ', then ').replace(/,{2,}/g, ',').trim();
-    const firstSentence = structure.match(/^.*?[.!?](?:\s|$)/);
-    if (firstSentence) structure = firstSentence[0].trim();
-    let tokens = structure.split(/\s+/).filter(Boolean);
-    if (tokens.length > 20) structure = tokens.slice(0,20).join(' ').replace(/[,:;\-]+$/,'').trim();
-    if (!/[.!?]$/.test(structure)) structure += '.';
-    return structure;
+  if (/\bcrusades?\b/.test(q) && /\b(?:church|catholic|sacrament)\b/.test(q)) {
+    guide = 'Introduce the Crusades, discuss Church influence, then conclude.';
+  } else if (/\b(?:narrative|short story|story)\b/.test(q)) {
+    guide = 'Establish setting, develop conflict, then conclude with resolution.';
+  } else if (/\b(?:report|newspaper article)\b/.test(q)) {
+    guide = 'Introduce the subject, organize findings, then provide a conclusion.';
+  } else if (/\b(?:compare|contrast|differences?|similarities?|versus|vs\.?|differentiate)\b/.test(q)) {
+    guide = 'Introduce both subjects, compare features, then summarize key differences.';
+  } else if (/\b(?:causes?\s+and\s+effects?|effects?\s+and\s+causes?)\b/.test(q)) {
+    guide = 'Introduce the issue, outline causes, then discuss effects.';
+  } else if (/\b(?:why|causes?|reasons?)\b/.test(q)) {
+    guide = 'Introduce the topic, explain causes, then assess significance.';
+  } else if (/\b(?:who\s+(?:were|was|are|is)|history|historical|mughals?|abbasids?|umayyads?|dynasty|empire)\b/.test(q)) {
+    guide = 'Introduce ' + topic + ', outline achievements, then discuss influence.';
+  } else if (/\b(?:how|formed|formation|process|stages?|steps?|cycle|works?)\b/.test(q)) {
+    guide = 'Define ' + topic + ', outline stages, then state outcomes.';
+  } else if (/\b(?:functions?|importance|purpose|role)\b/.test(q)) {
+    guide = 'Define ' + topic + ', outline functions, then explain importance.';
+  } else if (/\b(?:what\s+(?:is|are|was|were)|define|meaning)\b/.test(q)) {
+    guide = 'Define ' + topic + ', mention features, then state significance.';
+  } else {
+    guide = 'Introduce ' + topic + ', outline key ideas, then conclude.';
   }
 
-  const topic = nimbusTopicFromQuestion(question);
-  return 'Define ' + topic + ', explain the main points, then conclude with their significance.';
+  // Hard bound: exactly one complete roadmap sentence, at most ten words.
+  const words = guide.trim().split(/\s+/).filter(Boolean);
+  return (words.length <= 10 ? guide : words.slice(0, 10).join(' ').replace(/[,:;\s-]+$/, '') + '.')
+    .replace(/\.{2,}$/, '.');
 }
 
 function nimbusBuildRoadmap(question, words) {
@@ -675,96 +691,56 @@ function nimbusBuildExampleAnswer(answer, question, words) {
 }
 
 function nimbusBuildKeyFact(answer, question) {
-  const q = nimbusCleanWrittenQuestion(question);
   const raw = nimbusCleanAnswerContent(answer);
+  const starter = nimbusBuildExampleAnswer(answer, question, []).split('...')[0].trim();
+  const source = nimbusExtractScaffoldSource(answer, 'NIMBUS_KEY_FACT_SOURCE');
 
-  const exampleLead = nimbusBuildExampleAnswer(raw, q, [])
-    .split('...')[0]
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
+  const significantWords = text => new Set(
+    String(text || '').toLowerCase().match(/[a-z]{4,}/g) || []
+  );
+  const starterWords = significantWords(starter);
+  const badMeta = /\b(?:rephrase|your own words|starter|answer structure|keywords|hint:|key fact source|check your notes)\b/i;
+  const instructionStart = /^(?:explain|describe|discuss|define|introduce|remember|think|focus|state|use|write|note|rephrase|compare)\b/i;
 
-  let sourced = nimbusExtractScaffoldSource(answer, 'NIMBUS_KEY_FACT_SOURCE')
-    .replace(/\.\.\..*$/,'')
-    .replace(/\s+/g,' ')
-    .trim();
-
-  const badMeta = /\b(?:rephrase|own words|starter|hint|answer structure|keywords|key fact source)\b/i;
-
-  if (sourced && !badMeta.test(sourced)) {
-    let tokens = sourced.split(/\s+/).filter(Boolean);
-    if (tokens.length > 14) tokens = tokens.slice(0,14);
-    sourced = tokens.join(' ').replace(/[,:;\-]+$/,'').trim();
-
-    const normalized = sourced
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g,' ')
-      .replace(/\s+/g,' ')
+  function oneFact(candidate) {
+    let fact = String(candidate || '')
+      .replace(/^(?:NIMBUS_KEY_FACT_SOURCE|Key Fact)\s*:\s*/i, '')
+      .replace(/\s*\.\.\.[\s\S]*$/, '')
+      .replace(/\s+/g, ' ')
       .trim();
 
-    if (normalized && normalized !== exampleLead) {
-      if (!/[.!?]$/.test(sourced)) sourced += '.';
-      return sourced;
-    }
+    // Keep one factual sentence, not a paragraph or joined list of facts.
+    const first = fact.match(/^.*?[.!?](?=\s|$)/);
+    if (first) fact = first[0].trim();
+    fact = fact.replace(/[.!?]+$/, '').trim();
+    if (!fact || badMeta.test(fact) || instructionStart.test(fact)) return '';
+
+    const fullWords = significantWords(fact);
+    if (fullWords.size < 3) return '';
+    const common = [...fullWords].filter(word => starterWords.has(word)).length;
+    if (starterWords.size >= 4 && common / Math.max(1, fullWords.size) >= 0.8) return '';
+
+    // Preserve a useful, complete leading clause when the model exceeds the cap.
+    const clauses = [fact, ...fact.split(/\s*(?:;|—|–)\s*/).filter(Boolean)];
+    let compact = clauses.find(part => part.split(/\s+/).length >= 4 && part.split(/\s+/).length <= 14) || fact;
+    let tokens = compact.split(/\s+/).filter(Boolean);
+    if (tokens.length > 14) tokens = tokens.slice(0, 14);
+    while (tokens.length > 4 && /^(?:and|or|but|in|on|at|of|for|to|with|from|by|the|a|an|which|that|because|during)$/i.test(tokens.at(-1))) tokens.pop();
+    compact = tokens.join(' ').replace(/[,:;\s-]+$/, '').trim();
+    if (compact.split(/\s+/).length < 4) return '';
+    return compact + '.';
   }
 
-  const exampleWords = new Set(exampleLead.split(/\s+/).filter(word => word.length > 2));
-
-  const sentences = raw
-    .split(/(?<=[.!?])\s+/)
-    .map(sentence => sentence.trim())
-    .filter(Boolean)
-    .filter(sentence => !badMeta.test(sentence));
-
-  const clauses = sentences
-    .flatMap(sentence => sentence.split(/\s*(?:;|—|–|,|\bbecause\b|\bwhich\b|\bwhereas\b|\bwhile\b|\btherefore\b)\s*/i))
-    .map(part => part.trim())
-    .filter(part => part.split(/\s+/).length >= 4)
-    .filter(part => !badMeta.test(part));
-
-  for (const candidate of [...sentences.slice(1), ...clauses, ...sentences]) {
-    let cleaned = String(candidate || '')
-      .replace(/\.\.\..*$/,'')
-      .replace(/\s+/g,' ')
-      .trim();
-
-    if (!cleaned || badMeta.test(cleaned)) continue;
-
-    const candidateWords = cleaned
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g,' ')
-      .split(/\s+/)
-      .filter(word => word.length > 2);
-
-    if (!candidateWords.length) continue;
-
-    const overlap = candidateWords.filter(word => exampleWords.has(word)).length;
-    const overlapRatio = overlap / candidateWords.length;
-    if (overlapRatio >= 0.65) continue;
-
-    let tokens = cleaned.split(/\s+/).filter(Boolean);
-    if (tokens.length > 14) tokens = tokens.slice(0,14);
-    cleaned = tokens.join(' ').replace(/[,:;\-]+$/,'').trim();
-
-    if (cleaned) {
-      if (!/[.!?]$/.test(cleaned)) cleaned += '.';
-      return cleaned;
-    }
+  const sentences = raw.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+  // Prefer the distinct fact explicitly requested from Gemini; else use a
+  // separate supporting sentence from the model's factual answer source.
+  const candidates = [source, ...sentences.slice(1), ...sentences.slice(0, 1)];
+  for (const candidate of candidates) {
+    const fact = oneFact(candidate);
+    if (fact) return fact;
   }
-
-  // Last-resort factual source: use the answer text only if it is not meta.
-  let fallback = sentences.find(sentence => !badMeta.test(sentence)) || '';
-  let tokens = fallback.split(/\s+/).filter(Boolean);
-  if (tokens.length > 14) tokens = tokens.slice(0,14);
-  fallback = tokens.join(' ').replace(/[,:;\-]+$/,'').trim();
-
-  if (fallback) {
-    if (!/[.!?]$/.test(fallback)) fallback += '.';
-    return fallback;
-  }
-
-  return 'Check one accurate supporting fact about this topic in your class notes.';
+  // No fact can safely be inferred from a response lacking factual evidence.
+  return 'A reliable supporting fact was not available in this response.';
 }
 
 function formatEducationalAnswer(answer, question) {
