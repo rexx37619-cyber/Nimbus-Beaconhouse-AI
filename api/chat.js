@@ -63,10 +63,10 @@ const BASE_SYSTEM = `KEY FACT SOURCE RULE:
 - Do not repeat the same fact twice.
 
 NIMBUS RESPONSE ROUTING:
-- Use Keywords, Answer Structure, Example Answer, and Key Fact only when the student explicitly wants a written/model/exam/homework answer to rephrase.
-- Requests such as "explain this topic", "summarize this", "give me an overview", "teach me about", or ordinary factual questions must use a natural explanation or summary instead.
+- Use Keywords, Answer Structure, Example Answer, and Key Fact for academic school-answer questions even without a special button, as well as explicitly requested writing help.
+- Brief school-style prompts such as "Explain respiration", "What is diffusion?", or "Who were the Mughals?" use the writing scaffold. Explicit summaries, detailed lessons, coding requests, and casual questions stay natural.
 - Study plans, quizzes, attached-file analysis, Beaconhouse questions, founder/project questions, and general chat must stay natural.
-- The structured answer format is a writing scaffold, not Nimbus's default response style.
+- The structured format is a schoolwork scaffold, not the default for general conversation, research, study plans, quizzes, or file analysis.
 
 CORE BEHAVIOUR:
 - Answer the current user request first. Use chat history only when it helps resolve references.
@@ -76,9 +76,7 @@ CORE BEHAVIOUR:
 
 LIGHT EDUCATIONAL FORMAT:
 - For written-answer requests, Nimbus uses Keywords, a question-specific Answer Structure or short Hint, a brief Example Answer starter, and one normal Key Fact of no more than 14 words. The Key Fact must be factual and must never be shuffled.
-- Answer Structure contains exactly three short roadmap lines.
-- Every Answer Structure line must be 10 words or fewer.
-- The roadmap guides creativity only: define/how formed, explain development, then final result/function/importance. Do not place the actual answer inside Answer Structure.
+- Answer Structure is one concise, complete sentence tailored to the actual question, giving an order to follow rather than the full answer. For short questions, use a short, relevant Hint instead.
 - Include one very short Example Answer starter fragment (about 10 words), followed by "... Rephrase this answer on your own." It must not be a complete copy-paste answer.
 - Casual and non-educational questions should remain natural.
 - Never output backend diagnostics, provider errors, internal model details, or loading narration.
@@ -208,6 +206,21 @@ function normalizeTaskMode(value) {
 function nimbusBuildWrittenSourcePrompt(question) {
   const q = nimbusCleanWrittenQuestion(question);
 
+  if (nimbusIsCreativeWritingPrompt(q)) {
+    return [
+      '[NIMBUS ENGLISH WRITING SCAFFOLD]',
+      'Student writing task: ' + q,
+      'Return exactly these six labelled lines and nothing else:',
+      'NIMBUS_ANSWER_SOURCE: Give 2 concise possible ideas for setting, character, or purpose, not a finished composition.',
+      'NIMBUS_KEYWORDS_SOURCE: Give 4-6 vivid, relevant writing concepts or thematic keywords.',
+      'NIMBUS_STRUCTURE_SOURCE: Give one complete question-specific sentence organizing the beginning, development, and ending, without writing the whole story or essay.',
+      'NIMBUS_STARTER_SOURCE: Give a vivid, original opening fragment of 8-14 words, not copied from the prompt; stop before telling the whole story.',
+      'NIMBUS_HINT_SOURCE: Give one relevant creative clue of at most 14 words.',
+      'NIMBUS_KEY_FACT_SOURCE: Give one practical writing-craft tip of at most 14 words, different from the starter.',
+      'Keep this a creative writing scaffold. Do not deliver a complete essay, letter, narrative, or paragraph.'
+    ].join('\n');
+  }
+
   return [
     '[NIMBUS WRITING SOURCE]',
     'Student question: ' + q,
@@ -224,6 +237,33 @@ function nimbusBuildWrittenSourcePrompt(question) {
     'For multi-part questions, begin with the first required idea and leave the rest for the student.',
     'Do not end the starter with a complete conclusion.'
   ].join('\n');
+}
+
+/* NIMBUS_V28_AUTO_SCHOOL_QUESTION_SENSOR */
+function nimbusIsCreativeWritingPrompt(text) {
+  const s = textOf(text).toLowerCase();
+  return /\b(?:write|compose|draft|create|plan|outline|help\s+me\s+(?:write|with))\b.{0,90}\b(?:narrative|short\s+story|story|essay|report(?:\s+writing)?|descriptive\s+(?:writing|paragraph)|creative\s+writing|formal\s+letter|informal\s+letter|letter\s+to|speech|newspaper\s+article|article|report\s+writing|diary\s+entry)\b/i.test(s) ||
+    /\b(?:narrative|story|essay|descriptive|persuasive|argumentative)\s+writing\b/i.test(s);
+}
+
+function nimbusShouldScaffoldAcademic(text) {
+  const s = nimbusCleanWrittenQuestion(removeVisualCommand(text)).toLowerCase().trim();
+  if (!s) return false;
+  if (hasWrittenAnswerIntent(s) || nimbusIsCreativeWritingPrompt(s)) return true;
+
+  // Explicit summaries, detailed lessons, coding tasks and everyday chat remain natural.
+  if (/^(?:hi|hello|hey|yo|thanks|thank\s+you|good\s+(?:morning|evening)|how\s+are\s+you)\b/i.test(s)) return false;
+  if (/\b(?:nimbus|beaconhouse|bisc|beams|ilap|\blap\b|nimtron|codus)\b/i.test(s)) return false;
+  if (/\b(?:javascript|typescript|python|node\.?js|react|html|css|c\+\+|c#|java|golang|rust|api\s+(?:endpoint|key)|github|git\b|programming|coding|write\s+code|debug|script|software|roblox\s+studio|unity\s+engine|unreal\s+engine|luau)\b/i.test(s)) return false;
+  if (/\b(?:summari[sz]e|summary|overview|give\s+me\s+a\s+full\s+explanation|teach\s+me\s+about|walk\s+me\s+through|in\s+(?:full\s+)?detail|detailed\s+explanation|explain\s+in\s+depth|explain\s+thoroughly)\b/i.test(s)) return false;
+  if (/\b(?:study|revision)\s+plan\b|\b(?:start\s+a\s+quiz|quiz\s+me|test\s+me)\b|\b(?:attached\s+file|uploaded\s+file|attached\s+document)\b/i.test(s)) return false;
+
+  const academicTopic = /\b(?:respiration|breathing|lungs?|alveoli|diffusion|osmosis|photosynthesis|water\s+cycle|food\s+(?:webs?|chains?)|periodic\s+table|stomata|vertebrates?|invertebrates?|cells?|blood|heart|circulatory|digestive|nervous|excretory|muscles?|joints?|nutrition|ecosystems?|pollution|electricity|circuits?|forces?|friction|gravity|energy|atoms?|molecules?|acids?|bases?|chemical|evaporation|condensation|erosion|climate|landforms?|rivers?|volcanoes?|earthquakes?|geography|weathering|population|latitude|longitude|mughals?|abbasids?|umayyads?|history|historical|medieval|renaissance|revolution|empires?|civilizations?|colonialism|democracy|monarchy|wars?|treaty|independence|metaphors?|similes?|poetry|poems?|alliteration|personification|imagery|literature|novels?|english\s+grammar|tenses?|nouns?|verbs?|adjectives?|fractions?|percentages?|algebra|geometry|equations?|angles?|triangles?|ratios?|probability|statistics|mathematics|maths?)\b/i;
+  const schoolCue = /\b(?:school|homework|assignment|worksheet|exam|marks?|class\s*\d+|grade\s*\d+|textbook|science|biology|chemistry|physics|geography|history|english|literature|maths?|mathematics)\b/i;
+  const academicQuestion = /^(?:(?:please|can\s+you|could\s+you|kindly)\s+)?(?:explain|what\s+(?:is|are|was|were|does|do)|who\s+(?:was|were|is|are)|why\s+(?:is|are|does|do|did|was|were)|how\s+(?:does|do|did|is|are|was|were)|define|describe|compare|differentiate|discuss|outline|identify|name|list|state|give\s+(?:two|three|four|five)\s+(?:examples?|reasons?|causes?|features?))\b/i;
+  if (academicQuestion.test(s) && (academicTopic.test(s) || schoolCue.test(s))) return true;
+  if (/^(?:define|differentiate|compare|describe)\s+(?:the\s+)?[\w\s,'-]{3,140}[?.!]*$/i.test(s) && (academicTopic.test(s) || schoolCue.test(s))) return true;
+  return false;
 }
 
 function hasWrittenAnswerIntent(text) {
@@ -250,11 +290,9 @@ function inferTaskMode(text) {
     return 'study_file';
   }
 
-  // Explain/summary requests are learning requests, not written-answer tasks.
-  // Explicit answer-writing intent always wins instead.
-  if (!hasWrittenAnswerIntent(s) && (
-      /\b(?:summari[sz]e|summary|overview|explain\s+(?:this|the|a|an)?\s*topic|explain\s+.+|teach\s+me\s+about|give\s+me\s+(?:a\s+)?summary)\b/i.test(s)
-    )) {
+  // Only explicitly requested summaries or full lessons use natural explain mode.
+  // Brief school prompts like "Explain respiration" use the academic scaffold.
+  if (/\b(?:summari[sz]e|summary|overview|teach\s+me\s+about|walk\s+me\s+through|in\s+(?:full\s+)?detail|explain\s+in\s+depth|explain\s+thoroughly)\b/i.test(s)) {
     return 'explain_topic';
   }
 
@@ -298,10 +336,8 @@ function classifyQuestion(text, taskMode = '') {
     return 'beaconhouse';
   }
 
-  // The special learning format is ONLY for written-answer intent.
-  // A normal "explain", "summarize", "what is", or "teach me" request
-  // should be answered naturally instead.
-  if (hasWrittenAnswerIntent(s)) {
+  // Recognize academic exam-style questions even without the writing button.
+  if (hasWrittenAnswerIntent(s) || nimbusShouldScaffoldAcademic(s)) {
     return 'educational';
   }
 
@@ -739,6 +775,24 @@ function formatEducationalAnswer(answer, question) {
   const exampleAnswer = nimbusBuildExampleAnswer(answer, q, words);
   const keyFact = nimbusBuildKeyFact(answer, q);
 
+  if (nimbusIsCreativeWritingPrompt(q)) {
+    const answerStructure = nimbusBuildAnswerStructure(answer, q);
+    let writingTip = nimbusExtractScaffoldSource(answer, 'NIMBUS_KEY_FACT_SOURCE')
+      .replace(/\s+/g, ' ').trim();
+    if (!writingTip) writingTip = 'Use sensory details and a clear sequence to bring your ideas alive.';
+    writingTip = writingTip.split(/\s+/).slice(0, 14).join(' ').replace(/[,:;\-]+$/, '');
+    if (!/[.!?]$/.test(writingTip)) writingTip += '.';
+    return [
+      'Keywords: ' + keywords.join(', '),
+      '',
+      'Answer Structure: ' + answerStructure,
+      '',
+      'Example Answer (starter): ' + exampleAnswer,
+      '',
+      'Writing Tip: ' + writingTip
+    ].join('\n').trim();
+  }
+
   if (nimbusIsShortAnswerQuestion(q)) {
     return [
       'Keywords: ' + keywords.join(', '),
@@ -954,10 +1008,14 @@ export default async function handler(req, res) {
         request_id: requestId
       });
     }
-    const writtenAnswerRequest = hasWrittenAnswerIntent(userText);
+    const explicitWriting = hasWrittenAnswerIntent(userText);
+    const activeTaskMode = normalizeTaskMode(body?.task_mode);
+    const autoAcademic = nimbusShouldScaffoldAcademic(userText);
+    // Preserve an ongoing quiz/study plan/file session unless writing was explicitly requested.
+    const writtenAnswerRequest = explicitWriting || (autoAcademic && !['quiz', 'study_plan', 'study_file'].includes(activeTaskMode));
     const taskMode = writtenAnswerRequest
       ? ''
-      : (normalizeTaskMode(body?.task_mode) || inferTaskMode(userText));
+      : (activeTaskMode || inferTaskMode(userText));
     const questionType = classifyQuestion(userText, taskMode);
     const modelUserText = writtenAnswerRequest
       ? nimbusBuildWrittenSourcePrompt(userText)
