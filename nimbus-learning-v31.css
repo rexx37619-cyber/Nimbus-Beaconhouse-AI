@@ -1,0 +1,102 @@
+/* Nimbus V32: additive full-page Learning Studio. Original chat CSS/markup remain intact. */
+#nimbusLearningPanel[hidden],#nlDraftWrap[hidden],#nlLoading[hidden],#nlEmpty[hidden]{display:none!important}
+#app.nl-workspace-active .chat-shell{display:none!important}
+#nimbusLearningPanel,#nimbusLearningPanel *{box-sizing:border-box}
+#nimbusLearningPanel{--nl-ink:#102548;--nl-muted:#62738f;--nl-blue:#2057af;--nl-line:#e0e8f4;--nl-white:#fff;--nl-ease:cubic-bezier(.22,1,.36,1);height:calc(100dvh - 61px);overflow-y:auto;overscroll-behavior:contain;background:radial-gradient(ellipse 700px 390px at 90% 5%,#e6efff 0%,transparent 75%),linear-gradient(180deg,#f8faff 0%,#f4f7fc 100%);color:var(--nl-ink);scrollbar-color:#c8d6eb transparent;isolation:isolate}
+#nimbusLearningPanel button{font-family:inherit;cursor:pointer}
+#nimbusLearningPanel button:disabled{cursor:wait;opacity:.63}
+#nimbusLearningPanel button:focus-visible,#nimbusLearningOpen:focus-visible,.nl-side-quick button:focus-visible,.nl-side-quick summary:focus-visible{outline:3px solid #6096f8!important;outline-offset:3px}
+#nimbusLearningPanel .nl-work-inner{width:min(1180px,100%);margin:0 auto;padding:24px clamp(18px,3vw,42px) 44px}
+#nimbusLearningPanel .nl-work-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+#nimbusLearningPanel .nl-crumb{font-size:10px;letter-spacing:.14em;font-weight:800;color:#526b94}
+#nimbusLearningPanel .nl-spark{color:#2663c5;font-size:18px;vertical-align:middle;margin-right:5px}
+#nimbusLearningPanel .nl-version{background:#e3edff;color:#1f5ab8;border:1px solid #cfe0ff;border-radius:999px;font-size:9px;padding:4px 7px;margin-left:6px}
+#nimbusLearningPanel .nl-top-actions{display:flex;gap:9px;align-items:center}
+#nimbusLearningPanel .nl-sound-btn,#nimbusLearningPanel .nl-back-btn{border:1px solid #d8e4f6;background:#fff;color:#263c60;border-radius:10px;white-space:nowrap;padding:10px 12px;font-size:11px;font-weight:700;transition:background .18s,transform .18s,box-shadow .18s}
+#nimbusLearningPanel .nl-sound-btn[aria-pressed=false]{color:#7a8599}
+#nimbusLearningPanel .nl-back-btn:hover,#nimbusLearningPanel .nl-sound-btn:hover{transform:translateY(-1px);background:#eef5ff;box-shadow:0 5px 16px #143b7820}
+#nimbusLearningPanel .nl-hero{min-height:185px;position:relative;overflow:hidden;border-radius:23px;background:linear-gradient(112deg,#0d2145 0%,#163d7a 58%,#2465bd 100%);padding:30px clamp(22px,4vw,45px);display:flex;align-items:center;justify-content:space-between;box-shadow:0 17px 38px #0c2c6617;color:white}
+#nimbusLearningPanel .nl-hero:before{content:'';position:absolute;inset:0;background-image:radial-gradient(#ffffff32 .8px,transparent .8px);background-size:21px 21px;mask-image:linear-gradient(90deg,transparent 20%,black);pointer-events:none}
+#nimbusLearningPanel .nl-hero-text{position:relative;z-index:1;max-width:650px;animation:nl-rise .55s var(--nl-ease) both}
+#nimbusLearningPanel .nl-overline{margin:0 0 13px!important;font-size:10px!important;letter-spacing:.17em;font-weight:700;color:#b5d4ff!important}
+#nimbusLearningPanel .nl-status-dot{display:inline-block;vertical-align:middle;margin-right:8px;width:7px;height:7px;border-radius:50%;background:#7adeb7;box-shadow:0 0 0 4px #8bf2c020}
+#nimbusLearningPanel .nl-hero h1{margin:0!important;font-size:clamp(28px,3vw,42px)!important;letter-spacing:-.045em;line-height:1.12;font-weight:800;color:#fff!important}
+#nimbusLearningPanel .nl-hero h1 span{color:#a9ccff}
+#nimbusLearningPanel .nl-subtitle{font-size:12px!important;max-width:490px;line-height:1.8;margin:13px 0 0!important;color:#d8e8ff!important}
+#nimbusLearningPanel .nl-hero-art{position:relative;flex:0 0 230px;height:170px;display:grid;place-items:center}
+#nimbusLearningPanel .nl-hero-art img{position:relative;z-index:2;width:102px;height:102px;object-fit:contain;background:#ffffffed;padding:11px;border-radius:24px;box-shadow:0 14px 30px #091c4455;animation:nl-float 5s ease-in-out infinite}
+#nimbusLearningPanel .nl-orbit{position:absolute;border:1px solid #bdd6ff4d;border-radius:50%;width:180px;height:180px;animation:nl-orbit 20s linear infinite}
+#nimbusLearningPanel .nl-orbit-b{width:240px;height:240px;border-style:dashed;opacity:.52;animation-duration:35s;animation-direction:reverse}
+#nimbusLearningPanel .nl-orbit-spark{position:absolute;color:#f1f6ff;top:21px;right:23px;font-size:22px;animation:nl-pulse 2.7s ease-in-out infinite}
+#nimbusLearningPanel .nl-section-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:25px 2px 14px}
+#nimbusLearningPanel .nl-section-kicker{font-size:9px;color:#4874b4;letter-spacing:.18em;font-weight:800}
+#nimbusLearningPanel .nl-section-heading h2{font-size:21px;color:#102548;margin:5px 0 0;letter-spacing:-.035em}
+#nimbusLearningPanel .nl-mode-count{font-size:10px;font-weight:800;letter-spacing:.1em;color:#7891b8}
+#nimbusLearningPanel .nl-modes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+#nimbusLearningPanel .nl-mode-card{display:flex;align-items:center;gap:10px;position:relative;min-height:91px;padding:14px 12px;text-align:left;border:1px solid #dce5f3;border-radius:16px;background:#fff;box-shadow:0 5px 16px #193c6b08;color:#153053;transition:transform .22s var(--nl-ease),box-shadow .22s,border-color .22s,background .22s;animation:nl-rise .5s var(--nl-ease) backwards}
+#nimbusLearningPanel .nl-mode-card:nth-child(2){animation-delay:.06s}#nimbusLearningPanel .nl-mode-card:nth-child(3){animation-delay:.12s}#nimbusLearningPanel .nl-mode-card:nth-child(4){animation-delay:.18s}
+#nimbusLearningPanel .nl-mode-card:hover{transform:translateY(-4px);box-shadow:0 11px 22px #183c7818;border-color:#b4c9ea}
+#nimbusLearningPanel .nl-mode-card[aria-pressed=true]{border-color:#5a91ef;background:linear-gradient(135deg,#f5f9ff,#eaf2ff);box-shadow:0 0 0 1px #73a3f155,0 9px 24px #315ca417}
+#nimbusLearningPanel .nl-mode-icon{width:38px;height:38px;flex:0 0 38px;border-radius:12px;background:#eaf2ff;display:grid;place-items:center;color:#2563b9;font-size:20px;font-weight:700}
+#nimbusLearningPanel .nl-mode-card[aria-pressed=true] .nl-mode-icon{background:#1e56b1;color:white}
+#nimbusLearningPanel .nl-mode-details{min-width:0;display:flex;flex-direction:column;gap:5px}
+#nimbusLearningPanel .nl-mode-details strong{font-size:12px;line-height:1.4}
+#nimbusLearningPanel .nl-mode-details small{font-size:10px;color:#788aa2;line-height:1.4}
+#nimbusLearningPanel .nl-mode-arrow{position:absolute;right:11px;top:9px;color:#aec0d8;font-size:13px}
+#nimbusLearningPanel .nl-work-grid{display:grid;grid-template-columns:minmax(300px,.87fr) minmax(0,1.13fr);gap:15px;margin-top:18px;align-items:stretch}
+#nimbusLearningPanel .nl-task-card,#nimbusLearningPanel .nl-result-pane{min-width:0;border:1px solid #e0e7f2;background:#fff;border-radius:19px;padding:24px;box-shadow:0 8px 28px #1f436509;min-height:310px}
+#nimbusLearningPanel .nl-card-kicker{font-size:9px;letter-spacing:.13em;font-weight:800;color:#5575a5}
+#nimbusLearningPanel .nl-card-kicker span{float:right;color:#8ca1bf}
+#nimbusLearningPanel .nl-task-card h2,#nimbusLearningPanel .nl-result-top h2{font-size:20px;letter-spacing:-.028em;color:#152c52;margin:7px 0 4px}
+#nimbusLearningPanel .nl-description{font-size:11px;line-height:1.6;color:var(--nl-muted);margin:0 0 16px}
+#nimbusLearningPanel .nl-task-card label{display:block;font-size:11px;font-weight:700;color:#314765;margin:13px 0 8px}
+#nimbusLearningPanel textarea{width:100%;display:block;padding:13px 14px;border:1px solid #dbe4f1;border-radius:12px;font:12px/1.6 'Plus Jakarta Sans',system-ui,sans-serif;color:#1b3254;background:#f9fbff;resize:vertical;min-height:79px;transition:border-color .17s,box-shadow .17s}
+#nimbusLearningPanel textarea:focus{outline:0;border-color:#6795e9;box-shadow:0 0 0 3px #8fb8fc38;background:#fff}
+#nimbusLearningPanel .nl-primary-action{width:100%;min-height:44px;margin-top:17px;border:0;border-radius:12px;background:linear-gradient(103deg,#173a79,#2762ba);color:#fff;font-size:12px;font-weight:800;box-shadow:0 8px 19px #184b9e2b;transition:filter .2s,transform .2s}
+#nimbusLearningPanel .nl-primary-action span{margin-left:8px}
+#nimbusLearningPanel .nl-primary-action:hover{filter:brightness(1.09);transform:translateY(-1px)}
+#nimbusLearningPanel .nl-note{font-size:10px;line-height:1.6;color:#697e99;margin:12px 0 0}
+#nimbusLearningPanel .nl-note[data-error=true]{color:#a51f35;font-weight:600}
+#nimbusLearningPanel .nl-result-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;border-bottom:1px solid #edf1f8;padding-bottom:14px}
+#nimbusLearningPanel .nl-live-indicator{font-size:9px;letter-spacing:.06em;color:#2e6597;font-weight:800;white-space:nowrap;background:#eff7ff;padding:7px 9px;border-radius:30px}
+#nimbusLearningPanel .nl-live-indicator span{display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#40ae87}
+#nimbusLearningPanel .nl-empty{text-align:center;display:grid;justify-items:center;align-content:center;min-height:215px;color:#657d9b}
+#nimbusLearningPanel .nl-empty-icon{width:62px;height:62px;display:grid;place-items:center;border-radius:20px;background:#eaf2ff;color:#2b67c3;font-size:28px;animation:nl-float 4s ease-in-out infinite}
+#nimbusLearningPanel .nl-empty h3{margin:13px 0 5px;font-size:14px;color:#30496e}
+#nimbusLearningPanel .nl-empty p{margin:0;max-width:290px;font-size:11px;line-height:1.7}
+#nimbusLearningPanel .nl-loading{display:flex;align-items:center;gap:12px;padding:32px 0;font-size:12px;color:#5c779c}
+#nimbusLearningPanel .nl-dots{display:flex;gap:4px}#nimbusLearningPanel .nl-dots i{width:7px;height:7px;display:block;background:#2a65ba;border-radius:50%;animation:nl-bounce 1s ease-in-out infinite}#nimbusLearningPanel .nl-dots i:nth-child(2){animation-delay:.12s}#nimbusLearningPanel .nl-dots i:nth-child(3){animation-delay:.24s}
+#nimbusLearningPanel .nl-result-list{display:grid;gap:10px;margin-top:15px}
+#nimbusLearningPanel .nl-result-card{padding:13px 15px;border:1px solid #e0e8f5;border-radius:12px;background:linear-gradient(110deg,#f7faff,#fff);animation:nl-card-in .48s var(--nl-ease) backwards}
+#nimbusLearningPanel .nl-result-card b{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#3562a1;margin-bottom:7px}
+#nimbusLearningPanel .nl-result-card p{margin:0;font-size:12px;line-height:1.7;color:#263954;white-space:pre-wrap;overflow-wrap:anywhere;animation:nl-text-reveal .5s ease-out both}
+#nimbusLearningPanel .nl-next{border:1px solid #a9c5f4;border-radius:11px;background:#ecf4ff;color:#1d55a6;font-size:11px;font-weight:800;padding:11px 13px;text-align:center;cursor:pointer;transition:background .16s}
+#nimbusLearningPanel .nl-next:hover{background:#dceaff}
+#nimbusLearningPanel .nl-footnote{color:#7d8aa0;text-align:center;font-size:10px;line-height:1.7;margin:20px 0 0}
+/* Company-style sidebar addition: preserve original brands, account, dashboard, model picker */
+#sidebar #nimbusLearningOpen{display:flex!important;align-items:center;position:relative;gap:10px;width:100%;min-height:58px;padding:9px 12px;margin:0 0 8px;text-align:left;border:1px solid #c5d9fa;border-radius:14px;background:linear-gradient(105deg,#f2f7ff,#e8f0ff);color:#172f55;cursor:pointer;font-family:inherit;box-shadow:0 3px 13px #2255a30a;transition:background .18s,box-shadow .18s,transform .18s}
+#sidebar #nimbusLearningOpen:hover{background:#e1edff;box-shadow:0 6px 18px #235aa11b;transform:translateY(-1px)}
+#sidebar #nimbusLearningOpen[aria-expanded=true]{background:#e5efff;border-color:#729eef}
+#sidebar .nl-side-icon{width:35px;height:35px;flex:0 0 35px;border-radius:11px;display:grid;place-items:center;font-size:18px;background:#dbe9ff;color:#1e58ae}
+#sidebar .nl-side-copy{display:flex;flex:1;flex-direction:column;gap:3px;min-width:0}
+#sidebar .nl-side-copy strong{font-size:12px;font-weight:800;color:#1c3357}
+#sidebar .nl-side-copy small{font-size:10px;line-height:1.4;color:#6b7e99}
+#sidebar .nl-side-chevron{font-size:21px;color:#849ac0}
+#sidebar .nl-side-quick{margin:0 0 9px;border:1px solid #e2e9f3;border-radius:11px;background:#fbfcff}
+#sidebar .nl-side-quick summary{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;cursor:pointer;color:#496485;font-size:11px;font-weight:700;list-style:none}
+#sidebar .nl-side-quick summary::-webkit-details-marker{display:none}
+#sidebar .nl-side-quick-actions{border-top:1px solid #edf0f5;padding:6px;display:grid;gap:2px}
+#sidebar .nl-side-quick-actions button{padding:8px 10px;border:0;border-radius:7px;background:transparent;color:#345271;font-size:10px;text-align:left;cursor:pointer}
+#sidebar .nl-side-quick-actions button:hover{background:#eaf2ff}
+#sidebar .nimbus-db-utility{padding-bottom:9px!important}
+@keyframes nl-rise{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:translateY(0)}}
+@keyframes nl-card-in{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes nl-text-reveal{from{opacity:.2;filter:blur(2px)}to{opacity:1;filter:blur(0)}}
+@keyframes nl-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes nl-orbit{to{transform:rotate(360deg)}}
+@keyframes nl-pulse{50%{opacity:.45;transform:scale(.85)}}
+@keyframes nl-bounce{0%,70%,100%{transform:translateY(0)}40%{transform:translateY(-7px)}}
+@media(max-width:1030px){#nimbusLearningPanel .nl-modes{grid-template-columns:repeat(2,minmax(0,1fr))}#nimbusLearningPanel .nl-hero-art{flex-basis:140px}#nimbusLearningPanel .nl-hero-art .nl-orbit-b{display:none}}
+@media(max-width:700px){#nimbusLearningPanel{height:calc(100dvh - 57px)}#nimbusLearningPanel .nl-work-inner{padding:15px 14px 36px}#nimbusLearningPanel .nl-work-top{align-items:flex-start}#nimbusLearningPanel .nl-crumb{font-size:9px}#nimbusLearningPanel .nl-hero{padding:25px 22px;min-height:170px}#nimbusLearningPanel .nl-hero-art{display:none}#nimbusLearningPanel .nl-work-grid{grid-template-columns:1fr}#nimbusLearningPanel .nl-task-card,#nimbusLearningPanel .nl-result-pane{padding:18px}#nimbusLearningPanel .nl-mode-card{min-height:78px}#nimbusLearningPanel .nl-mode-icon{width:30px;height:30px;flex-basis:30px;font-size:17px}#nimbusLearningPanel .nl-mode-details small{font-size:9px}#nimbusLearningPanel .nl-result-pane{min-height:230px}}
+@media(max-width:430px){#nimbusLearningPanel .nl-modes{grid-template-columns:1fr}#nimbusLearningPanel .nl-mode-card{min-height:62px}#nimbusLearningPanel .nl-top-actions{flex-direction:column;align-items:flex-end}#nimbusLearningPanel .nl-sound-btn,#nimbusLearningPanel .nl-back-btn{font-size:10px;padding:7px 9px}#nimbusLearningPanel .nl-hero h1{font-size:27px!important}}
+@media(prefers-reduced-motion:reduce){#nimbusLearningPanel *,#sidebar #nimbusLearningOpen{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
