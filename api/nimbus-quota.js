@@ -1,4 +1,4 @@
-import {readRpd,fail} from './nimbus-secure-core.js';
+import {readRpd,fail} from '../lib/nimbus-secure-core.js';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  if(req.method!=='GET')return fail(res,405,'METHOD_NOT_ALLOWED');

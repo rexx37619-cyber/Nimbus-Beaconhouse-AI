@@ -1,4 +1,4 @@
-import { allowedOrigin, currentSession, fail, requestSupabase } from './nimbus-secure-core.js';
+import { allowedOrigin, currentSession, fail, requestSupabase } from '../lib/nimbus-secure-core.js';
 const MAX_BYTES=750000;
 function sanitizeChats(input){
  if(!Array.isArray(input)||input.length>40) return null;

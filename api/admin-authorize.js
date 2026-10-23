@@ -1,4 +1,4 @@
-import { currentSession, allowedOrigin } from './nimbus-secure-core.js';
+import { currentSession, allowedOrigin } from '../lib/nimbus-secure-core.js';
 function normalize(value) { return String(value || '').trim().toLowerCase(); }
 const FALLBACK_OWNERS = new Set(['haadi6228@gmail.com', 'jollyzmotion@gmail.com']);
 function getOwners() {

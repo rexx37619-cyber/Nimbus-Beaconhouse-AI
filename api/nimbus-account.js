@@ -1,4 +1,4 @@
-import {allowedOrigin,jsonBody,requestSupabase,currentSession,storeSession,clearSession,fail} from './nimbus-secure-core.js';
+import {allowedOrigin,jsonBody,requestSupabase,currentSession,storeSession,clearSession,fail} from '../lib/nimbus-secure-core.js';
 const validEmail=e=>typeof e==='string' && e.length<=254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 const validGrade=(role,grade)=>role==='teacher' ? grade==='' : /^(?:[1-9]|1[0-2]|college-1|college-2|other)$/.test(grade);
 

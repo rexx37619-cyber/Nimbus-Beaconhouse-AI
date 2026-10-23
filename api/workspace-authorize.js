@@ -1,4 +1,4 @@
-import { currentSession, allowedOrigin } from './nimbus-secure-core.js';
+import { currentSession, allowedOrigin } from '../lib/nimbus-secure-core.js';
 const getOwners=()=>new Set(String(process.env.OWNER_EMAILS||'')
  .split(',').map(x=>x.trim().toLowerCase()).filter(Boolean));
 export default async function handler(req,res){

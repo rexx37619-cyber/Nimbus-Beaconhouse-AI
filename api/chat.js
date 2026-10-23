@@ -1,6 +1,6 @@
-import { reserveRpd, allowedOrigin } from './nimbus-secure-core.js';
-import { guidedEducation } from './nimbus-guided.js';
-import { safetyReview, safeGeneratedText, GEMINI_STUDENT_SAFETY } from './nimbus-safety.js';
+import { reserveRpd, allowedOrigin } from '../lib/nimbus-secure-core.js';
+import { guidedEducation } from '../lib/nimbus-guided.js';
+import { safetyReview, safeGeneratedText, GEMINI_STUDENT_SAFETY } from '../lib/nimbus-safety.js';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Nimbus 4.5 ROR: pin supported Gemini endpoints. Old 2.5-Lite returns MODEL_NOT_FOUND for new accounts.
 const PRIMARY_MODEL = 'gemini-3.5-flash-lite';
