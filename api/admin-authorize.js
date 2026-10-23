@@ -1,3 +1,4 @@
+import { currentSession, allowedOrigin } from './nimbus-secure-core.js';
 function normalize(value) { return String(value || '').trim().toLowerCase(); }
 const FALLBACK_OWNERS = new Set(['haadi6228@gmail.com', 'jollyzmotion@gmail.com']);
 function getOwners() {
@@ -6,10 +7,13 @@ function getOwners() {
 }
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  if(!allowedOrigin(req))return res.status(403).json({ok:false,message:'Origin denied.'});
   if (req.method !== 'POST') return res.status(405).json({ ok: false, message: 'Method Not Allowed' });
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const email = normalize(body.email);
+    const session = await currentSession(req,res);
+    if(!session)return res.status(401).json({ok:false,message:'Sign in first.'});
+    const email = normalize(session.user.email);
     if (!getOwners().has(email)) return res.status(403).json({ ok: false, message: 'Owner access denied.' });
     return res.status(200).json({
       ok: true,

@@ -122,148 +122,45 @@ body{background:linear-gradient(135deg,#f4f7fc,#f7f9fd 62%,#edf4ff)}
 </head>
 <body>
 <div class="shell">
-  <aside class="side">
-    <div class="brand">
-      <img src="/assets/nimbus-logo.png" onerror="if(!this.dataset.fallback){this.dataset.fallback=1;this.src='nimbus-logo.png'}" alt="Nimbus">
-      <div><strong>NIMBUS</strong><span>COMPANY DASHBOARD</span></div>
-    </div>
-    <nav class="nav">
-      <a class="active" href="/nimbus-dashboard.html"><span class="dot"></span>Dashboard</a>
-      <a href="/"><span>⌂</span>Nimbus Chat</a>
-      <a href="/nimtron.html"><span>◇</span>NimTron</a>
-      <button id="historyNav"><span>◷</span>Saved conversations</button>
-      <button id="resourcesNav"><span>▣</span>Learning resources</button>
-    </nav>
-    <div class="side-bottom">
-      <div class="mini"><b>Nimbus 4.5 ROR</b><p>Educational AI with Beaconhouse context, writing guidance and learning tools.</p></div>
-      <div class="mini"><b>Visual engine</b><p>FLUX-based learning visuals are available through Nimbus Chat.</p></div>
-    </div>
-  </aside>
-
-  <main class="main">
-    <header class="top">
-      <div><h1>Nimbus Dashboard</h1><p>Company workspace / Platform overview</p></div>
-      <div class="top-actions">
-        <div class="search"><span>⌕</span><input id="searchBox" placeholder="Search saved chats"></div>
-        <a href="/" class="top-btn primary">Open Nimbus</a>
-      </div>
-    </header>
-
-    <div class="content">
-      <section class="hero">
-        <div>
-          <div class="hero-kicker">Nimbus • Beaconhouse Intelligence</div>
-          <h2>Intelligence for every part of learning.</h2>
-          <p>Explore a connected learning platform with educational AI, guided writing, saved conversations, visual learning and Beaconhouse-focused tools.</p>
-          <div class="hero-actions">
-            <a href="/">Start a conversation</a>
-            <a class="secondary" href="/?action=write">Help me write</a>
-            <a class="secondary" href="/?action=visual">Create a visual</a>
-          </div>
-        </div>
-        <div class="hero-logo"><img src="/assets/nimbus-logo.png" onerror="if(!this.dataset.fallback){this.dataset.fallback=1;this.src='nimbus-logo.png'}" alt="Nimbus owl logo"></div>
-      </section>
-
-      <section class="grid">
-        <div class="stat"><small>Saved chats</small><strong id="savedCount">0</strong><p>Stored in this browser</p></div>
-        <div class="stat"><small>Current model</small><strong style="font-size:20px">4.5 ROR</strong><p>Nimbus rapid educational model</p></div>
-        <div class="stat"><small>Daily allowance</small><strong>1,500</strong><p>Requests per day</p></div>
-        <div class="stat"><small>Visuals</small><strong style="font-size:20px">FLUX</strong><p>Understanding-focused image generation</p></div>
-      </section>
-
-      <div class="section-head">
-        <div><h3>Learning tools</h3><p>Explore Nimbus capabilities and return to chat to use them.</p></div>
-      </div>
-      <section class="tools">
-        <a class="card tool" href="/?action=explain"><div class="icon">E</div><b>Explain a topic</b><p>Get a clear explanation or concise summary without forcing the written-answer scaffold.</p></a>
-        <a class="card tool" href="/?action=write"><div class="icon">W</div><b>Help me write</b><p>Build keywords, a concise answer structure, a starter line and a useful key fact.</p></a>
-        <a class="card tool" href="/?action=quiz"><div class="icon">Q</div><b>Practice & quiz</b><p>Use active recall and one-question-at-a-time revision.</p></a>
-        <a class="card tool" href="/?action=plan"><div class="icon">P</div><b>Study plan</b><p>Turn subjects, tests and revision goals into a focused plan.</p></a>
-        <a class="card tool" href="/?action=visual"><div class="icon">V</div><b>FLUX visual</b><p>Create question-specific educational visuals for understanding concepts.</p></a>
-        <a class="card tool" href="/?action=file"><div class="icon">F</div><b>Study a file</b><p>Return to Nimbus and attach school work, notes or learning material.</p></a>
-      </section>
-
-      <div class="section-head" id="conversations">
-        <div><h3>Workspace activity</h3><p>Only browser-saved Nimbus information is shown here.</p></div>
-      </div>
-      <section class="two">
-        <div class="card">
-          <h4>Recent conversations</h4>
-          <div class="sub">Saved locally by Nimbus on this device.</div>
-          <div id="recentList" class="list"></div>
-        </div>
-        <div class="card">
-          <h4>Nimbus engines</h4>
-          <div class="sub">Core capabilities available in the Nimbus experience.</div>
-          <div class="engine"><div class="engine-icon">AI</div><div><b>Nimbus 4.5 ROR</b><span>Educational conversation and study assistance</span></div><span class="badge">Core</span></div>
-          <div class="engine"><div class="engine-icon">FX</div><div><b>FLUX Visuals</b><span>Topic-specific visuals for understanding</span></div><span class="badge">Available</span></div>
-          <div class="engine"><div class="engine-icon">NT</div><div><b>NimTron</b><span>Nimbus companion experience</span></div><span class="badge">Linked</span></div>
-        </div>
-      </section>
-
-      <div class="section-head" id="resources">
-        <div><h3>Beaconhouse & learning context</h3><p>Quick reference for Nimbus's school-focused knowledge layer.</p></div>
-      </div>
-      <section class="tools">
-        <div class="card tool"><div class="icon">B</div><b>BISC</b><p>Beaconhouse International Student Convention.</p></div>
-        <div class="card tool"><div class="icon">L</div><b>LAP / ILAP</b><p>Learner Agency Paradigm and Internal Learner Agency Paradigm.</p></div>
-        <div class="card tool"><div class="icon">A</div><b>BEAMS</b><p>Beaconhouse Enterprise Application Management System.</p></div>
-      </section>
-
-      <div class="footer">Nimbus Company Dashboard • This page does not replace Nimbus Chat or its backend.</div>
-    </div>
-  </main>
+ <aside class="side">
+ <div class="brand"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><strong>NIMBUS</strong><span>EDUCATIONAL AI</span></div></div>
+ <nav class="nav"><a class="active" href="/nimbus-dashboard.html"><span class="dot"></span>Dashboard</a><a href="/"><span>⌂</span>Nimbus Chat</a><a href="/?action=write">✦ Learning Studio</a></nav>
+ <div class="side-bottom"><div class="mini"><b>Nimbus 4.5 ROR</b><p>Guided schoolwork, critical thinking and writing feedback.</p></div><div class="mini"><b>Text-only learning</b><p>Visual generation is disabled. Use Nimbus Chat and Learning Studio for academic help.</p></div></div>
+ </aside>
+ <main class="main">
+ <header class="top"><div><h1>Nimbus Dashboard</h1><p>Educational AI • Your account and learning activity</p></div><div class="top-actions"><a href="/" class="top-btn primary">Open Nimbus</a></div></header>
+ <div class="content">
+  <section class="hero"><div><div class="hero-kicker">NIMBUS • EDUCATIONAL AI</div><h2>Build your thinking, not copy answers.</h2><p>Explore guided subject keywords, three-part answer structures, original writing and personalized Learning Studio activities.</p><div class="hero-actions"><a href="/">Start learning</a><a class="secondary" href="/?action=write">Writing guidance</a></div></div><div class="hero-logo"><img src="/assets/nimbus-logo.png" alt="Nimbus owl"></div></section>
+  <section class="grid"><div class="stat"><small>Account</small><strong id="dashUser" style="font-size:18px">Checking…</strong><p id="dashRole">Sign in through Nimbus</p></div><div class="stat"><small>Saved conversations</small><strong id="savedCount">—</strong><p>Private to your Nimbus account</p></div><div class="stat"><small>Used today</small><strong id="usedCount">—</strong><p>RPD from 1,500 (UTC reset)</p></div><div class="stat"><small>Remaining today</small><strong id="remainingCount">—</strong><p>Normal: 1 • Rapid: 2 • Super Rapid: 3 RPD</p></div></section>
+  <div class="section-head"><div><h3>Learning tools</h3><p>Write your own answers with guided help.</p></div></div>
+  <section class="tools"><a class="card tool" href="/?action=write"><div class="icon">W</div><b>Answer guidance</b><p>Relevant keywords, a three-step writing plan and a related key fact.</p></a><a class="card tool" href="/?action=quiz"><div class="icon">Q</div><b>Practice and quiz</b><p>Test your understanding with one question at a time.</p></a><a class="card tool" href="/?action=plan"><div class="icon">P</div><b>Study plan</b><p>Break your revision into realistic steps.</p></a><a class="card tool" href="/?action=file"><div class="icon">F</div><b>Study a file</b><p>Review notes and classroom material with text guidance.</p></a></section>
+  <div class="section-head"><div><h3>Your recent conversations</h3><p>Synced to your verified account. Other users cannot see these in Nimbus.</p></div></div>
+  <section class="two"><div class="card"><h4>Recent chats</h4><div id="recentList" class="list"><div class="empty">Sign in to view your saved chats.</div></div></div><div class="card"><h4>Nimbus features</h4><div class="engine"><div class="engine-icon">AI</div><div><b>Nimbus 4.5 ROR</b><span>Subject-aware written guidance</span></div><span class="badge">Text</span></div><div class="engine"><div class="engine-icon">LS</div><div><b>Learning Studio</b><span>Hints, writing feedback and mistake finding</span></div><span class="badge">Available</span></div><div class="engine"><div class="engine-icon">24</div><div><b>Nimbus 0.24</b><span>Legacy chat option</span></div><span class="badge">Legacy</span></div></div></section>
+  <div class="footer">Nimbus • Educational AI • Founder and developer: Abdul Haadi Hassan. Model output can be inaccurate; verify important facts.</div>
+ </div></main>
 </div>
 <script>
-(function(){
-  function readChats(){
-    try{
-      var raw=localStorage.getItem('nimbus_chats');
-      var parsed=raw?JSON.parse(raw):[];
-      if(Array.isArray(parsed)) return parsed;
-      if(parsed && typeof parsed==='object'){if(Array.isArray(parsed.chats)) return parsed.chats;if(Array.isArray(parsed.conversations)) return parsed.conversations;return Object.values(parsed).filter(function(x){return x && typeof x==='object' && !Array.isArray(x)});}
-    }catch(e){}
-    return [];
+(async()=>{
+ const $=id=>document.getElementById(id);
+ const render=(id,v)=>{if($(id))$(id).textContent=String(v)};
+ const get=async url=>{const r=await fetch(url,{cache:'no-store',credentials:'same-origin'});return {r,data:await r.json().catch(()=>({}))}};
+ try{
+  const auth=await get('/api/nimbus-account');
+  if(!auth.r.ok||!auth.data.user){render('dashUser','Sign-in required');render('dashRole','Open Nimbus to sign in');return}
+  const user=auth.data.user;
+  render('dashUser',user.email);render('dashRole',(user.role==='teacher'?'Teacher':'Student')+(user.grade?' • Grade '+user.grade:''));
+  const [quota,chats]=await Promise.all([get('/api/nimbus-quota'),get('/api/nimbus-chats')]);
+  if(quota.r.ok&&quota.data.ok){render('usedCount',quota.data.used);render('remainingCount',quota.data.remaining)}
+  if(chats.r.ok&&chats.data.ok&&Array.isArray(chats.data.chats)){
+   const list=chats.data.chats;render('savedCount',list.length);const target=$('recentList');target.replaceChildren();
+   if(!list.length){const div=document.createElement('div');div.className='empty';div.textContent='No saved chats yet. Start a conversation in Nimbus.';target.append(div)}
+   for(const chat of list.slice(0,8)){
+    const div=document.createElement('div');div.className='row';
+    const title=document.createElement('strong');title.textContent=String(chat.title||'Untitled').slice(0,90);
+    div.append(title);target.append(div);
+   }
   }
-
-  function titleOf(chat,index){
-    if(!chat) return 'Saved conversation '+(index+1);
-    return String(chat.title||chat.name||chat.topic||chat.preview||('Saved conversation '+(index+1)));
-  }
-
-  function render(query){
-    var chats=readChats();
-    document.getElementById('savedCount').textContent=chats.length;
-    var list=document.getElementById('recentList');
-    var q=String(query||'').trim().toLowerCase();
-    var shown=chats.filter(function(c,i){return !q||titleOf(c,i).toLowerCase().includes(q)}).slice(0,6);
-
-    if(!shown.length){
-      list.innerHTML='<div class="empty">'+(q?'No saved chats match this search.':'No locally saved chats yet. Start a conversation in Nimbus.')+'</div>';
-      return;
-    }
-
-    list.innerHTML='';
-    shown.forEach(function(chat,i){
-      var row=document.createElement('div');
-      row.className='row';
-      var left=document.createElement('div');
-      var b=document.createElement('b');
-      b.textContent=titleOf(chat,i);
-      var s=document.createElement('span');
-      s.textContent='Nimbus conversation';
-      left.appendChild(b); left.appendChild(document.createElement('br')); left.appendChild(s);
-      var badge=document.createElement('span'); badge.className='badge'; badge.textContent='Saved';
-      row.appendChild(left); row.appendChild(badge);
-      list.appendChild(row);
-    });
-  }
-
-  document.getElementById('searchBox').addEventListener('input',function(){render(this.value)});
-  document.getElementById('historyNav').addEventListener('click',function(){document.getElementById('conversations').scrollIntoView({behavior:'smooth'})});
-  document.getElementById('resourcesNav').addEventListener('click',function(){document.getElementById('resources').scrollIntoView({behavior:'smooth'})});
-  render('');
+ }catch{render('dashUser','Temporarily unavailable')}
 })();
 </script>
-</body>
-</html>
+</body></html>

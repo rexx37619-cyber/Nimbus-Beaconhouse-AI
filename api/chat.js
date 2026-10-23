@@ -1,6 +1,11 @@
+import { reserveRpd, allowedOrigin } from './nimbus-secure-core.js';
+import { guidedEducation } from './nimbus-guided.js';
+import { safetyReview, safeGeneratedText, GEMINI_STUDENT_SAFETY } from './nimbus-safety.js';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const PRIMARY_MODEL = String(process.env.NIMBUS_CHAT_MODEL || 'gemini-3.5-flash-lite').trim() || 'gemini-3.5-flash-lite';
+// Nimbus 4.5 ROR: pin supported Gemini endpoints. Old 2.5-Lite returns MODEL_NOT_FOUND for new accounts.
+const PRIMARY_MODEL = 'gemini-3.5-flash-lite';
 const FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+const THIRD_MODEL = '';
 const DAILY_LIMIT = Number(process.env.NIMBUS_DAILY_LIMIT || 1500);
 const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
 const MAX_HISTORY_MESSAGES = 12;
@@ -811,11 +816,15 @@ async function requestGemini({ apiKey, model, body, currentUserText, science, us
   const payload = {
     systemInstruction: { parts: [{ text: buildSystemInstruction({ science, useFileSearch }) }] },
     contents,
+    safetySettings: GEMINI_STUDENT_SAFETY,
     generationConfig: {
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       thinkingConfig: { thinkingLevel: 'minimal' }
     }
   };
+
+  // Gemini 2.5 does not share every Gemini 3 thinkingConfig setting.
+  if (model.startsWith('gemini-2.5')) delete payload.generationConfig.thinkingConfig;
 
   if (useFileSearch && SCIENCE_STORE_NAME) {
     payload.tools = [{ fileSearch: { fileSearchStoreNames: [SCIENCE_STORE_NAME] } }];
@@ -880,7 +889,7 @@ function instantReply(text) {
   const s = original.toLowerCase();
 
   if (/\b(who\s+(?:made|built|created|founded)|founder|co-?founder|creator)\b.*\bnimbus\b|\bnimbus\b.*\b(founder|co-?founder|creator)\b/i.test(original)) {
-    return 'Nimbus is an educational-focused AI project built manually by Abdul Haadi Hassan, its founder. The project is designed around student learning: concise educational guidance, question-focused answer structures, saved conversations, Beaconhouse-aware information, and optional on-demand FLUX visuals. Nimbus is independently built and should not be described as officially owned or endorsed by Beaconhouse unless an official source says so.';
+    return 'Nimbus is an educational-focused AI project built manually by Abdul Haadi Hassan, its founder. The project is designed around student learning: concise educational guidance, topic-specific writing keywords, saved conversations, and critical thinking. Nimbus is an independent educational AI platform.';
   }
   if (/\bbeams\b|beaconhouse enterprise application management system/i.test(original)) {
     return 'BEAMS is the Beaconhouse Enterprise Application Management System. It serves as Beaconhouse\'s internal comprehensive Enterprise Resource Planning (ERP) and digital ecosystem used across staff, employees, and students. Users access connected internal services through their BEAMS ID. Beaconhouse also links BEAMS credentials with services such as PRISM for professional development. Official BEAMS portal: https://beams.beaconhouse.net/home/. PRISM: https://beams.beaconhouse.net/prism/.';
@@ -908,10 +917,10 @@ function instantReply(text) {
 }
 
 function visualPayload(question, answer) {
-  return {
-    kind: 'diagram',
-    prompt: `Create a high-quality 16:9 educational visual for Grade 6-8 students. Topic: ${question}. Represent the exact concept, process, anatomy, map, timeline, circuit, or mathematical idea in the prompt. Make it specific, accurate, visually rich, classroom-ready and image-first. Avoid generic templates, posters, worksheets, UI mockups, empty panels, stock infographic layouts and unrelated objects. Prefer meaningful shapes, arrows or callouts only when they improve the visual explanation. Avoid paragraphs and large readable text. Answer context: ${String(answer || '').slice(0, 900)}`
-  };
+  // Forward topic only. The actual image endpoint applies a visual-only prompt
+  // to ALL requests, including those made directly from Learning Studio.
+  const topic=String(question||'').replace(/\/visual\b/gi,'').trim().slice(0,450);
+  return {kind:'diagram',prompt:topic};
 }
 
 function nimbusPreviousUserTopic(body) {
@@ -946,6 +955,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, reply: 'Method Not Allowed', request_id: requestId });
   }
 
+  if (!allowedOrigin(req)) return res.status(403).json({ok:false,error_code:'INVALID_ORIGIN'});
   try {
     const apiKey = textOf(process.env.GEMINI_API_KEY);
     if (!apiKey) {
@@ -961,14 +971,25 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, reply: 'Please enter a question.', error_code: 'EMPTY_MESSAGE', auto_visual: false, visual: null, request_id: requestId });
     }
 
-    const visualRequested = hasVisualCommand(rawText);
+    const reservation=await reserveRpd(req,res,body);
+    if(!reservation.ok)return res.status(reservation.http).json({ok:false,error_code:reservation.error_code,usage:reservation.usage||null,reply:reservation.http===401?'Please sign in to Nimbus.':'Daily usage limit or request validation error.'});
+    const billed=reservation.usage;
+    res.setHeader('X-Nimbus-Used',String(billed.used));
+    res.setHeader('X-Nimbus-Cost',String(billed.cost));
+    // Validate the *direct request* before routing to visuals, an LLM, or learning logic.
+    const rejected = safetyReview(rawText, 'chat');
+    if (rejected) return res.status(200).json({ok:true,reply:rejected.reply,question_type:'safety',error_code:rejected.code,auto_visual:false,visual:null,request_id:requestId});
+    const visualRequested = false; // V34.4: visuals are disabled at the server
     const visualText = removeVisualCommand(rawText);
-    const standaloneVisualOnly = visualRequested && !visualText;
+    const standaloneVisualOnly = hasVisualCommand(rawText) && !visualText;
     const previousVisualTopic = standaloneVisualOnly ? nimbusPreviousUserTopic(body) : '';
     const userText = visualText || previousVisualTopic || rawText;
 
+    if (standaloneVisualOnly) return res.status(200).json({ok:true,reply:'Visual generation is currently disabled. I can help with written study hints instead.',auto_visual:false,visual:null,question_type:'visual_disabled',request_id:requestId});
     if (standaloneVisualOnly) {
       const visualTopic = previousVisualTopic || 'the previous study topic';
+      const badVisual = safetyReview(visualTopic,'visual');
+      if (badVisual) return res.status(200).json({ok:true,reply:badVisual.reply,question_type:'safety',error_code:badVisual.code,auto_visual:false,visual:null,request_id:requestId});
       return res.status(200).json({
         ok: true,
         reply: '',
@@ -984,11 +1005,42 @@ export default async function handler(req, res) {
         request_id: requestId
       });
     }
+    // V34.1: education guard runs before free-form Gemini routing.
+    // Never forward a completed model answer or story into the student guide.
+    const educationGuide = guidedEducation(userText, body);
+    if (educationGuide) {
+      return res.status(200).json({
+        ok: true,
+        reply: educationGuide.reply,
+        question_type: 'educational',
+        education_subject: educationGuide.subject,
+        auto_visual: visualRequested,
+        visual: visualRequested ? visualPayload(userText, '') : null,
+        model: body.model || 'ror',
+        backend_model: 'guided-learning-router',
+        source_status: 'local',
+        sources: [],
+        limit: DAILY_LIMIT,
+        request_id: requestId
+      });
+    }
     const explicitWriting = hasWrittenAnswerIntent(userText);
     const activeTaskMode = normalizeTaskMode(body?.task_mode);
     const autoAcademic = nimbusShouldScaffoldAcademic(userText);
     // Preserve an ongoing quiz/study plan/file session unless writing was explicitly requested.
     const writtenAnswerRequest = explicitWriting || (autoAcademic && !['quiz', 'study_plan', 'study_file'].includes(activeTaskMode));
+    // V34.3: a recognized academic request must never fall through to Gemini's
+    // older factual 'Example Answer' / 'Key Fact' generator.
+    if (writtenAnswerRequest) {
+      const safeScaffold=guidedEducation(userText,{...body,forceEducation:true});
+      if (safeScaffold) return res.status(200).json({
+        ok:true, reply:safeScaffold.reply,question_type:'educational',
+        education_subject:safeScaffold.subject,auto_visual:visualRequested,
+        visual:visualRequested?visualPayload(userText,''):null,
+        model:body.model||'ror',backend_model:'guided-learning-router',
+        source_status:'local',sources:[],limit:DAILY_LIMIT,request_id:requestId
+      });
+    }
     const taskMode = writtenAnswerRequest
       ? ''
       : (activeTaskMode || inferTaskMode(userText));
@@ -1016,15 +1068,16 @@ export default async function handler(req, res) {
       });
     }
 
+    const requestedModel = body.model === 'legacy' ? FALLBACK_MODEL : PRIMARY_MODEL;
     let data = null;
-    let usedModel = PRIMARY_MODEL;
+    let usedModel = requestedModel;
     let sourceStatus = science ? (SCIENCE_STORE_NAME ? 'requested' : 'not_configured') : 'not_requested';
     let firstError = null;
 
     try {
       data = await requestGemini({
         apiKey,
-        model: PRIMARY_MODEL,
+        model: requestedModel,
         body,
         currentUserText: modelUserText,
         science,
@@ -1039,7 +1092,7 @@ export default async function handler(req, res) {
         try {
           data = await requestGemini({
             apiKey,
-            model: PRIMARY_MODEL,
+            model: requestedModel,
             body,
             currentUserText: modelUserText,
             science,
@@ -1052,20 +1105,28 @@ export default async function handler(req, res) {
         }
       }
 
-      if (!data && Number(firstError?.status || 0) === 404 && PRIMARY_MODEL !== FALLBACK_MODEL) {
-        try {
-          data = await requestGemini({
-            apiKey,
-            model: FALLBACK_MODEL,
-            body,
-            currentUserText: modelUserText,
-            science: false,
-            useFileSearch: false,
-            timeoutMs: FALLBACK_TIMEOUT_MS
-          });
-          usedModel = FALLBACK_MODEL;
-        } catch (fallbackError) {
-          firstError = fallbackError;
+      // Retry only errors that may be model-specific (busy, timeout or transient failures).
+      // Stop on bad requests, rejected credentials and billing restrictions.
+      const retryable = err => err?.name === 'AbortError' || [404,429,500,502,503,504].includes(Number(err?.status || 0));
+      if (!data && retryable(firstError)) {
+        const candidates = [...new Set([requestedModel === PRIMARY_MODEL ? FALLBACK_MODEL : PRIMARY_MODEL, THIRD_MODEL].filter(Boolean))].filter(m => m !== requestedModel).slice(0, 2);
+        for (const alternative of candidates) {
+          try {
+            data = await requestGemini({
+              apiKey,
+              model: alternative,
+              body,
+              currentUserText: modelUserText,
+              science: false,
+              useFileSearch: false,
+              timeoutMs: FALLBACK_TIMEOUT_MS
+            });
+            usedModel = alternative;
+            break;
+          } catch (nextError) {
+            firstError = nextError;
+            if (!retryable(nextError)) break;
+          }
         }
       }
     }
@@ -1075,7 +1136,7 @@ export default async function handler(req, res) {
       console.error('[Nimbus chat]', requestId, code, firstError?.message || 'model request failed');
       return res.status(200).json({
         ok: false,
-        reply: 'Nimbus is temporarily unavailable. Please try again in a moment.',
+        reply: code === 'MODEL_RATE_LIMIT' ? 'Nimbus is busy at the moment. Please retry shortly.' : code === 'MODEL_TIMEOUT' ? 'Nimbus took too long to respond. Please try again.' : 'Nimbus could not reach its chat model right now. Please try again later.',
         error_code: code,
         provider_status: Number(firstError?.status || 0) || null,
         source_status: sourceStatus,
@@ -1102,7 +1163,13 @@ export default async function handler(req, res) {
       });
     }
 
-    if (questionType === 'educational') answer = formatEducationalAnswer(answer, userText);
+    if (!safeGeneratedText(answer)) {
+      return res.status(200).json({ok:true,reply:'Nimbus can help with a safe, age-appropriate alternative.',question_type:'safety',error_code:'UNSAFE_MODEL_OUTPUT',auto_visual:false,visual:null,request_id:requestId});
+    }
+    if (questionType === 'educational') {
+      const postGuide = guidedEducation(userText,body);
+      answer = postGuide?.reply || ['General Studies · Thinking guide','','Starting point: Identify exactly what the question asks.','','Thinking hint: Which idea from your notes could help?','','Study tip: Look for evidence before making a claim.','','Your turn: Write your first reasoning step.'].join('\n');
+    }
 
     return res.status(200).json({
       ok: true,

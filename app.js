@@ -1,50 +1,9 @@
-﻿const MODELS={
+const MODELS={
   ror:{id:'ror',label:'Nimbus 4.5 ROR',sub:'Rapid • Ultra modifications'},
-  legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'},
-  'nano-banana-2':{id:'nano-banana-2',label:'GPT Image 2',sub:'Pollinations • Educational visuals'}
+  legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'}
 };
 
-const RESOURCES=[
-  ['Beaconhouse main site','https://www.beaconhouse.net/'],
-  ['About Beaconhouse','https://www.beaconhouse.net/about-us/'],
-  ['Academics & programmes','https://www.beaconhouse.net/academic/'],
-  ['Academic archive','https://www.beaconhouse.net/academic-programs/'],
-  ['Learner Profile','https://www.beaconhouse.net/beaconhouse-learner-profile/'],
-  ['Clubs & Societies','https://www.beaconhouse.net/clubs-and-societies/'],
-  ['Access Centre','https://www.beaconhouse.net/the-access-centre/'],
-  ['Sports competitions','https://www.beaconhouse.net/sports-competition/'],
-  ['STEAM competitions','https://www.beaconhouse.net/steam-competition/'],
-  ['BISC','https://bisc.beaconhouse.net/'],
-  ['BISC About','https://bisc.beaconhouse.net/about-bisc/'],
-  ['BISC results','https://www.beaconhouse.net/results/'],
-  ['RISE competitions','https://rise.beaconhouse.net/'],
-  ['Educational trips','https://www.beaconhouse.net/education-trips/'],
-  ['International events & trips','https://www.beaconhouse.net/international-events-trips/'],
-  ['Internship programme','https://www.beaconhouse.net/internship-programme/'],
-  ['University placements & scholarships','https://www.beaconhouse.net/university-placements-scholarships/'],
-  ['Student protection & safeguarding','https://www.beaconhouse.net/child-protection/'],
-  ['PYP / IB programme','https://www.beaconhouse.net/international-baccalaureate-programs/pyp/'],
-  ['CIE A Level','https://www.beaconhouse.net/cie-a-level/'],
-  ['BEAMS','https://beams.beaconhouse.net/home/'],
-  ['BEAMS PRISM','https://beams.beaconhouse.net/prism/'],
-  ['Learner Agency Paradigm','https://lap.beaconhouse.net/about-us/'],
-  ['LAP guidelines 2026','https://lap.beaconhouse.net/guidelines-2/'],
-  ['LAP guidelines 2027','https://lap.beaconhouse.net/guidelines-ilap-2027/'],
-  ['Beaconhouse Old Students Society','https://boss.beaconhouse.net/about-us/'],
-  ['2026-27 Punjab book lists (Class 1-8 selector)','https://booklist.beaconhouse.net/punjab-booklist/'],
-  ['2026-27 Sindh & Balochistan book lists (Class 1-8 selector)','https://booklist.beaconhouse.net/sindh-balochistan-booklist/'],
-  ['2026-27 Fed/ICT book lists','https://booklist.beaconhouse.net/ict-booklist/'],
-  ['2026-27 KPK book lists','https://booklist.beaconhouse.net/kpk-booklist/'],
-  ['2026-27 TNS book lists','https://booklist.beaconhouse.net/tns-booklist/'],
-  ['2026-27 Newlands Karachi book lists','https://booklist.beaconhouse.net/newlands-booklist-khi/'],
-  ['2026-27 Newlands Islamabad book lists','https://booklist.beaconhouse.net/newlands-booklist-isb/'],
-  ['2026-27 Newlands Lahore & Multan book lists','https://booklist.beaconhouse.net/newlands-booklist-ml/'],
-  ['2026-27 Discovery Centre Karachi book lists','https://booklist.beaconhouse.net/discovery-karachi-booklist/'],
-  ['2026-27 Book List portal','https://booklist.beaconhouse.net/'],
-  ['Nimbus competition knowledge','/knowledge/beaconhouse_competitions_and_programmes.txt'],
-  ['Nimbus BEAMS/LAP knowledge','/knowledge/beams_lap_and_services.txt'],
-  ['Nimbus 2026 book-pack links','/knowledge/book_pack_2026_links.txt']
-];
+const RESOURCES=[['Nimbus Learning Studio','/'],['Study and quiz tools','/'],['Nimbus dashboard','/nimbus-dashboard.html']];
 
 const USAGE_LIMIT=1500;
 const usageKey=()=>`nimbus_usage_24h_${String(state.id||'anonymous').toLowerCase()}`;
@@ -61,9 +20,9 @@ function readUsageWindow(){
 }
 function writeUsageWindow(d){try{localStorage.setItem(usageKey(),JSON.stringify(d));}catch{}}
 const state={
-  id:localStorage.getItem('nimbus_id')||'',
+  id:'',
   messages:[],
-  chats:JSON.parse(localStorage.getItem('nimbus_chats')||'[]'),
+  chats:[],
   file:null,
   currentChatId:null,
   model:localStorage.getItem('nimbus_model')||'ror',
@@ -76,7 +35,18 @@ const $=id=>document.getElementById(id);
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const escapeAttr=s=>escapeHtml(s).replace(/`/g,'&#96;');
 function activeModel(){return MODELS[state.model]||MODELS.ror}
-function saveChats(){localStorage.setItem('nimbus_chats',JSON.stringify(state.chats.slice(0,40)))}
+let nimbusSaveQueue=Promise.resolve();
+function saveChats(){
+ const accountId=state.id;
+ if(!accountId)return;
+ const snapshot=JSON.stringify({chats:state.chats.slice(0,40)});
+ nimbusSaveQueue=nimbusSaveQueue.catch(()=>{}).then(async()=>{
+  if(state.id!==accountId)return;
+  const res=await fetch('/api/nimbus-chats',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:snapshot});
+  if(!res.ok)throw new Error('Nimbus account chat sync failed: '+res.status);
+ });
+ nimbusSaveQueue.catch(error=>console.warn(error.message));
+}
 
 function renderHistory(){
   const h=$('chatHistory'); h.innerHTML='';
@@ -89,17 +59,18 @@ function renderHistory(){
   });
 }
 
-function usageTimeLeft(){const left=Math.max(0,86400000-(Date.now()-state.usageStarted));const h=Math.floor(left/3600000),m=Math.floor((left%3600000)/60000);return `${h}h ${m}m`;}
+function usageTimeLeft(){const left=Math.max(0,Date.parse(new Date().toISOString().slice(0,10)+'T00:00:00Z')+86400000-Date.now());const h=Math.floor(left/3600000),m=Math.floor((left%3600000)/60000);return `${h}h ${m}m`;}
 function updateUsage(used){
   if(typeof used==='number') state.used=Math.max(0,Math.min(USAGE_LIMIT,used));
-  writeUsageWindow({used:state.used,started:state.usageStarted});
+  // Authenticated usage is authoritative from the server.
+
   const pct=Math.min(100,(state.used/USAGE_LIMIT)*100);
   $('usageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD`;
   $('usageBar').style.width=pct+'%';
   if($('menuUsageText')) $('menuUsageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD • resets in ${usageTimeLeft()}`;
   if($('menuUsageBar')) $('menuUsageBar').style.width=pct+'%';
 }
-function consumeLocalUsage(){state.used=Math.min(USAGE_LIMIT,state.used+1);updateUsage();}
+function consumeLocalUsage(){/* quota is charged by the server, never in the browser */}
 
 function renderModels(){
   const menu=$('modelMenu');
@@ -228,7 +199,7 @@ function downloadText(filename,text){
 function printPdf(text){
   const w=window.open('','_blank','width=900,height=700');
   if(!w)return;
-  w.document.write(`<!doctype html><html><head><title>Nimbus answer</title><style>body{font-family:Arial,sans-serif;padding:42px;line-height:1.6;color:#17191d}pre{background:#111;color:#fff;padding:16px;border-radius:10px;white-space:pre-wrap}h1{font-size:20px}small{color:#777}</style></head><body><h1>Nimbus</h1><small>Beaconhouse Intelligence</small><hr><div>${plainTextToHtml(text)}</div></body></html>`);
+  w.document.write(`<!doctype html><html><head><title>Nimbus answer</title><style>body{font-family:Arial,sans-serif;padding:42px;line-height:1.6;color:#17191d}pre{background:#111;color:#fff;padding:16px;border-radius:10px;white-space:pre-wrap}h1{font-size:20px}small{color:#777}</style></head><body><h1>Nimbus</h1><small>Educational AI</small><hr><div>${plainTextToHtml(text)}</div></body></html>`);
   w.document.close(); w.focus(); setTimeout(()=>w.print(),250);
 }
 
@@ -309,7 +280,7 @@ async function sendMessage(text){
   add('user',text||'Please analyse my attachment.',file?.name);
   state.file=null;$('fileInput').value='';$('attachment').classList.add('hidden');$('sendBtn').disabled=true;setAgentThinking(true);$('messageInput').value='';$('messageInput').style.height='auto';
   try{
-    if(state.used>=USAGE_LIMIT){add('ai',`Daily limit reached. Your 24-hour window resets in ${usageTimeLeft()}.`);return;}
+    if(!state.id){add('ai','Please sign in first.');return;}
     let attachment=null;
     if(file){
       if(file.size>4*1024*1024) throw new Error('Please keep attachments below 4 MB.');
@@ -324,11 +295,16 @@ async function sendMessage(text){
       consumeLocalUsage();
       return;
     }
-    r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',educational_id:state.id||'anonymous',model:state.model,attachment})});
+    r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',model:state.model,attachment,speed_mode:state.speedMode||'xhigh',client_request_id:crypto.randomUUID()})});
     data=await r.json().catch(()=>({}));
     // The server may report a count when available; the client also maintains a 24-hour per-educational-ID window.
-    if(typeof data.used==='number' && data.used>=state.used) updateUsage(data.used);
-    if(!r.ok)throw new Error(data.message||'Nimbus request failed.');
+    if(data.usage && typeof data.usage.used==='number')updateUsage(data.usage.used);
+    else if(r.headers.get('X-Nimbus-Used'))updateUsage(Number(r.headers.get('X-Nimbus-Used')));
+    if(!r.ok){
+      if(r.status===401){add('ai','Please sign in to Nimbus again.');return;}
+      if(r.status===429){add('ai','Daily limit reached. Please try again after the UTC reset.');return;}
+      throw new Error(data.message||data.error_code||'Nimbus request failed.');
+    }
     if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
     let reply=data.visual_only?'':(data.reply||'Nimbus did not return a response.');
     if(explicitVisualRequest && data.visual?.prompt){
@@ -340,7 +316,7 @@ async function sendMessage(text){
       try{await generateVisual(prompt,{title:vtitle,type:vtype,keywords:vkeywords});}
       catch(e){console.warn('Visual generation failed',e);}
     }else if(reply) add('ai',reply);
-    consumeLocalUsage();
+    await window.nimbusRefreshQuota?.();
   }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
   finally{$('sendBtn').disabled=false;setAgentThinking(false);}
 }
@@ -417,9 +393,9 @@ document.addEventListener('click',e=>{
   }
 });
 
-function syncAccount(){const name='Beaconhouse student';$('accountName').textContent=name;$('accountId').textContent=state.id||'Educational ID';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.id||'Educational ID';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
+function syncAccount(){const name=state.accountProfile?.role==='teacher'?'Nimbus teacher':'Nimbus student';$('accountName').textContent=name;$('accountId').textContent=state.accountProfile?.email||'Nimbus account';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.accountProfile?.email||'Nimbus account';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
 
-$('enterNimbus').onclick=()=>{const id=$('eduId').value.trim();if(!/^\S+@(bh|beaconite)\.edu\.pk$/i.test(id)){alert('Invalid Educational ID. Use an ID ending in @bh.edu.pk or @beaconite.edu.pk.');return;}state.id=id;localStorage.setItem('nimbus_id',id);({used:state.used,started:state.usageStarted}=readUsageWindow());updateUsage();$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');syncAccount();renderHistory();if(state.chats.length)loadChat(state.chats[0].id)};
+// Nimbus V34.5 auth handlers are installed by nimbus-account-ui.js.
 
 $('accountBtn').onclick=$('topAccount').onclick=()=>$('menuModal').classList.remove('hidden');
 $('closeMenu').onclick=()=>$('menuModal').classList.add('hidden');
@@ -432,12 +408,12 @@ function openInfo(){$('infoModal').classList.remove('hidden');const grid=$('reso
 $('closeInfo').onclick=()=>$('infoModal').classList.add('hidden');
 $('infoModal').addEventListener('click',e=>{if(e.target===$('infoModal'))$('infoModal').classList.add('hidden')});
 
-$('signOut').onclick=()=>{localStorage.removeItem('nimbus_id');location.reload()};
+// Sign out uses server-side cookies in nimbus-account-ui.js.
 $('ownerBtn').onclick=()=>{$('menuModal').classList.add('hidden');$('ownerModal').classList.remove('hidden');};
 $('closeOwner').onclick=()=>$('ownerModal').classList.add('hidden');
-$('ownerLogin').onclick=async()=>{const email=$('ownerEmail').value.trim();if(!email){$('ownerMsg').textContent='Enter an owner email.';return}$('ownerMsg').textContent='Checking...';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
+$('ownerLogin').onclick=async()=>{$('ownerMsg').textContent='Checking your signed-in Nimbus account...';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
 
-function init(){syncAccount();renderHistory();renderModels();if(state.id){$('loginModal').classList.add('hidden');$('app').classList.remove('hidden');if(state.chats.length)loadChat(state.chats[0].id)}}
+function init(){syncAccount();renderHistory();renderModels();$('loginModal').classList.remove('hidden');$('app').classList.add('hidden');}
 init();
 
 
@@ -793,7 +769,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
     ) {
       window.__NIMBUS_FINAL_USAGE_PATCH__ = true;
 
-      consumeLocalUsage = function(){
+      consumeLocalUsage = function(){ return; /*
         var cost = 1;
 
         if (state.speedMode === "rapid") {
@@ -809,7 +785,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
           );
 
         updateUsage();
-      };
+      */ };
     }
 
     /* --------------------------------------------------------

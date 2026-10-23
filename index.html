@@ -1,12 +1,12 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <meta name="google-site-verification" content="Bko66mzaW98t7yTDm68y99nTxS_62CWFn4Gl3XQIhQg" />
-<meta name="description" content="Nimbus - Beaconhouse Intelligence, a student-focused educational AI workspace.">
-<title>Nimbus - Beaconhouse Intelligence</title>
+<meta name="description" content="Nimbus — Educational AI, a student-focused educational AI workspace.">
+<title>Nimbus — Educational AI</title>
 <link rel="stylesheet" href="/styles.css">
 <script src="https://js.puter.com/v2/"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -49,13 +49,14 @@
   #app .chat-column:has(> #welcome:not(.hidden)) #welcome{padding-bottom:12px!important;}
 }
 </style>
-<link rel="stylesheet" href="/nimbus-learning-v31.css">
+<link rel="stylesheet" href="/nimbus-ultimate-v33.css">
+<style id="nimbus-v34-4-no-visuals">#visualBtn,#nuVisual,#nuImproveBtn,.visual-btn,.visual-model-row{display:none!important;visibility:hidden!important;pointer-events:none!important}</style>
 </head>
 <body>
 <div id="app" class="app hidden">
   <aside class="sidebar" id="sidebar">
     <div class="side-top">
-      <div class="brand"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><strong>NIMBUS</strong><span>Beaconhouse Intelligence</span></div></div>
+      <div class="brand"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><strong>NIMBUS</strong><span>Educational AI</span></div></div>
       <button id="newChat" class="new-chat"><span>＋</span> New chat</button>
       <div class="history-title"><span>Recent</span><button id="clearAll" title="Clear recent chats">Clear</button></div>
       <div id="chatHistory" class="history"></div>
@@ -70,23 +71,15 @@
     <span class="nl-side-copy"><strong>Learning Studio</strong><small>Critical thinking · 4 modes</small></span>
     <span class="nl-side-chevron" aria-hidden="true">›</span>
   </button>
-  <details class="nl-side-quick">
-    <summary>Study shortcuts <span aria-hidden="true">⌄</span></summary>
-    <div class="nl-side-quick-actions">
-      <button type="button" data-nl-quick="plan">Build a study plan</button>
-      <button type="button" data-nl-quick="quiz">Start a quiz</button>
-      <button type="button" data-nl-quick="file">Study a file</button>
-    </div>
-  </details>
   <a id="nimbusDashboardLink" href="/nimbus-dashboard.html" class="nimbus-dashboard-link" title="Open Nimbus Company Dashboard">
     <span class="nimbus-db-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg></span>
     <span class="nimbus-db-copy"><strong>Dashboard</strong><small>Company workspace</small></span>
     <span class="nimbus-db-arrow" aria-hidden="true">&rsaquo;</span>
   </a>
 </div>
-      <button class="side-action" id="helpBtn"><span>?</span><div><b>Help & info</b><small>Nimbus & Beaconhouse</small></div></button>
+      <button class="side-action" id="helpBtn"><span>?</span><div><b>Help & info</b><small>Nimbus · Educational AI</small></div></button>
       <button class="account" id="accountBtn">
-        <div id="accountAvatar">B</div><div class="account-copy"><b id="accountName">Beaconhouse student</b><small id="accountId">Educational ID</small></div><span>...</span>
+        <div id="accountAvatar">B</div><div class="account-copy"><b id="accountName">Nimbus learner</b><small id="accountId">Educational ID</small></div><span>...</span>
       </button>
     </div>
   </aside>
@@ -116,7 +109,7 @@
       <div class="chat-column">
         <div id="welcome" class="welcome">
           <div class="welcome-logo"><img src="/assets/nimbus-logo.png" alt="Nimbus"></div>
-          <div class="eyebrow">BEACONHOUSE INTELLIGENCE</div>
+          <div class="eyebrow">EDUCATIONAL AI</div>
           <h1>What can I help you learn?</h1>
           <p>Ask Nimbus anything about your studies, attach work, or start a focused learning session.</p>
           <div class="suggestions">
@@ -141,79 +134,66 @@
             <textarea id="messageInput" rows="1" placeholder="Message Nimbus..."></textarea>
             <button type="submit" id="sendBtn" class="send-btn" title="Send">↑</button>
           </form>
-          <div class="composer-note">Nimbus can make mistakes. Verify important school information with a teacher or official Beaconhouse source.</div>
+          <div class="composer-note">Nimbus can make mistakes. Verify important school information with a teacher or a reliable educational source.</div>
         </div>
       </div>
       <aside id="agentAssist" class="agent-assist hidden" aria-live="polite">
         <div class="agent-card"><div class="agent-card-top"><div class="agent-avatar"><img src="/assets/nimbus-logo.png" alt="Nimbus"></div></div><div class="agent-wave" aria-hidden="true"><span></span><span></span><span></span></div></div>
 
     </section>
-    <!-- NIMBUS_V32_LEARNING_WORKSPACE: self-contained, does not replace chat DOM -->
-    <section id="nimbusLearningPanel" class="nl-workspace" aria-label="Nimbus Learning Studio" hidden>
-      <div class="nl-work-inner">
-        <div class="nl-work-top">
-          <div class="nl-crumb"><span class="nl-spark">✦</span> NIMBUS / LEARNING STUDIO <span class="nl-version">5.0</span></div>
-          <div class="nl-top-actions">
-            <button id="nlSoundToggle" type="button" class="nl-sound-btn" aria-pressed="true" title="Toggle learning sounds">♫ Sounds on</button>
-            <button id="nlClose" type="button" class="nl-back-btn">← Back to chat</button>
+    <!-- NIMBUS_ULTIMATE_V33: standalone learning workspace; original chat retained -->
+    <section id="nimbusLearningPanel" class="nu-workspace" aria-label="Nimbus Learning Studio" hidden>
+      <div class="nu-shell">
+        <aside class="nu-rail" aria-label="Choose a learning mode">
+          <div class="nu-rail-head"><span class="nu-rail-kicker">NIMBUS INTELLIGENCE</span><strong>Learning Studio</strong><small>Choose one mode to begin.</small></div>
+          <div class="nu-rail-group">LEARNING MODES</div>
+          <button type="button" class="nu-mode" data-nu-mode="hint_ladder" aria-pressed="false"><span class="nu-mode-symbol">✦</span><span>Hint Mode</span></button>
+          <button type="button" class="nu-mode" data-nu-mode="answer_coach" aria-pressed="false"><span class="nu-mode-symbol">✎</span><span>Answer Coach</span></button>
+          <button type="button" class="nu-mode" data-nu-mode="find_mistake" aria-pressed="false"><span class="nu-mode-symbol">◇</span><span>Find the Mistake</span></button>
+          <button type="button" class="nu-mode" data-nu-mode="creative_writing" aria-pressed="false"><span class="nu-mode-symbol">✧</span><span>Creative Writing</span></button>
+          <div class="nu-rail-spacer"></div>
+          <button class="nu-rail-action" id="nuClearHistory" type="button">⌫ Clear learning history</button>
+          <button class="nu-rail-action" id="nlClose" type="button">← Back to Nimbus chat</button>
+        </aside>
+        <div class="nu-main">
+          <header class="nu-main-head">
+            <div><span class="nu-main-eyebrow">NIMBUS / LEARNING STUDIO</span><h1 id="nuModeTitle">Choose your learning mode</h1><p id="nuModeDesc">Learn by thinking, writing and exploring step by step.</p></div>
+            <div class="nu-head-actions"><button type="button" id="nuSoundBtn" aria-pressed="true" title="Toggle gentle response chime">♫ Sound on</button><button type="button" id="nuBack" aria-label="Back to chat">✕</button></div>
+          </header>
+          <div class="nu-conversation" id="nuConversation" aria-live="polite" aria-relevant="additions">
+            <div class="nu-intro" id="nuIntro"><img src="/assets/nimbus-logo.png" alt="Nimbus"/><h2>Learn how to think, not just what to write.</h2><p>Select Hint Mode, Answer Coach, Find the Mistake or Creative Writing on the left to begin a focused session.</p></div>
+            <div id="nuMessages" class="nu-messages"></div>
+          </div>
+          <div class="nu-input-dock">
+            <form id="nuForm" class="nu-form" autocomplete="off">
+              <label class="nu-label" for="nuQuestion">Topic or question</label>
+              <textarea id="nuQuestion" rows="2" maxlength="600" placeholder="Choose a learning mode to begin…" disabled></textarea>
+              <div id="nuDraftWrap" hidden><label class="nu-label" for="nuDraft">Your own answer or writing draft</label><textarea id="nuDraft" rows="3" maxlength="1500" placeholder="Write your own attempt…"></textarea></div>
+              <div class="nu-compose-actions"><span id="nuStatus" class="nu-status" aria-live="polite">Select a mode to begin.</span><div class="nu-action-group"><button id="nuVisual" type="button" title="Generate an educational image" disabled>✦ Visual</button><button id="nuSubmit" type="submit" disabled>Start learning ↑</button></div></div>
+            </form>
+            <small class="nu-disclaimer">Learning Studio is a separate workspace. Your regular Nimbus chats are unchanged. Check important facts with your teacher.</small>
           </div>
         </div>
-        <header class="nl-hero">
-          <div class="nl-hero-text">
-            <p class="nl-overline"><span class="nl-status-dot"></span> GUIDED LEARNING INTELLIGENCE</p>
-            <h1>Think deeper.<br><span>Learn your way.</span></h1>
-            <p class="nl-subtitle">Four focused tools to sharpen ideas, strengthen reasoning, and build independent answers.</p>
-          </div>
-          <div class="nl-hero-art" aria-hidden="true">
-            <div class="nl-orbit nl-orbit-a"></div><div class="nl-orbit nl-orbit-b"></div>
-            <img src="/assets/nimbus-logo.png" alt="" loading="lazy">
-            <span class="nl-orbit-spark">✦</span>
-          </div>
-        </header>
-        <div class="nl-section-heading"><div><span class="nl-section-kicker">YOUR LEARNING TOOLKIT</span><h2>Choose your focus</h2></div><span class="nl-mode-count">04 MODES</span></div>
-        <div class="nl-modes" aria-label="Select a learning mode">
-          <button type="button" class="nl-mode-card" data-learning-mode="hint_ladder" aria-pressed="true"><span class="nl-mode-icon">◈</span><span class="nl-mode-details"><strong>Hint Ladder</strong><small>Discover it, one clue at a time</small></span><span class="nl-mode-arrow">↗</span></button>
-          <button type="button" class="nl-mode-card" data-learning-mode="answer_coach" aria-pressed="false"><span class="nl-mode-icon">✎</span><span class="nl-mode-details"><strong>Answer Coach</strong><small>Improve your own explanations</small></span><span class="nl-mode-arrow">↗</span></button>
-          <button type="button" class="nl-mode-card" data-learning-mode="find_mistake" aria-pressed="false"><span class="nl-mode-icon">◇</span><span class="nl-mode-details"><strong>Find the Mistake</strong><small>Spot errors and explain why</small></span><span class="nl-mode-arrow">↗</span></button>
-          <button type="button" class="nl-mode-card" data-learning-mode="creative_writing" aria-pressed="false"><span class="nl-mode-icon">✧</span><span class="nl-mode-details"><strong>Creative Writing</strong><small>Shape original stories and ideas</small></span><span class="nl-mode-arrow">↗</span></button>
-        </div>
-        <div class="nl-work-grid">
-          <section class="nl-task-card" aria-labelledby="nlTitle">
-            <div class="nl-card-kicker">YOUR WORKSPACE <span id="nlModeChip">01 / 04</span></div>
-            <h2 id="nlTitle">Hint Ladder</h2>
-            <p id="nlModeDescription" class="nl-description">Follow three clues to build your understanding.</p>
-            <label for="nlQuestion">Your question or writing task</label>
-            <textarea id="nlQuestion" rows="3" maxlength="600" placeholder="What do you want to understand?" aria-describedby="nlInfo"></textarea>
-            <div id="nlDraftWrap" hidden><label id="nlDraftLabel" for="nlDraft">Your draft answer</label><textarea id="nlDraft" rows="4" maxlength="1300" placeholder="Write your own attempt here..."></textarea></div>
-            <button id="nlSend" type="button" class="nl-primary-action">Generate three hints <span aria-hidden="true">→</span></button>
-            <p id="nlInfo" class="nl-note" aria-live="polite">Guidance to help you think, not a ready-made answer.</p>
-          </section>
-          <section class="nl-result-pane" aria-labelledby="nlResponseTitle">
-            <div class="nl-result-top"><div><span class="nl-card-kicker">NIMBUS RESPONSE</span><h2 id="nlResponseTitle">Learning guidance</h2></div><div class="nl-live-indicator"><span></span> AI COACH</div></div>
-            <div class="nl-empty" id="nlEmpty"><div class="nl-empty-icon" aria-hidden="true">✦</div><h3>Your thinking starts here</h3><p>Choose a mode, enter your topic, and Nimbus will guide you through the next step.</p></div>
-            <div id="nlLoading" class="nl-loading" hidden aria-live="polite"><div class="nl-dots"><i></i><i></i><i></i></div><span>Nimbus is preparing your guidance...</span></div>
-            <div id="nlResult" class="nl-result-list" aria-live="polite"></div>
-          </section>
-        </div>
-        <p class="nl-footnote">✦ Nimbus supports independent thinking. Always check important facts with your teacher or trusted course materials.</p>
       </div>
     </section>
   </main>
 </div>
 
 <div id="loginModal" class="modal-backdrop">
-  <div class="login-card">
-    <div class="login-brand"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><strong>Nimbus</strong><span>Beaconhouse Intelligence</span></div></div>
-    <h2>Welcome to Nimbus</h2>
-    <p>Enter your Beaconhouse Educational ID to start your student session.</p>
-    <label for="eduId">Educational ID</label>
-    <input id="eduId" placeholder="Enter your Educational ID" autocomplete="username">
-    <button id="enterNimbus" class="primary">Enter Nimbus</button>
-    <small>Your password is never requested by this interface. Production school authentication should use an approved identity/SSO service.</small>
-  </div>
+ <div class="login-card">
+  <div class="login-brand"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><strong>Nimbus</strong><span>Educational AI</span></div></div>
+  <h2>Your Nimbus account</h2><p>Create a verified account or sign in to continue learning.</p>
+  <label for="eduId">Email address</label><input id="eduId" type="email" maxlength="254" placeholder="you@example.com" autocomplete="email" required>
+  <label for="nimbusPassword">Password (at least 10 characters)</label><input id="nimbusPassword" type="password" minlength="10" maxlength="128" autocomplete="current-password" required>
+  <label for="nimbusAccountRole">I am a</label><select id="nimbusAccountRole"><option value="student">Student</option><option value="teacher">Teacher</option></select>
+  <label for="nimbusAccountGrade">Grade (students only)</label><select id="nimbusAccountGrade"><option value="">Choose your grade</option><option value="1">Grade 1</option><option value="2">Grade 2</option><option value="3">Grade 3</option><option value="4">Grade 4</option><option value="5">Grade 5</option><option value="6">Grade 6</option><option value="7">Grade 7</option><option value="8">Grade 8</option><option value="9">Grade 9</option><option value="10">Grade 10</option><option value="11">Grade 11</option><option value="12">Grade 12</option><option value="college-1">College Year 1</option><option value="college-2">College Year 2</option><option value="other">Other</option></select>
+  <div class="nimbus-auth-buttons"><button id="enterNimbus" type="button" class="primary">Sign in</button><button id="nimbusSignUp" type="button" class="primary">Create account</button></div>
+  <p id="nimbusAuthStatus" role="status" aria-live="polite">Email confirmation is required for new accounts.</p>
+  <small>Your conversations are stored per account. Student/Teacher selection identifies the account; it does not grant special permissions.</small>
+ </div>
 </div>
 
-<div id="menuModal" class="modal-backdrop hidden"><div class="account-menu"><button id="closeMenu" class="close">x</button><div class="menu-head"><div id="menuAvatar">B</div><div><b id="menuName">Beaconhouse student</b><span id="menuId">Educational ID</span></div></div><button id="ownerBtn" class="menu-item">Owner workspace <span>-></span></button><button id="signOut" class="menu-item">Sign out <span>-></span></button></div></div>
+<div id="menuModal" class="modal-backdrop hidden"><div class="account-menu"><button id="closeMenu" class="close">x</button><div class="menu-head"><div id="menuAvatar">B</div><div><b id="menuName">Nimbus learner</b><span id="menuId">Educational ID</span></div></div><button id="ownerBtn" class="menu-item">Owner workspace <span>-></span></button><button id="signOut" class="menu-item">Sign out <span>-></span></button></div></div>
 
 <div id="infoModal" class="modal-backdrop hidden">
   <div class="info-card">
@@ -224,21 +204,21 @@
     </div>
     <div class="info-profile">
       <div class="info-person"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><b>Nimbus</b><span>4.5 ROR • Rapid model</span></div></div>
-      <div class="info-person"><img src="/assets/beaconhouse-logo.png" alt="Beaconhouse"><div><b>Beaconhouse context</b><span>Public educational resources</span></div></div>
+
     </div>
-    <div class="info-section"><h3>About Nimbus 4.5 ROR</h3><p>Nimbus 4.5 ROR is designed for guided learning instead of dumping broad copy-paste answers. For educational questions, Nimbus gives concise Keywords, a question-specific three-step Answer Structure, a short Example Answer starter, and a brief factual Key Fact. This gives students enough direction to understand the topic, rephrase the idea in their own words, and strengthen critical thinking while still supporting Beaconhouse context, attachments, coding help, visuals, and file-ready outputs.</p></div>
-    <div class="info-section"><h3>Founder</h3><p><b>Abdul Haadi Hassan</b> - founder and developer of Nimbus. Nimbus is a student-built educational AI project with a Beaconhouse-focused knowledge layer.</p></div>
+    <div class="info-section"><h3>About Nimbus 4.5 ROR</h3><p>Nimbus 4.5 ROR is designed for guided learning instead of dumping broad copy-paste answers. For educational questions, Nimbus gives concise Keywords, a question-specific three-step Answer Structure, a non-copyable writing hint, and a short related Key Fact. This gives students enough direction to understand the topic, rephrase the idea in their own words, and strengthen critical thinking while supporting attachments, coding help, and text exports.</p></div>
+    <div class="info-section"><h3>Founder</h3><p><b>Abdul Haadi Hassan</b> - founder and developer of Nimbus. Nimbus is a student-built educational AI project with educational study tools.</p></div>
     <div class="info-section"><h3>Files & exports</h3><p>Nimbus can prepare study sheets, formatted answers, code, text files and PDF-ready responses. Use the export controls on AI answers to copy, save text, or print/save an answer as PDF.</p></div>
-    <div class="info-section"><h3>Beaconhouse official resources</h3><div id="resourceLinks" class="resource-grid"></div></div>
+    <div class="info-section"><h3>School resource links</h3><div id="resourceLinks" class="resource-grid"></div></div>
   </div>
 </div>
 
 <div id="ownerModal" class="modal-backdrop hidden">
   <div class="owner-card">
     <button id="closeOwner" class="close">x</button>
-    <div class="eyebrow">PRIVATE OWNER AREA</div><h2>Workspace control</h2><p>Only the two owner emails configured on your server can enter this dashboard.</p>
-    <label for="ownerEmail">Owner email</label><input id="ownerEmail" type="email" placeholder="you@example.com" autocomplete="email">
-    <button id="ownerLogin" class="primary">Verify owner email</button><div id="ownerMsg" class="owner-msg"></div>
+    <div class="eyebrow">PRIVATE OWNER AREA</div><h2>Workspace control</h2><p>Owner access must be verified server-side before displaying private information.</p>
+    <p>Only verified Nimbus owner accounts can open this area.</p>
+    <button id="ownerLogin" class="primary">Check owner access</button><div id="ownerMsg" class="owner-msg"></div>
     <div id="ownerDashboard" class="owner-dashboard hidden"></div>
   </div>
 </div>
@@ -256,7 +236,7 @@
       <span id="premiumStatus" class="premium-status">Checking availability...</span>
     </div>
     <div class="premium-price-row"><div><b>$10 / 1M input • $50 / 1M output</b><span>Provider list price; billing is handled by Puter’s User-Pays system.</span></div><a class="premium-buy" href="https://puter.com" target="_blank" rel="noopener noreferrer">Buy / manage in Puter â†—</a></div>
-    <div class="visual-model-row"><img src="/assets/nimbus-logo.png" alt="Nimbus"><div><b>GPT Image 2</b><span>Educational visuals via Pollinations</span></div><span class="premium-status">Visual model</span></div>
+
     <div id="premiumMessages" class="premium-messages"></div>
     <form id="premiumComposer" class="composer premium-composer" autocomplete="off">
       <textarea id="premiumInput" rows="2" placeholder="Ask Nimbus 5.7 Lor..."></textarea>
@@ -267,7 +247,9 @@
 </div>
 
 <script src="/app.js"></script>
-<script src="/nimbus-learning-v31.js"></script>
+<script src="/nimbus-ultimate-v33.js"></script>
+<script defer src="/nimbus-v34-enhancements.js"></script>
+<script defer src="/nimbus-account-ui.js"></script>
 <script>(async()=>{try{const r=await fetch('/site-layout.json',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const root=document.documentElement;root.style.setProperty('--nimbus-accent',d.accent||'#6d5dfc');root.style.setProperty('--nimbus-accent-2',d.accent2||'#22b8cf');root.style.setProperty('--nimbus-radius',(d.radius||18)+'px');document.body.style.fontFamily=`"${d.font||'Plus Jakarta Sans'}",Inter,system-ui,sans-serif`;document.body.dataset.nimbusDensity=d.density||'balanced';}catch(e){}})();</script>
 </body>
 </html>
