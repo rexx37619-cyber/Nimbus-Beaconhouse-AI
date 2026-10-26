@@ -1,6 +1,6 @@
 import {allowedOrigin,jsonBody,requestSupabase,currentSession,storeSession,clearSession,fail} from '../lib/nimbus-secure-core.js';
 const validEmail=e=>typeof e==='string' && e.length<=254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-const validGrade=(role,grade)=>role==='teacher' ? grade==='' : /^(?:[1-9]|1[0-2]|college-1|college-2|other)$/.test(grade);
+const validGrade=(role,grade)=>role==='teacher' ? grade==='' : /^[1-8]$/.test(grade);
 
 export default async function handler(req,res) {
  res.setHeader('Cache-Control','no-store');
@@ -17,7 +17,7 @@ export default async function handler(req,res) {
   if(action==='logout') { const session=await currentSession(req,res); if(session)await requestSupabase('/auth/v1/logout',{method:'POST',token:session.access});clearSession(req,res);return res.status(200).json({ok:true}); }
   if(!['signup','signin'].includes(action))return fail(res,400,'INVALID_ACTION');
   const email=String(b.email||'').trim().toLowerCase(),password=b.password;
-  if(!validEmail(email)||typeof password!=='string'||password.length<10||password.length>128)return fail(res,400,'INVALID_CREDENTIAL_FORMAT');
+  if(!validEmail(email)||typeof password!=='string'||password.length<6||password.length>128)return fail(res,400,'INVALID_CREDENTIAL_FORMAT');
   if(action==='signup') {
    const role=String(b.role||'student'),grade=String(b.grade||'');
    if(!['student','teacher'].includes(role)||!validGrade(role,grade))return fail(res,400,'INVALID_PROFILE');

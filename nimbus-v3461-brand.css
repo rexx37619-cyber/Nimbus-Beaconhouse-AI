@@ -1,0 +1,23 @@
+/* Nimbus V34.6.1 — purely visual changes. No backend or account logic. */
+/* Main logo: preserve its complete text when space permits. */
+#sidebar .brand img,.login-brand img,.nu-intro img,.nu-ai-head img,
+.welcome-logo img,.agent-avatar img,.model-logo,
+.premium-hero img,.info-person img {object-fit:contain!important;background:#fff!important;}
+/* Compact brand marks have already been cropped from the supplied logo. */
+#sidebar .brand img,.model-logo,.agent-avatar img {padding:2px;}
+/* The second supplied image replaces the old owl thinking artwork. */
+#messages .nu-inline-thinking-content {display:inline-flex;gap:11px;align-items:center;}
+#messages .nu-inline-owl {display:grid;place-items:center;width:48px;height:48px;border-radius:12px;background:#fff!important;overflow:hidden;animation:nimbusV3461BrainFloat 2.1s ease-in-out infinite!important;}
+#messages .nu-inline-owl img {width:45px!important;height:45px!important;object-fit:contain!important;}
+#messages .nu-inline-dots {display:flex;align-items:center;gap:6px;}
+#messages .nu-inline-dots i,.nu-mode-thinking-dots i {display:block;width:8px;height:8px;background:#0c71bd;border-radius:50%;animation:nimbusV3461DotFloat 1.35s ease-in-out infinite!important;}
+#messages .nu-inline-dots i:nth-child(2),.nu-mode-thinking-dots i:nth-child(2){animation-delay:.18s!important;}
+#messages .nu-inline-dots i:nth-child(3),.nu-mode-thinking-dots i:nth-child(3){animation-delay:.36s!important;}
+.nu-mode-thinking {margin:13px 0;align-self:flex-start;display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid #e4eaf4;border-radius:16px;max-width:fit-content;}
+.nu-mode-thinking-brain {display:block;width:51px;height:51px;object-fit:contain;animation:nimbusV3461BrainFloat 2.1s ease-in-out infinite;}
+.nu-mode-thinking-dots {display:flex;align-items:center;gap:6px;}
+@keyframes nimbusV3461DotFloat {0%,70%,100%{transform:translateY(0);opacity:.45}35%{transform:translateY(-7px);opacity:1}}
+@keyframes nimbusV3461BrainFloat {0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){#messages .nu-inline-owl,.nu-mode-thinking-brain,#messages .nu-inline-dots i,.nu-mode-thinking-dots i{animation:none!important;transform:none!important;opacity:1!important;}}
+/* Dashboard’s small icon is from the first user image; hero uses its full artwork. */
+.side .brand img,.brand img {object-fit:contain;}

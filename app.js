@@ -77,7 +77,7 @@ function renderModels(){
   menu.innerHTML=Object.values(MODELS).map(m=>`
     <button class="model-option ${m.id===state.model?'active':''}" data-model="${m.id}">
       <div><b>${escapeHtml(m.label)}</b><small>${escapeHtml(m.sub)}</small></div>
-      ${m.id===state.model?'<span>âœ“</span>':''}
+      ${m.id===state.model?'<span aria-hidden="true">&#10003;</span>':''}
     </button>
   `).join('')+
   `<div class="model-usage">
@@ -409,7 +409,6 @@ $('closeInfo').onclick=()=>$('infoModal').classList.add('hidden');
 $('infoModal').addEventListener('click',e=>{if(e.target===$('infoModal'))$('infoModal').classList.add('hidden')});
 
 // Sign out uses server-side cookies in nimbus-account-ui.js.
-$('ownerBtn').onclick=()=>{$('menuModal').classList.add('hidden');$('ownerModal').classList.remove('hidden');};
 $('closeOwner').onclick=()=>$('ownerModal').classList.add('hidden');
 $('ownerLogin').onclick=async()=>{$('ownerMsg').textContent='Checking your signed-in Nimbus account...';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
 
@@ -650,7 +649,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
           'border:1px solid rgba(124,92,255,.45);' +
           'background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(0,210,255,.12));' +
           'color:inherit;border-radius:10px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;' +
-          'white-space:nowrap;">XHigh â–¾</button>' +
+          'white-space:nowrap;">XHigh &#9662;</button>' +
 
           '<div id="nimbusSpeedMenuFinal" style="' +
           'display:none;position:absolute;right:0;bottom:calc(100% + 8px);' +
@@ -698,7 +697,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
 
         function syncSpeed(){
           if (!speedBtn) return;
-          speedBtn.textContent = speedLabel() + " â–¾";
+          speedBtn.textContent = speedLabel() + " \u25BE";
         }
 
         if (speedBtn && speedMenu) {

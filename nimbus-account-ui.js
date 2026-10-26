@@ -36,7 +36,7 @@
   if(busy)return;
   const address=email?.value.trim().toLowerCase(),pass=password?.value||'';
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address||'')){label('Enter a valid email address.',true);return;}
-  if(pass.length<10){label('Use a password with at least 10 characters.',true);return;}
+  if(pass.length<6){label('Use a password with at least 6 characters.',true);return;}
   const body={action,email:address,password:pass,role:role?.value||'student',grade:role?.value==='teacher'?'':grade?.value||''};
   busy=true;signin.disabled=true;signup.disabled=true;label(action==='signup'?'Creating account…':'Signing in…');
   try{

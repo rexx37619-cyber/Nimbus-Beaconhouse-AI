@@ -12,20 +12,17 @@
  };
  const thread=$('nuMessages'),scroller=$('nuConversation'),intro=$('nuIntro'),q=$('nuQuestion'),draft=$('nuDraft'),draftWrap=$('nuDraftWrap');
  const status=$('nuStatus'),send=$('nuSubmit'),visual=$('nuVisual');
- let mode='',working=false,challenge='',hints=[],hintIndex=0,lastTopic='',soundOn=true,controller=null;
+ let mode='',working=false,challenge='',hints=[],hintIndex=0,lastTopic='',controller=null;
  const storageKey=()=>`nimbus_learning_v34_${String((typeof state!=='undefined'?state.id:'')||'guest').slice(0,80).toLowerCase()}`;
  const readSessions=()=>{try{const data=JSON.parse(localStorage.getItem(storageKey())||'{}');return data&&typeof data==='object'&&!Array.isArray(data)?data:{}}catch{return {}}};
  const saveSessions=data=>{try{localStorage.setItem(storageKey(),JSON.stringify(data))}catch{}};
- const reduced=()=>!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
- let audioCtx;
- function chime(){if(!soundOn||reduced())return;try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;audioCtx ||=new Audio();audioCtx.resume().catch(()=>{});[784,1046.5].forEach((freq,i)=>{const t=audioCtx.currentTime+i*.1;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.frequency.value=freq;o.type='sine';g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.025,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.22);o.connect(g).connect(audioCtx.destination);o.start(t);o.stop(t+.23)})}catch{}}
  const keyNames={title:'Topic',strength:'What you did well',improve:'What to improve',nextQuestion:'Think about this',feedback:'Your reasoning',correction:'Correct fact',challenge:'Find the mistake',prompt:'Your task',setting:'Writing angle',conflict:'Central theme',vocabulary:'Useful vocabulary',writingTip:'Writing tip',refusal:'Nimbus'};
  function make(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el;}
  function setStatus(s,err=false){status.textContent=s;status.dataset.error=String(err)}
  function scroll(){scroller.scrollTop=scroller.scrollHeight}
  function addUser(message,persist=true){intro.hidden=true;const line=make('div','nu-bubble',message);line.dataset.role='user';thread.append(line);scroll();if(persist)saveRecord({role:'user',text:message})}
  function showField(parent,k,value){if(value===undefined||value===null||value==='')return;const card=make('div','nu-ai-field');card.append(make('strong','',keyNames[k]||k));card.append(make('p','',Array.isArray(value)?value.join(' · '):value));parent.append(card)}
- function showResult(result,save=true){intro.hidden=true;const bubble=make('div','nu-bubble');bubble.dataset.role='ai';const h=make('div','nu-ai-head');const logo=document.createElement('img');logo.src='/assets/nimbus-logo.png';logo.alt='';h.append(logo,make('span','','Nimbus • '+(modes[mode]?.name||'Learning')));bubble.append(h);
+ function showResult(result,save=true){intro.hidden=true;const bubble=make('div','nu-bubble');bubble.dataset.role='ai';const h=make('div','nu-ai-head');const logo=document.createElement('img');logo.src='/assets/nimbus-v3461-icon.webp';logo.alt='';h.append(logo,make('span','','Nimbus • '+(modes[mode]?.name||'Learning')));bubble.append(h);
   if(result.refusal){showField(bubble,'refusal',result.refusal)}
   else if(mode==='hint_ladder'&&Array.isArray(result.hints)){
     hints=result.hints.slice(0,3);hintIndex=0;
@@ -37,11 +34,26 @@
   }else{
     for(const [k,v] of Object.entries(result)){if(k==='hints')continue;showField(bubble,k,v)}
   }
-  thread.append(bubble);scroll();if(save){saveRecord({role:'ai',result,mode});chime();}
+  thread.append(bubble);scroll();if(save){saveRecord({role:'ai',result,mode});}
  }
  function saveRecord(record){if(!mode)return;const sessions=readSessions();const list=Array.isArray(sessions[mode])?sessions[mode]:[];list.push(record);sessions[mode]=list.slice(-32);saveSessions(sessions)}
  function renderModeHistory(){thread.replaceChildren();intro.hidden=false;const list=readSessions()[mode]||[];for(const item of list){if(item.role==='user')addUser(item.text,false);else if(item.role==='ai')showResult(item.result||{},false)}scroll()}
- function busy(on){working=on;send.disabled=on||!mode;visual.disabled=on||!mode;q.disabled=on||!mode;draft.disabled=on;send.textContent=on?'Nimbus is thinking…':buttonLabel()}
+ function busy(on){
+  working=on;send.disabled=on||!mode;visual.disabled=on||!mode;q.disabled=on||!mode;draft.disabled=on;
+  send.textContent=on?'Nimbus is thinking…':buttonLabel();
+  let loader=thread.querySelector('.nu-mode-thinking');
+  if(on){
+    if(!loader){
+      loader=make('div','nu-mode-thinking');loader.setAttribute('role','status');
+      loader.setAttribute('aria-label','Nimbus is thinking');
+      const pic=make('img','nu-mode-thinking-brain');pic.src='/assets/nimbus-v3461-brain.webp';pic.alt='';pic.setAttribute('aria-hidden','true');
+      const dots=make('span','nu-mode-thinking-dots');dots.setAttribute('aria-hidden','true');
+      for(let i=0;i<3;i++)dots.append(make('i'));
+      loader.append(pic,dots);thread.append(loader);
+    }
+    scroll();
+  }else if(loader){loader.remove();}
+ }
  function buttonLabel(){if(!mode)return'Select a mode first';if(mode==='find_mistake'&&challenge)return'Check my reasoning ↑';if(mode==='creative_writing')return'Get writing ideas ↑';return modes[mode].btn+' ↑'}
  function choose(next){if(!modes[next])return;controller?.abort();controller=null;mode=next;challenge='';hints=[];hintIndex=0;q.value='';draft.value='';
   panel.querySelectorAll('[data-nu-mode]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.nuMode===mode)));
@@ -58,7 +70,6 @@
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden)hide()});
  ['newChat','clearChat','clearAll','premiumModelsBtn'].forEach(id=>$(id)?.addEventListener('click',hide));
  $('chatHistory')?.addEventListener('click',e=>{if(e.target.closest('.history-item'))hide()});
- $('nuSoundBtn')?.addEventListener('click',e=>{soundOn=!soundOn;e.currentTarget.textContent=soundOn?'♫ Sound on':'♫ Sound off';e.currentTarget.setAttribute('aria-pressed',String(soundOn));if(soundOn)chime()});
  $('nuClearHistory')?.addEventListener('click',()=>{if(!mode||!window.confirm('Clear this learning mode’s history?'))return;const data=readSessions();delete data[mode];saveSessions(data);challenge='';renderModeHistory();setStatus('Learning history cleared.')});
  draft.addEventListener('input',()=>{if(!working)send.textContent=buttonLabel()});
  const errorLabel=(code,http,prov)=>({GEMINI_KEY_MISSING:'Gemini credentials are missing in this environment.',GEMINI_BUSY:'Gemini is busy or rate-limited. Please try later.',LEARNING_TIMEOUT:'Gemini took too long. Try a shorter question.',LEARNING_RATE_LIMIT:'Too many learning requests. Try again later.',INVALID_MODEL_RESPONSE:'Gemini gave an incomplete reply. Please retry.',LEARNING_ALL_MODELS_UNAVAILABLE:'All configured Gemini models failed. See Vercel logs.',GEMINI_CONFIGURATION_ERROR:'Gemini access or request configuration was rejected.',INVALID_MODE_ACTION:'Choose a valid learning mode.',NIMBUS_SIGN_IN_REQUIRED:'Sign in to Nimbus first.',NIMBUS_DAILY_LIMIT_REACHED:'Your daily allowance is used. Try again after the UTC reset.'}[code]||((http===404)?'Learning API not deployed at /api/learning-v31.':'Learning guidance unavailable'+(prov?' (provider HTTP '+prov+')':'')+'.'));
@@ -78,7 +89,6 @@
    showResult(data.result||{});window.nimbusRefreshQuota?.().catch(()=>{});setStatus('Guidance ready. Keep exploring.');
   }catch(err){if(err?.name!=='AbortError')setStatus(errorLabel(err.code,err.http,err.provider_status),true)}finally{controller=null;busy(false)}
  }
- $('nuForm')?.addEventListener('submit',()=>{if(!soundOn)return;try{const A=window.AudioContext||window.webkitAudioContext;if(A){audioCtx ||=new A();audioCtx.resume().catch(()=>{})}}catch{}},{capture:true});
  $('nuForm')?.addEventListener('submit',submit);
  visual?.addEventListener('click',async()=>{if(!mode||working)return;const topic=q.value.trim()||lastTopic;if(!topic){setStatus('Enter a topic before requesting a visual.',true);return}
   if(!window.confirm('Generate one educational visual using Cloudflare Workers AI credits?'))return;
@@ -86,7 +96,7 @@
   try{
    const r=await fetch('/api/visual-pollinations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:topic+' — educational illustration relevant to '+modes[mode].name}),signal:controller.signal});const d=await r.json();
    if(!r.ok||!d.ok||!d.data||!/^image\/(png|jpeg|webp)$/.test(d.mimeType))throw Object.assign(Error('Visual error'),{code:d.error_code,http:r.status,provider_status:d.provider_status});
-   intro.hidden=true;const node=make('div','nu-bubble');node.dataset.role='ai';const img=document.createElement('img');img.className='nu-image';img.src='data:'+d.mimeType+';base64,'+d.data;img.alt='Educational illustration for '+topic;node.append(make('div','nu-ai-head','✦ Nimbus visual · '+(d.model||'Cloudflare Workers AI')),img);thread.append(node);scroll();setStatus('Visual ready.');chime();
+   intro.hidden=true;const node=make('div','nu-bubble');node.dataset.role='ai';const img=document.createElement('img');img.className='nu-image';img.src='data:'+d.mimeType+';base64,'+d.data;img.alt='Educational illustration for '+topic;node.append(make('div','nu-ai-head','✦ Nimbus visual · '+(d.model||'Cloudflare Workers AI')),img);thread.append(node);scroll();setStatus('Visual ready.');
   }catch(err){if(err?.name!=='AbortError')setStatus('Visual unavailable: '+(err.code||'NETWORK_ERROR')+(err.provider_status?' (provider HTTP '+err.provider_status+')':''),true)}finally{controller=null;busy(false)}
  });
  // Keep the existing, initialized model picker: move the DOM node, not its listeners.
@@ -137,7 +147,7 @@
   row.className='message ai nu-inline-thinking';
   row.setAttribute('role','status');
   row.setAttribute('aria-label','Nimbus is preparing a reply');
-  row.innerHTML='<div class="nu-inline-thinking-content"><span class="nu-inline-owl" aria-hidden="true"><img src="/assets/nimbus-thinking-owl.png" alt=""></span><span class="nu-inline-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="nu-sr-only">Nimbus is thinking</span></div>';
+  row.innerHTML='<div class="nu-inline-thinking-content"><span class="nu-inline-owl" aria-hidden="true"><img src="/assets/nimbus-v3461-brain.webp" alt=""></span><span class="nu-inline-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="nu-sr-only">Nimbus is thinking</span></div>';
   function reconcile(){
     const visible=!agent.classList.contains('hidden') && !app?.classList.contains('nu-workspace-active');
     if(visible){
