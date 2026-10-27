@@ -21,3 +21,6 @@
 @media (prefers-reduced-motion:reduce){#messages .nu-inline-owl,.nu-mode-thinking-brain,#messages .nu-inline-dots i,.nu-mode-thinking-dots i{animation:none!important;transform:none!important;opacity:1!important;}}
 /* Dashboard’s small icon is from the first user image; hero uses its full artwork. */
 .side .brand img,.brand img {object-fit:contain;}
+
+/* V34.6.2 - hide obsolete speed pickers; the server always charges one shared RPD. */
+#nimbusSpeedControlFinal,#nimbusMotionSpeedWrap,#nimbusSpeedBtnClean,.nimbus-speed-v7,.nimbus-speed-v9,.nimbus-speed-v10,[data-clean-speed]{display:none!important}

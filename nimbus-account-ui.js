@@ -42,7 +42,7 @@
   try{
    const {r,d}=await api('/api/nimbus-account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
    if(!r.ok||!d.ok){label(({
-     INVALID_LOGIN:'Email or password was not accepted.',EMAIL_VERIFICATION_REQUIRED:'Verify your email before signing in.',SIGNUP_REJECTED:'Account creation was not accepted.',INVALID_PROFILE:'Select a valid account type and grade.',ACCOUNT_SERVICE_UNAVAILABLE:'Account service not yet configured.'
+     INVALID_LOGIN:'Email or password was not accepted.',EMAIL_VERIFICATION_REQUIRED:'Verify your email before signing in.',SIGNUP_REJECTED:'Sign-up was not accepted. Check your email details and contact the Nimbus administrator if it continues.',SIGNUP_EMAIL_RATE_LIMIT:'Verification emails are temporarily limited. Please try later.',SIGNUP_EMAIL_NOT_AUTHORIZED:'Email verification is restricted by the current mail provider. The Nimbus administrator needs to configure email delivery.',INVALID_PROFILE:'Select a valid account type and grade.',ACCOUNT_SERVICE_UNAVAILABLE:'Account service not yet configured.'
    })[d.error_code]||'Account request failed. Try again later.',true);return;}
    password.value='';
    if(action==='signup'){label('Check your email for confirmation, then return here to sign in.');return;}

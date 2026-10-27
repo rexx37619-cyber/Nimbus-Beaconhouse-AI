@@ -1,12 +1,13 @@
 import { reserveRpd, allowedOrigin } from '../lib/nimbus-secure-core.js';
 import { guidedEducation } from '../lib/nimbus-guided.js';
+import { generateDynamicGuide, numericMathRequest } from '../lib/nimbus-dynamic-guide.js';
 import { safetyReview, safeGeneratedText, GEMINI_STUDENT_SAFETY } from '../lib/nimbus-safety.js';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Nimbus 4.5 ROR: pin supported Gemini endpoints. Old 2.5-Lite returns MODEL_NOT_FOUND for new accounts.
 const PRIMARY_MODEL = 'gemini-3.5-flash-lite';
 const FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 const THIRD_MODEL = '';
-const DAILY_LIMIT = Number(process.env.NIMBUS_DAILY_LIMIT || 1500);
+const DAILY_LIMIT = 50; // global across verified accounts; DB RPC is authority
 const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CHARS = 14000;
@@ -986,6 +987,7 @@ export default async function handler(req, res) {
     const userText = visualText || previousVisualTopic || rawText;
 
     if (standaloneVisualOnly) return res.status(200).json({ok:true,reply:'Visual generation is currently disabled. I can help with written study hints instead.',auto_visual:false,visual:null,question_type:'visual_disabled',request_id:requestId});
+    if(numericMathRequest(userText))return res.status(200).json({ok:true,reply:'Nimbus helps with mathematical vocabulary and concepts, not numerical calculations. Ask about a term, property, or geometry idea.',question_type:'math_vocabulary',auto_visual:false,visual:null,limit:DAILY_LIMIT,request_id:requestId});
     if (standaloneVisualOnly) {
       const visualTopic = previousVisualTopic || 'the previous study topic';
       const badVisual = safetyReview(visualTopic,'visual');
@@ -1005,41 +1007,27 @@ export default async function handler(req, res) {
         request_id: requestId
       });
     }
-    // V34.1: education guard runs before free-form Gemini routing.
-    // Never forward a completed model answer or story into the student guide.
-    const educationGuide = guidedEducation(userText, body);
-    if (educationGuide) {
-      return res.status(200).json({
-        ok: true,
-        reply: educationGuide.reply,
-        question_type: 'educational',
-        education_subject: educationGuide.subject,
-        auto_visual: visualRequested,
-        visual: visualRequested ? visualPayload(userText, '') : null,
-        model: body.model || 'ror',
-        backend_model: 'guided-learning-router',
-        source_status: 'local',
-        sources: [],
-        limit: DAILY_LIMIT,
-        request_id: requestId
-      });
-    }
+    // V34.6.2: no generic topic packs. One model-generated, validated
+    // scaffold per question, including the first "Help me write" request.
     const explicitWriting = hasWrittenAnswerIntent(userText);
     const activeTaskMode = normalizeTaskMode(body?.task_mode);
     const autoAcademic = nimbusShouldScaffoldAcademic(userText);
-    // Preserve an ongoing quiz/study plan/file session unless writing was explicitly requested.
-    const writtenAnswerRequest = explicitWriting || (autoAcademic && !['quiz', 'study_plan', 'study_file'].includes(activeTaskMode));
-    // V34.3: a recognized academic request must never fall through to Gemini's
-    // older factual 'Example Answer' / 'Key Fact' generator.
+    const oldSubject = guidedEducation(userText, body)?.subject || '';
+    const academicStart = /^(?:help me write (?:this|an?) answer\s*[:.-]?\s*)?(?:what|who|how|why|when|where|which|explain|describe|compare|define|discuss)\b/i.test(userText);
+    const notAcademicTask = ['quiz','study_plan','study_file'].includes(activeTaskMode);
+    const projectQuestion = /\b(nimbus|beams|bisc|ilap|learner agency paradigm|beaconhouse)\b/i.test(userText);
+    const writtenAnswerRequest = !notAcademicTask && !projectQuestion &&
+      (Boolean(oldSubject) || explicitWriting || autoAcademic || academicStart);
     if (writtenAnswerRequest) {
-      const safeScaffold=guidedEducation(userText,{...body,forceEducation:true});
-      if (safeScaffold) return res.status(200).json({
-        ok:true, reply:safeScaffold.reply,question_type:'educational',
-        education_subject:safeScaffold.subject,auto_visual:visualRequested,
-        visual:visualRequested?visualPayload(userText,''):null,
-        model:body.model||'ror',backend_model:'guided-learning-router',
-        source_status:'local',sources:[],limit:DAILY_LIMIT,request_id:requestId
-      });
+      if(numericMathRequest(userText))return res.status(200).json({ok:true,reply:'Nimbus focuses on mathematical vocabulary and concepts, not numerical answers. Ask me about a mathematical term or geometry idea.',question_type:'math_vocabulary',auto_visual:false,visual:null,limit:DAILY_LIMIT,request_id:requestId});
+      try {
+        const dyn=await generateDynamicGuide({question:userText,history:Array.isArray(body.history)?body.history:[],apiKey,model:body.model==='legacy'?FALLBACK_MODEL:PRIMARY_MODEL,safetySettings:GEMINI_STUDENT_SAFETY});
+        if(!safeGeneratedText(dyn.reply))return res.status(200).json({ok:true,reply:'Nimbus can help you explore a safer learning topic.',question_type:'safety',auto_visual:false,visual:null,request_id:requestId});
+        return res.status(200).json({ok:true,reply:dyn.reply,question_type:'educational',education_subject:dyn.subject,backend_model:'topic-aware-guide',auto_visual:false,visual:null,limit:DAILY_LIMIT,request_id:requestId});
+      } catch (error) {
+        console.error('[Nimbus guide]',requestId,error?.message||'model unavailable');
+        return res.status(200).json({ok:false,reply:'Nimbus could not prepare a topic-specific guide right now. Please retry shortly.',error_code:'GUIDE_TEMPORARILY_UNAVAILABLE',auto_visual:false,visual:null,limit:DAILY_LIMIT,request_id:requestId});
+      }
     }
     const taskMode = writtenAnswerRequest
       ? ''
@@ -1167,8 +1155,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ok:true,reply:'Nimbus can help with a safe, age-appropriate alternative.',question_type:'safety',error_code:'UNSAFE_MODEL_OUTPUT',auto_visual:false,visual:null,request_id:requestId});
     }
     if (questionType === 'educational') {
-      const postGuide = guidedEducation(userText,body);
-      answer = postGuide?.reply || ['General Studies · Thinking guide','','Starting point: Identify exactly what the question asks.','','Thinking hint: Which idea from your notes could help?','','Study tip: Look for evidence before making a claim.','','Your turn: Write your first reasoning step.'].join('\n');
+      // If an uncommon question reaches this branch, do not return canned keywords.
+      try {
+        const dyn=await generateDynamicGuide({question:userText,history:Array.isArray(body.history)?body.history:[],apiKey,model:usedModel,safetySettings:GEMINI_STUDENT_SAFETY});
+        answer=dyn.reply;
+      } catch {
+        answer='Nimbus could not create a topic-specific learning guide right now. Please retry.';
+      }
     }
 
     return res.status(200).json({

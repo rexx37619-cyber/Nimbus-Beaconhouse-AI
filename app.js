@@ -5,7 +5,7 @@ const MODELS={
 
 const RESOURCES=[['Nimbus Learning Studio','/'],['Study and quiz tools','/'],['Nimbus dashboard','/nimbus-dashboard.html']];
 
-const USAGE_LIMIT=1500;
+const USAGE_LIMIT=50;
 const usageKey=()=>`nimbus_usage_24h_${String(state.id||'anonymous').toLowerCase()}`;
 function readUsageWindow(){
   try{
@@ -81,8 +81,8 @@ function renderModels(){
     </button>
   `).join('')+
   `<div class="model-usage">
-      <div><span>Daily usage</span><b id="menuUsageText">${state.used.toLocaleString()} / 1,500 RPD</b></div>
-      <div class="usage-track"><div id="menuUsageBar" class="usage-bar" style="width:${Math.min(100,(state.used/1500)*100)}%"></div></div>
+      <div><span>Daily usage</span><b id="menuUsageText">${state.used.toLocaleString()} / 50 RPD</b></div>
+      <div class="usage-track"><div id="menuUsageBar" class="usage-bar" style="width:${Math.min(100,(state.used/50)*100)}%"></div></div>
    </div>`;
   $('activeModelLabel').textContent=activeModel().label;
   updateUsage();
@@ -295,7 +295,7 @@ async function sendMessage(text){
       consumeLocalUsage();
       return;
     }
-    r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',model:state.model,attachment,speed_mode:state.speedMode||'xhigh',client_request_id:crypto.randomUUID()})});
+    r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',model:state.model,attachment,speed_mode:'xhigh',client_request_id:crypto.randomUUID()})});
     data=await r.json().catch(()=>({}));
     // The server may report a count when available; the client also maintains a 24-hour per-educational-ID window.
     if(data.usage && typeof data.usage.used==='number')updateUsage(data.usage.used);
@@ -305,8 +305,8 @@ async function sendMessage(text){
       if(r.status===429){add('ai','Daily limit reached. Please try again after the UTC reset.');return;}
       throw new Error(data.message||data.error_code||'Nimbus request failed.');
     }
-    if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||1500} of ${data.limit||1500} requests today.`);return;}
-    let reply=data.visual_only?'':(data.reply||'Nimbus did not return a response.');
+    if(data.limit_reached){add('ai',`Daily limit reached. You have used ${data.used||50} of ${data.limit||50} requests today.`);return;}
+    let reply=data.visual_only?'':(data.reply||'Nimbus could not prepare this response. Please retry your question.');
     if(explicitVisualRequest && data.visual?.prompt){
       const vtype=data.visual?.type||(/flowchart|steps|process|sequence/i.test(text)?'flowchart':'diagram');
       const vtitle=data.visual?.title||'Study visual';
@@ -523,7 +523,7 @@ $('premiumComposer').addEventListener('submit',async e=>{
 
             payload.model = state.model || payload.model || "ror";
             payload.memory_enabled = true;
-            payload.speed_mode = state.speedMode || "xhigh";
+            payload.speed_mode = "xhigh";
             payload.chat_id = state.currentChatId || payload.chat_id || "";
 
             var all = Array.isArray(state.messages)

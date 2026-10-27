@@ -22,7 +22,13 @@ export default async function handler(req,res) {
    const role=String(b.role||'student'),grade=String(b.grade||'');
    if(!['student','teacher'].includes(role)||!validGrade(role,grade))return fail(res,400,'INVALID_PROFILE');
    const r=await requestSupabase('/auth/v1/signup',{method:'POST',payload:{email,password,data:{account_type:role,grade}}});
-   if(!r.ok)return fail(res,400,'SIGNUP_REJECTED');
+   if(!r.ok){
+    const code=String(r.data?.code||r.data?.error_code||'');
+    const msg=String(r.data?.msg||r.data?.message||r.data?.error_description||'');
+    if(r.status===429||/rate.limit|too.many/i.test(code+' '+msg))return fail(res,429,'SIGNUP_EMAIL_RATE_LIMIT');
+    if(/email_address_not_authorized/i.test(code)||/not.authorized/i.test(msg))return fail(res,403,'SIGNUP_EMAIL_NOT_AUTHORIZED');
+    return fail(res,400,'SIGNUP_REJECTED');
+   }
    // Supabase 'Confirm email' must be ON. Never issue a cookie until verified.
    return res.status(200).json({ok:true,confirmation_required:true,message:'Check your email to verify your Nimbus account before signing in.'});
   }

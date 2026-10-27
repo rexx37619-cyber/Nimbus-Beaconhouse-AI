@@ -22,7 +22,7 @@
  function scroll(){scroller.scrollTop=scroller.scrollHeight}
  function addUser(message,persist=true){intro.hidden=true;const line=make('div','nu-bubble',message);line.dataset.role='user';thread.append(line);scroll();if(persist)saveRecord({role:'user',text:message})}
  function showField(parent,k,value){if(value===undefined||value===null||value==='')return;const card=make('div','nu-ai-field');card.append(make('strong','',keyNames[k]||k));card.append(make('p','',Array.isArray(value)?value.join(' · '):value));parent.append(card)}
- function showResult(result,save=true){intro.hidden=true;const bubble=make('div','nu-bubble');bubble.dataset.role='ai';const h=make('div','nu-ai-head');const logo=document.createElement('img');logo.src='/assets/nimbus-v3461-icon.webp';logo.alt='';h.append(logo,make('span','','Nimbus • '+(modes[mode]?.name||'Learning')));bubble.append(h);
+ function showResult(result,save=true){intro.hidden=true;const bubble=make('div','nu-bubble');bubble.dataset.role='ai';const h=make('div','nu-ai-head');h.append(make('span','','Nimbus • '+(modes[mode]?.name||'Learning')));bubble.append(h);
   if(result.refusal){showField(bubble,'refusal',result.refusal)}
   else if(mode==='hint_ladder'&&Array.isArray(result.hints)){
     hints=result.hints.slice(0,3);hintIndex=0;
@@ -77,7 +77,7 @@
   if(mode==='answer_coach'&&!answer){draft.focus();setStatus('Write your answer first for Answer Coach.',true);return}
   if(mode==='find_mistake'&&challenge&&!answer){draft.focus();setStatus('Explain the mistake you identified first.',true);return}
   const action=mode==='find_mistake'?(challenge?'check':'start'):mode==='answer_coach'?'review':'start';
-  const request={mode,action,question,draft:answer,challenge,speed_mode:state.speedMode||'xhigh',client_request_id:crypto.randomUUID()};lastTopic=question;addUser(question+(answer?'\n\nMy attempt: '+answer:''));
+  const request={mode,action,question,draft:answer,challenge,speed_mode:'xhigh',client_request_id:crypto.randomUUID()};lastTopic=question;addUser(question+(answer?'\n\nMy attempt: '+answer:''));
   controller=new AbortController();busy(true);setStatus('Nimbus is preparing guided feedback…');
   try{
    const response=await fetch('/api/learning-v31',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request),signal:controller.signal});
