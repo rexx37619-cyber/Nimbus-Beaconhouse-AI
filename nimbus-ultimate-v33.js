@@ -13,9 +13,9 @@
  const thread=$('nuMessages'),scroller=$('nuConversation'),intro=$('nuIntro'),q=$('nuQuestion'),draft=$('nuDraft'),draftWrap=$('nuDraftWrap');
  const status=$('nuStatus'),send=$('nuSubmit'),visual=$('nuVisual');
  let mode='',working=false,challenge='',hints=[],hintIndex=0,lastTopic='',controller=null;
- const storageKey=()=>`nimbus_learning_v34_${String((typeof state!=='undefined'?state.id:'')||'guest').slice(0,80).toLowerCase()}`;
- const readSessions=()=>{try{const data=JSON.parse(localStorage.getItem(storageKey())||'{}');return data&&typeof data==='object'&&!Array.isArray(data)?data:{}}catch{return {}}};
- const saveSessions=data=>{try{localStorage.setItem(storageKey(),JSON.stringify(data))}catch{}};
+ const storageKey=()=>`nimbus_local_learning_v3466`;
+ const readSessions=()=>{try{const data=JSON.parse(sessionStorage.getItem(storageKey())||'{}');return data&&typeof data==='object'&&!Array.isArray(data)?data:{}}catch{return {}}};
+ const saveSessions=data=>{try{sessionStorage.setItem(storageKey(),JSON.stringify(data))}catch{}};
  const keyNames={title:'Topic',strength:'What you did well',improve:'What to improve',nextQuestion:'Think about this',feedback:'Your reasoning',correction:'Correct fact',challenge:'Find the mistake',prompt:'Your task',setting:'Writing angle',conflict:'Central theme',vocabulary:'Useful vocabulary',writingTip:'Writing tip',refusal:'Nimbus'};
  function make(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el;}
  function setStatus(s,err=false){status.textContent=s;status.dataset.error=String(err)}
@@ -73,7 +73,7 @@
  $('nuClearHistory')?.addEventListener('click',()=>{if(!mode||!window.confirm('Clear this learning mode’s history?'))return;const data=readSessions();delete data[mode];saveSessions(data);challenge='';renderModeHistory();setStatus('Learning history cleared.')});
  draft.addEventListener('input',()=>{if(!working)send.textContent=buttonLabel()});
  const errorLabel=(code,http,prov)=>({GEMINI_KEY_MISSING:'Gemini credentials are missing in this environment.',GEMINI_BUSY:'Gemini is busy or rate-limited. Please try later.',LEARNING_TIMEOUT:'Gemini took too long. Try a shorter question.',LEARNING_RATE_LIMIT:'Too many learning requests. Try again later.',INVALID_MODEL_RESPONSE:'Gemini gave an incomplete reply. Please retry.',LEARNING_ALL_MODELS_UNAVAILABLE:'All configured Gemini models failed. See Vercel logs.',GEMINI_CONFIGURATION_ERROR:'Gemini access or request configuration was rejected.',INVALID_MODE_ACTION:'Choose a valid learning mode.',NIMBUS_SIGN_IN_REQUIRED:'Sign in to Nimbus first.',NIMBUS_DAILY_LIMIT_REACHED:'Your daily allowance is used. Try again after the UTC reset.'}[code]||((http===404)?'Learning API not deployed at /api/learning-v31.':'Learning guidance unavailable'+(prov?' (provider HTTP '+prov+')':'')+'.'));
- async function submit(e){e.preventDefault();if(!mode||working)return;const question=q.value.trim(),answer=draft.value.trim();if(!question){q.focus();setStatus('Enter your topic or question.',true);return}
+ async function submit(e){e.preventDefault();if(!mode||working)return; if(state.used>=50){setStatus('Local daily limit reached. Try tomorrow (UTC).',true);return;}const question=q.value.trim(),answer=draft.value.trim();if(!question){q.focus();setStatus('Enter your topic or question.',true);return}
   if(mode==='answer_coach'&&!answer){draft.focus();setStatus('Write your answer first for Answer Coach.',true);return}
   if(mode==='find_mistake'&&challenge&&!answer){draft.focus();setStatus('Explain the mistake you identified first.',true);return}
   const action=mode==='find_mistake'?(challenge?'check':'start'):mode==='answer_coach'?'review':'start';

@@ -1,4 +1,4 @@
-import { reserveRpd, allowedOrigin } from '../lib/nimbus-secure-core.js';
+import { reserveRpd, allowedOrigin } from '../lib/nimbus-public-guard.js';
 import { safetyReview, safeGeneratedText, GEMINI_STUDENT_SAFETY } from '../lib/nimbus-safety.js';
 // Nimbus Ultimate V33 — server-side learning modes; independent of main chat.
 // Tested with mocked Gemini response cases. Requires GEMINI_API_KEY for live operation.

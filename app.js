@@ -6,19 +6,11 @@ const MODELS={
 const RESOURCES=[['Nimbus Learning Studio','/'],['Study and quiz tools','/'],['Nimbus dashboard','/nimbus-dashboard.html']];
 
 const USAGE_LIMIT=50;
-const usageKey=()=>`nimbus_usage_24h_${String(state.id||'anonymous').toLowerCase()}`;
+const usageKey=()=>`nimbus_local_day_count_v3466`;
 function readUsageWindow(){
-  try{
-    const raw=localStorage.getItem(usageKey());
-    const d=raw?JSON.parse(raw):null;
-    const now=Date.now();
-    if(!d||!Number.isFinite(d.started)||now-d.started>=86400000){
-      const fresh={used:0,started:now}; localStorage.setItem(usageKey(),JSON.stringify(fresh)); return fresh;
-    }
-    return {used:Math.max(0,Number(d.used)||0),started:d.started};
-  }catch{return {used:0,started:Date.now()};}
+ try{const d=JSON.parse(localStorage.getItem(usageKey())||'null');const day=new Date().toISOString().slice(0,10);return {used:d?.day===day?Math.min(50,Math.max(0,Number(d.used)||0)):0,started:Date.parse(day+'T00:00:00Z')}}catch{return {used:0,started:Date.now()}}
 }
-function writeUsageWindow(d){try{localStorage.setItem(usageKey(),JSON.stringify(d));}catch{}}
+function writeUsageWindow(d){try{localStorage.setItem(usageKey(),JSON.stringify({day:new Date().toISOString().slice(0,10),used:d.used}))}catch{}}
 const state={
   id:'',
   messages:[],
@@ -35,17 +27,11 @@ const $=id=>document.getElementById(id);
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const escapeAttr=s=>escapeHtml(s).replace(/`/g,'&#96;');
 function activeModel(){return MODELS[state.model]||MODELS.ror}
-let nimbusSaveQueue=Promise.resolve();
 function saveChats(){
- const accountId=state.id;
- if(!accountId)return;
- const snapshot=JSON.stringify({chats:state.chats.slice(0,40)});
- nimbusSaveQueue=nimbusSaveQueue.catch(()=>{}).then(async()=>{
-  if(state.id!==accountId)return;
-  const res=await fetch('/api/nimbus-chats',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:snapshot});
-  if(!res.ok)throw new Error('Nimbus account chat sync failed: '+res.status);
- });
- nimbusSaveQueue.catch(error=>console.warn(error.message));
+ // Session-only, local to this browser tab; no server database and no personal email sent.
+ if(!state.id)return;
+ try{sessionStorage.setItem('nimbus_local_chats_v3466',JSON.stringify(state.chats.slice(0,40)))}
+ catch(e){console.warn('Nimbus local chat save unavailable',e)}
 }
 
 function renderHistory(){
@@ -62,7 +48,7 @@ function renderHistory(){
 function usageTimeLeft(){const left=Math.max(0,Date.parse(new Date().toISOString().slice(0,10)+'T00:00:00Z')+86400000-Date.now());const h=Math.floor(left/3600000),m=Math.floor((left%3600000)/60000);return `${h}h ${m}m`;}
 function updateUsage(used){
   if(typeof used==='number') state.used=Math.max(0,Math.min(USAGE_LIMIT,used));
-  // Authenticated usage is authoritative from the server.
+  writeUsageWindow({used:state.used}); // Local browser display, not global enforcement.
 
   const pct=Math.min(100,(state.used/USAGE_LIMIT)*100);
   $('usageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD`;
@@ -274,6 +260,7 @@ async function generateVisual(prompt,meta={}){
 }
 
 async function sendMessage(text){
+  if(state.used>=USAGE_LIMIT){add('ai','Local daily limit reached. Try tomorrow (UTC).');return}
   const explicitVisualRequest=/(?:^|\s)\/visual(?:\s|$)/i.test(String(text||''));
   const file=state.file;
   ensureChat(text||'Study file');
@@ -297,9 +284,8 @@ async function sendMessage(text){
     }
     r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',model:state.model,attachment,speed_mode:'xhigh',client_request_id:crypto.randomUUID()})});
     data=await r.json().catch(()=>({}));
-    // The server may report a count when available; the client also maintains a 24-hour per-educational-ID window.
-    if(data.usage && typeof data.usage.used==='number')updateUsage(data.usage.used);
-    else if(r.headers.get('X-Nimbus-Used'))updateUsage(Number(r.headers.get('X-Nimbus-Used')));
+    // Local 50/day usage is a browser indicator; server applies best-effort runtime limits.
+    if(r.headers.get('X-Nimbus-Used'))updateUsage(state.used+1);
     if(!r.ok){
       if(r.status===401){add('ai','Please sign in to Nimbus again.');return;}
       if(r.status===429){add('ai','Daily limit reached. Please try again after the UTC reset.');return;}
@@ -393,7 +379,7 @@ document.addEventListener('click',e=>{
   }
 });
 
-function syncAccount(){const name=state.accountProfile?.role==='teacher'?'Nimbus teacher':'Nimbus student';$('accountName').textContent=name;$('accountId').textContent=state.accountProfile?.email||'Nimbus account';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.accountProfile?.email||'Nimbus account';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
+function syncAccount(){const name=state.accountProfile?.guest?'Nimbus guest learner':state.accountProfile?.role==='teacher'?'Nimbus teacher':'Nimbus student';$('accountName').textContent=name;$('accountId').textContent=state.accountProfile?.email||'Nimbus account';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.accountProfile?.email||'Nimbus account';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
 
 // Nimbus V34.5 auth handlers are installed by nimbus-account-ui.js.
 

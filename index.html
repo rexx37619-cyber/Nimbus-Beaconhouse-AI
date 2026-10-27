@@ -51,6 +51,9 @@
 </style>
 <link rel="stylesheet" href="/nimbus-ultimate-v33.css">
 <link rel="stylesheet" href="/nimbus-v3461-brand.css">
+<style id="nimbus-v3465-captcha-style">
+#loginModal #enterNimbus:disabled{opacity:.65;cursor:wait}
+</style>
 <style id="nimbus-v34-4-no-visuals">#visualBtn,#nuVisual,#nuImproveBtn,.visual-btn,.visual-model-row{display:none!important;visibility:hidden!important;pointer-events:none!important}</style>
 </head>
 <body>
@@ -183,14 +186,11 @@
 <div id="loginModal" class="modal-backdrop">
  <div class="login-card">
   <div class="login-brand"><img src="/assets/nimbus-v3461-logo.webp" alt="Nimbus"><div><strong>Nimbus</strong><span>Educational AI</span></div></div>
-  <h2>Your Nimbus account</h2><p>Create a verified account or sign in to continue learning.</p>
-  <label for="eduId">Email address</label><input id="eduId" type="email" maxlength="254" placeholder="you@example.com" autocomplete="email" required>
-  <label for="nimbusPassword">Password (at least 6 characters)</label><input id="nimbusPassword" type="password" minlength="6" maxlength="128" autocomplete="current-password" required>
-  <label for="nimbusAccountRole">I am a</label><select id="nimbusAccountRole"><option value="student">Student</option><option value="teacher">Teacher</option></select>
-  <label for="nimbusAccountGrade">Grade (students only)</label><select id="nimbusAccountGrade"><option value="">Choose your grade</option><option value="1">Grade 1</option><option value="2">Grade 2</option><option value="3">Grade 3</option><option value="4">Grade 4</option><option value="5">Grade 5</option><option value="6">Grade 6</option><option value="7">Grade 7</option><option value="8">Grade 8</option></select>
-  <div class="nimbus-auth-buttons"><button id="enterNimbus" type="button" class="primary">Sign in</button><button id="nimbusSignUp" type="button" class="primary">Create account</button></div>
-  <p id="nimbusAuthStatus" role="status" aria-live="polite">Email confirmation is required for new accounts.</p>
-  <small>Your conversations are stored per account. Student/Teacher selection identifies the account; it does not grant special permissions.</small>
+  <h2>Welcome to Nimbus</h2><p>Enter an .edu.pk educational ID to start learning. No password, CAPTCHA or email link.</p>
+  <label for="eduId">Educational ID (.edu.pk)</label><input id="eduId" type="email" maxlength="254" placeholder="student@school.edu.pk" autocomplete="email" required>
+  <div class="nimbus-auth-buttons"><button id="enterNimbus" type="button" class="primary">Continue learning</button></div>
+  <p id="nimbusAuthStatus" role="status" aria-live="polite">Only the email format and .edu.pk domain are checked; the mailbox is not verified.</p>
+  <small>The ID is only checked for valid email format and the .edu.pk suffix. Chats stay in this browser tab and are not connected to a verified identity.</small>
  </div>
 </div>
 

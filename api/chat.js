@@ -1,4 +1,4 @@
-import { reserveRpd, allowedOrigin } from '../lib/nimbus-secure-core.js';
+import { reserveRpd, allowedOrigin } from '../lib/nimbus-public-guard.js';
 import { guidedEducation } from '../lib/nimbus-guided.js';
 import { generateDynamicGuide, numericMathRequest } from '../lib/nimbus-dynamic-guide.js';
 import { safetyReview, safeGeneratedText, GEMINI_STUDENT_SAFETY } from '../lib/nimbus-safety.js';
@@ -7,7 +7,7 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models
 const PRIMARY_MODEL = 'gemini-3.5-flash-lite';
 const FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 const THIRD_MODEL = '';
-const DAILY_LIMIT = 50; // global across verified accounts; DB RPC is authority
+const DAILY_LIMIT = 50; // best-effort server instance cap; NOT a durable global quota
 const SCIENCE_STORE_NAME = String(process.env.NIMBUS_SCIENCE_STORE || '').trim();
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CHARS = 14000;
