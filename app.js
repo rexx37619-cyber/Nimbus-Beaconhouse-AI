@@ -28,10 +28,8 @@ const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>'
 const escapeAttr=s=>escapeHtml(s).replace(/`/g,'&#96;');
 function activeModel(){return MODELS[state.model]||MODELS.ror}
 function saveChats(){
- // Session-only, local to this browser tab; no server database and no personal email sent.
  if(!state.id)return;
- try{sessionStorage.setItem('nimbus_local_chats_v3466',JSON.stringify(state.chats.slice(0,40)))}
- catch(e){console.warn('Nimbus local chat save unavailable',e)}
+ window.nimbusPersistChats?.(state.chats);
 }
 
 function renderHistory(){
@@ -48,7 +46,7 @@ function renderHistory(){
 function usageTimeLeft(){const left=Math.max(0,Date.parse(new Date().toISOString().slice(0,10)+'T00:00:00Z')+86400000-Date.now());const h=Math.floor(left/3600000),m=Math.floor((left%3600000)/60000);return `${h}h ${m}m`;}
 function updateUsage(used){
   if(typeof used==='number') state.used=Math.max(0,Math.min(USAGE_LIMIT,used));
-  writeUsageWindow({used:state.used}); // Local browser display, not global enforcement.
+  writeUsageWindow({used:state.used}); // Visible cache; server database enforces the global limit.
 
   const pct=Math.min(100,(state.used/USAGE_LIMIT)*100);
   $('usageText').textContent=`${state.used.toLocaleString()} / ${USAGE_LIMIT.toLocaleString()} RPD`;
@@ -82,7 +80,7 @@ function resetChat(){
 
 function ensureChat(text){
   if(state.currentChatId)return;
-  state.currentChatId=crypto.randomUUID?crypto.randomUUID():String(Date.now());localStorage.setItem('nimbus_current_chat_id',String(state.currentChatId));
+  state.currentChatId=crypto.randomUUID?crypto.randomUUID():String(Date.now());
   state.chats.unshift({id:state.currentChatId,title:text.slice(0,42)+(text.length>42?'...':''),messages:[]});
   saveChats(); renderHistory();
 }
@@ -197,7 +195,7 @@ function add(role,text,fileName){
 
 function loadChat(id){
   const c=state.chats.find(x=>x.id===id);if(!c)return;
-  state.currentChatId=id;localStorage.setItem('nimbus_current_chat_id',String(id));state.messages=c.messages||[];$('messages').innerHTML='';
+  state.currentChatId=id;state.messages=c.messages||[];$('messages').innerHTML='';
   state.messages.forEach(m=>renderMessage(m.role,m.text,m.fileName,false,false));
   if(state.messages.length){$('welcome').classList.add('hidden');$('messages').classList.add('show')}else{$('welcome').classList.remove('hidden');$('messages').classList.remove('show')}
   renderHistory();
@@ -260,7 +258,8 @@ async function generateVisual(prompt,meta={}){
 }
 
 async function sendMessage(text){
-  if(state.used>=USAGE_LIMIT){add('ai','Local daily limit reached. Try tomorrow (UTC).');return}
+  try{await window.nimbusRefreshQuota?.()}catch{}
+  if(state.used>=USAGE_LIMIT){add('ai','Daily shared limit reached. Try tomorrow (UTC).');return}
   const explicitVisualRequest=/(?:^|\s)\/visual(?:\s|$)/i.test(String(text||''));
   const file=state.file;
   ensureChat(text||'Study file');
@@ -284,7 +283,7 @@ async function sendMessage(text){
     }
     r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text||'',model:state.model,attachment,speed_mode:'xhigh',client_request_id:crypto.randomUUID()})});
     data=await r.json().catch(()=>({}));
-    // Local 50/day usage is a browser indicator; server applies best-effort runtime limits.
+    // Authoritative 50/day usage is charged atomically by the server.
     if(r.headers.get('X-Nimbus-Used'))updateUsage(state.used+1);
     if(!r.ok){
       if(r.status===401){add('ai','Please sign in to Nimbus again.');return;}
@@ -379,7 +378,7 @@ document.addEventListener('click',e=>{
   }
 });
 
-function syncAccount(){const name=state.accountProfile?.guest?'Nimbus guest learner':state.accountProfile?.role==='teacher'?'Nimbus teacher':'Nimbus student';$('accountName').textContent=name;$('accountId').textContent=state.accountProfile?.email||'Nimbus account';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.accountProfile?.email||'Nimbus account';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
+function syncAccount(){const name='Nimbus learner';$('accountName').textContent=name;$('accountId').textContent=state.accountProfile?.email||'Nimbus account';$('accountAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase();$('topAccount').textContent=(state.id||'B').slice(0,1).toUpperCase();$('menuName').textContent=name;$('menuId').textContent=state.accountProfile?.email||'Nimbus account';$('menuAvatar').textContent=(state.id||'B').slice(0,1).toUpperCase()}
 
 // Nimbus V34.5 auth handlers are installed by nimbus-account-ui.js.
 
@@ -398,7 +397,7 @@ $('infoModal').addEventListener('click',e=>{if(e.target===$('infoModal'))$('info
 $('closeOwner').onclick=()=>$('ownerModal').classList.add('hidden');
 $('ownerLogin').onclick=async()=>{$('ownerMsg').textContent='Checking your signed-in Nimbus account...';try{const r=await fetch('/api/admin-authorize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});const d=await r.json();if(!r.ok||!d.ok){$('ownerMsg').textContent=d.message||'Owner access denied.';return}$('ownerDashboard').classList.remove('hidden');$('ownerMsg').textContent='Owner email authorized.';$('ownerDashboard').innerHTML=`<div class="stats"><div class="stat"><span>MONTHLY REVENUE</span><b>$${Number(d.metrics.monthly_revenue||0).toLocaleString()}</b></div><div class="stat"><span>MESSAGES TODAY</span><b>${Number(d.metrics.messages_today||0).toLocaleString()}</b></div><div class="stat"><span>DAILY LIMIT / USER</span><b>${Number(d.metrics.daily_limit||1500).toLocaleString()}</b></div><div class="stat"><span>ACTIVE MODELS</span><b>${Number(d.metrics.active_models||2)}</b></div></div><div class="admin-section"><h3>Owner account</h3><p>${escapeHtml(d.email)} is on the server-side owner allowlist.</p></div>`}catch{$('ownerMsg').textContent='Server unavailable.'}};
 
-function init(){syncAccount();renderHistory();renderModels();$('loginModal').classList.remove('hidden');$('app').classList.add('hidden');}
+function init(){syncAccount();renderHistory();renderModels();$('loginModal').classList.add('hidden');$('app').classList.add('hidden');}
 init();
 
 

@@ -1,52 +1,90 @@
-/* Nimbus V34.6.6 — local learning ID only, no Supabase and no CAPTCHA. */
-(()=>{
- 'use strict';
- const $=id=>document.getElementById(id);
- const edu=$('eduId'),enter=$('enterNimbus'),notice=$('nimbusAuthStatus');
- const VALID=/^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+edu\.pk$/i;
- const LOGIN_KEY='nimbus_local_guest_v3466';
- const CHAT_KEY='nimbus_local_chats_v3466';
- const DAY_KEY='nimbus_local_day_count_v3466';
- const LEARN_KEY='nimbus_local_learning_v3466';
- const label=(message,bad=false)=>{if(notice){notice.textContent=message;notice.style.color=bad?'#b91c1c':'#334155'}};
- function usage(){
-  const day=new Date().toISOString().slice(0,10);
-  try{const parsed=JSON.parse(localStorage.getItem(DAY_KEY)||'null');if(parsed?.day===day)return Math.min(50,Math.max(0,Number(parsed.used)||0))}catch(_){}
-  return 0;
+/* Nimbus 34.7: persistent account sessions using an educational ID plus six-digit PIN; no email verification. */
+(()=>{'use strict';
+ const $=id=>document.getElementById(id),edu=$('eduId'),pin=$('nimbusPin'),status=$('nimbusAuthStatus');
+ const VALID=/^[a-z0-9._%+\-]+@(?:[a-z0-9-]+\.)+edu\.pk$/i;
+ let signedIn=false, pending=false, chatQueue=Promise.resolve(),learnQueue=Promise.resolve();
+ const loading=$('nimbusSessionLoading');const endLoading=()=>{loading?.remove()};
+ const closeOverlays=()=>{for(const id of ['menuModal','ownerModal','infoModal','premiumModal','modelMenu'])$(id)?.classList.add('hidden');};
+ const clearPin=()=>{if(pin)pin.value=''};
+ const notice=(msg,bad=false)=>{if(status){status.textContent=msg;status.style.color=bad?'#b91c1c':'#334155'}};
+ async function json(url,options){const res=await fetch(url,{credentials:'same-origin',cache:'no-store',...options});let data={};try{data=await res.json()}catch{}return {res,data}}
+ async function loadRemote(){
+  const [chats,learning,quota]=await Promise.all([json('/api/nimbus-chats?kind=chats'),json('/api/nimbus-chats?kind=learning'),json('/api/nimbus-quota')]);
+  if(!chats.res.ok||!learning.res.ok)throw new Error('Your saved history could not be loaded. Try signing in again.');
+  state.chats=Array.isArray(chats.data.chats)?chats.data.chats:[];
+  state.messages=[];state.currentChatId=null;
+  renderHistory();resetChat();
+  window.nimbusLearningImport?.(learning.data.learning&&typeof learning.data.learning==='object'?learning.data.learning:{});
+  if(quota.res.ok&&quota.data.ok)updateUsage(Number(quota.data.used)||0);
  }
- function setUsage(used){
-  const day=new Date().toISOString().slice(0,10);
-  localStorage.setItem(DAY_KEY,JSON.stringify({day,used:Math.max(0,Math.min(50,Number(used)||0))}));
-  updateUsage(Math.max(0,Math.min(50,Number(used)||0)));
+ async function activate(user){
+  state.id=String(user.email||'');state.accountProfile={email:state.id,role:'student',verified:false,passcode_account:true};
+  await loadRemote();syncAccount();signedIn=true;
+  closeOverlays();$('loginModal')?.classList.add('hidden');$('app')?.classList.remove('hidden');endLoading();
+  window.nimbusRefreshQuota?.().catch(()=>{});
  }
- window.nimbusRefreshQuota=async()=>({ok:true,used:usage(),remaining:50-usage(),limit:50,day:new Date().toISOString().slice(0,10),note:'Local display only; not a shared global count.'});
- window.nimbusSetLocalUsage=setUsage;
- function showSignedOut(message){
-  state.id='';state.accountProfile=null;state.chats=[];state.messages=[];state.currentChatId=null;
-  $('app')?.classList.add('hidden');$('loginModal')?.classList.remove('hidden');
-  $('messages')?.replaceChildren();renderHistory();if(message)label(message);
+ function showLogin(msg){
+  endLoading();signedIn=false;closeOverlays();clearPin();state.id='';state.accountProfile=null;state.messages=[];state.chats=[];state.currentChatId=null;
+  $('app')?.classList.add('hidden');$('loginModal')?.classList.remove('hidden');$('messages')?.replaceChildren();window.nimbusLearningImport?.({});renderHistory();
+  syncAccount();notice(msg||'Create an account or sign in to your existing account.');
  }
- function beginGuest(email,restoring=false){
-  if(!VALID.test(email)||email.length>254){label('Enter a valid email-shaped educational ID ending in .edu.pk.',true);return}
-  // A new entry starts a clean session and cannot access another ID's previous chats.
-  if(!restoring){sessionStorage.removeItem(CHAT_KEY);sessionStorage.removeItem(LEARN_KEY)}
-  sessionStorage.setItem(LOGIN_KEY,email);
-  state.id=email;state.accountProfile={email,role:'student',guest:true,verified:false};
-  state.chats=[];state.messages=[];state.currentChatId=null;
-  try{const raw=sessionStorage.getItem(CHAT_KEY);const saved=JSON.parse(raw||'[]');if(Array.isArray(saved))state.chats=saved.slice(0,40)}catch(_){}
-  syncAccount();resetChat();renderHistory();
-  $('loginModal')?.classList.add('hidden');$('app')?.classList.remove('hidden');
-  setUsage(usage());
+ function sendQueued(kind,value){
+  if(!signedIn)return Promise.resolve();
+  const queue=kind==='chats'?chatQueue:learnQueue;
+  const job=queue.catch(()=>{}).then(async()=>{const {res,data}=await json('/api/nimbus-chats?kind='+kind,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[kind]:value})});if(!res.ok)throw new Error(data.error_code||'History could not be saved.');});
+  if(kind==='chats')chatQueue=job;else learnQueue=job;
+  job.catch(e=>{console.warn('[Nimbus history]',e.message);notice('Saving history failed. Check your connection.',true)});
+  return job;
  }
- enter?.addEventListener('click',()=>beginGuest(String(edu?.value||'').trim().toLowerCase()));
- edu?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();beginGuest(String(edu?.value||'').trim().toLowerCase())}});
- $('signOut')?.addEventListener('click',()=>{
-  if(!confirm('Sign out and clear this tab\'s Nimbus conversations?'))return;
-  sessionStorage.removeItem(LOGIN_KEY);sessionStorage.removeItem(CHAT_KEY);sessionStorage.removeItem(LEARN_KEY);
-  state.chats=[];state.messages=[];state.currentChatId=null;
-  location.reload();
+ window.nimbusPersistChats=chats=>sendQueued('chats',JSON.parse(JSON.stringify(chats.slice(0,40))));
+ window.nimbusPersistLearning=learning=>sendQueued('learning',JSON.parse(JSON.stringify(learning)));
+ window.nimbusRefreshQuota=async()=>{const {res,data}=await json('/api/nimbus-quota');if(res.ok&&data.ok){updateUsage(data.used);return data}return null};
+ async function authenticate(action){if(pending)return;
+  const email=String(edu?.value||'').trim().toLowerCase();
+  const code=String(pin?.value||'').trim();
+  if(!VALID.test(email)||email.length>254){notice('Enter a valid educational ID ending in .edu.pk.',true);return}
+  if(!/^[0-9]{6}$/.test(code)){
+   const n=code.length;
+   notice(n===0?'Enter your six-digit passcode.':`Enter exactly six digits (currently ${n} characters). Only numbers 0-9 are accepted.`,true);
+   pin?.focus();return;
+  }
+  pending=true;const buttons=[$('nimbusSignUp'),$('nimbusSignIn')];buttons.forEach(b=>{if(b)b.disabled=true});notice('Connecting to your Nimbus account...');
+  try{const {res,data}=await json('/api/nimbus-account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,educational_id:email,passcode:code})});
+   if(!res.ok||!data.ok){notice(data.message||'Account request failed.',true);return}
+   try{await activate(data.user);clearPin()}catch(e){notice('Your account signed in, but history could not load. Refresh Nimbus or retry. '+e.message,true)}
+  }catch{notice('Unable to connect to Nimbus. Please try again.',true)}
+  finally{pending=false;buttons.forEach(b=>{if(b)b.disabled=false})}
+ }
+ const resetStaleError=()=>{if(!pending)notice('Choose Sign in for an existing account or Create account for a new ID.');};
+ edu?.addEventListener('input',resetStaleError);
+ pin?.addEventListener('input',resetStaleError);
+ $('nimbusSignUp')?.addEventListener('click',()=>authenticate('signup'));
+ $('nimbusSignIn')?.addEventListener('click',()=>authenticate('signin'));
+ pin?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();authenticate('signin')}});
+ $('signOut')?.addEventListener('click',async()=>{
+  if(pending||!signedIn)return;
+  if(!confirm('Sign out of Nimbus on this device?'))return;
+  pending=true;
+  const button=$('signOut');if(button)button.disabled=true;
+  closeOverlays();
+  try{
+   await Promise.allSettled([chatQueue,learnQueue]);
+   const {res,data}=await json('/api/nimbus-account',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signout'})
+   });
+   if(!res.ok||!data.ok){
+    alert(data.message||'Could not sign out. Please retry.');return;
+   }
+   window.nimbusLearningImport?.({});
+   showLogin('Signed out. Your conversations remain in your Nimbus account. Sign in with the original six-digit passcode.');
+  }catch{alert('Unable to reach Nimbus to sign out. Please retry.');}
+  finally{pending=false;if(button)button.disabled=false;}
  });
- const previous=sessionStorage.getItem(LOGIN_KEY)||'';
- if(VALID.test(previous)&&previous.length<=254){beginGuest(previous,true)}
- else showSignedOut('Enter an educational ID ending in .edu.pk. No ownership verification is performed.');
+ (async()=>{try{
+  const ctl=new AbortController();const timeout=setTimeout(()=>ctl.abort(),15000);
+  let response;
+  try{response=await json('/api/nimbus-account',{signal:ctl.signal})}finally{clearTimeout(timeout)}
+  if(response.res.ok&&response.data.user)await activate(response.data.user);
+  else showLogin('Enter your educational ID and six-digit passcode.');
+ }catch{showLogin('Cannot connect to the account service. Check your connection.')}})();
 })();

@@ -21,6 +21,10 @@
 #sidebar .nimbus-db-copy strong{font-size:13px!important;font-weight:700!important;letter-spacing:0!important;white-space:normal!important}
 #sidebar .nimbus-db-copy small{color:#64748b!important;font-size:10px!important;white-space:normal!important}
 #sidebar .nimbus-db-arrow{font-size:24px;line-height:1;color:#8b9ab0;flex:0 0 auto}
+#loginModal .nimbus-pin-warning{font-size:12px;color:#6b7280;line-height:1.5;margin:9px 0}
+#loginModal #nimbusPin{font-variant-numeric:tabular-nums;letter-spacing:2px}
+#loginModal .nimbus-auth-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#loginModal .nimbus-auth-buttons button{min-width:0}
 </style>
 <link rel="stylesheet" href="/nimbus-ui-polish-v27.css">
 
@@ -57,6 +61,7 @@
 <style id="nimbus-v34-4-no-visuals">#visualBtn,#nuVisual,#nuImproveBtn,.visual-btn,.visual-model-row{display:none!important;visibility:hidden!important;pointer-events:none!important}</style>
 </head>
 <body>
+<div id="nimbusSessionLoading" role="status" aria-live="polite" style="position:fixed;inset:0;display:grid;place-items:center;background:#f7f9fc;color:#203653;font:600 15px system-ui;z-index:999999">Restoring Nimbus session…</div>
 <div id="app" class="app hidden">
   <aside class="sidebar" id="sidebar">
     <div class="side-top">
@@ -183,14 +188,16 @@
   </main>
 </div>
 
-<div id="loginModal" class="modal-backdrop">
+<div id="loginModal" class="modal-backdrop hidden">
  <div class="login-card">
   <div class="login-brand"><img src="/assets/nimbus-v3461-logo.webp" alt="Nimbus"><div><strong>Nimbus</strong><span>Educational AI</span></div></div>
-  <h2>Welcome to Nimbus</h2><p>Enter an .edu.pk educational ID to start learning. No password, CAPTCHA or email link.</p>
-  <label for="eduId">Educational ID (.edu.pk)</label><input id="eduId" type="email" maxlength="254" placeholder="student@school.edu.pk" autocomplete="email" required>
-  <div class="nimbus-auth-buttons"><button id="enterNimbus" type="button" class="primary">Continue learning</button></div>
-  <p id="nimbusAuthStatus" role="status" aria-live="polite">Only the email format and .edu.pk domain are checked; the mailbox is not verified.</p>
-  <small>The ID is only checked for valid email format and the .edu.pk suffix. Chats stay in this browser tab and are not connected to a verified identity.</small>
+  <h2>Welcome to Nimbus</h2><p>Enter your educational ID and six-digit passcode to access your saved chats and Learning Studio history. No email verification required.</p>
+  <label for="eduId">Educational ID (.edu.pk)</label><input id="eduId" type="email" maxlength="254" placeholder="student@school.edu.pk" autocomplete="username" required>
+  <label for="nimbusPin">Your six-digit passcode</label><input id="nimbusPin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="off" placeholder="6 digits" required>
+  <div class="nimbus-auth-buttons"><button id="nimbusSignIn" type="button" class="primary">Sign in</button><button id="nimbusSignUp" type="button" class="primary">Create account</button></div>
+  <p class="nimbus-pin-warning">If your ID already has an account, use Sign in with its original six-digit passcode. Creating the account again will not replace the code. Keep your passcode private; Nimbus cannot recover it without verified identity.</p>
+  <p id="nimbusAuthStatus" role="status" aria-live="polite">Your ID must end in .edu.pk. Mailbox ownership is not verified.</p>
+  <small>Nimbus does not verify mailbox ownership. Save your passcode privately; your learning history is stored in your account.</small>
  </div>
 </div>
 

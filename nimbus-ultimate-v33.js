@@ -15,7 +15,8 @@
  let mode='',working=false,challenge='',hints=[],hintIndex=0,lastTopic='',controller=null;
  const storageKey=()=>`nimbus_local_learning_v3466`;
  const readSessions=()=>{try{const data=JSON.parse(sessionStorage.getItem(storageKey())||'{}');return data&&typeof data==='object'&&!Array.isArray(data)?data:{}}catch{return {}}};
- const saveSessions=data=>{try{sessionStorage.setItem(storageKey(),JSON.stringify(data))}catch{}};
+ const saveSessions=data=>{try{sessionStorage.setItem(storageKey(),JSON.stringify(data))}catch{};window.nimbusPersistLearning?.(data)};
+ window.nimbusLearningImport=data=>{const safe=data&&typeof data==='object'&&!Array.isArray(data)?data:{};try{sessionStorage.setItem(storageKey(),JSON.stringify(safe))}catch{};if(mode)renderModeHistory()};
  const keyNames={title:'Topic',strength:'What you did well',improve:'What to improve',nextQuestion:'Think about this',feedback:'Your reasoning',correction:'Correct fact',challenge:'Find the mistake',prompt:'Your task',setting:'Writing angle',conflict:'Central theme',vocabulary:'Useful vocabulary',writingTip:'Writing tip',refusal:'Nimbus'};
  function make(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el;}
  function setStatus(s,err=false){status.textContent=s;status.dataset.error=String(err)}

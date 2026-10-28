@@ -1,4 +1,4 @@
-import { reserveRpd, allowedOrigin } from '../lib/nimbus-public-guard.js';
+import { reserveRpd, originAllowed as allowedOrigin } from '../lib/nimbus-pin-core.js';
 import { guidedEducation } from '../lib/nimbus-guided.js';
 import { generateDynamicGuide, numericMathRequest } from '../lib/nimbus-dynamic-guide.js';
 import { safetyReview, safeGeneratedText, GEMINI_STUDENT_SAFETY } from '../lib/nimbus-safety.js';
