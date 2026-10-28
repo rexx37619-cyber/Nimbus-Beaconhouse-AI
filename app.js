@@ -257,15 +257,17 @@ async function generateVisual(prompt,meta={}){
   }
 }
 
+let nimbusChatSending=false;
 async function sendMessage(text){
-  try{await window.nimbusRefreshQuota?.()}catch{}
-  if(state.used>=USAGE_LIMIT){add('ai','Daily shared limit reached. Try tomorrow (UTC).');return}
+  // Set the lock synchronously, before any network request or awaited operation.
+  if(nimbusChatSending)return;
+  nimbusChatSending=true;
   const explicitVisualRequest=/(?:^|\s)\/visual(?:\s|$)/i.test(String(text||''));
   const file=state.file;
-  ensureChat(text||'Study file');
-  add('user',text||'Please analyse my attachment.',file?.name);
-  state.file=null;$('fileInput').value='';$('attachment').classList.add('hidden');$('sendBtn').disabled=true;setAgentThinking(true);$('messageInput').value='';$('messageInput').style.height='auto';
   try{
+    ensureChat(text||'Study file');
+    add('user',text||'Please analyse my attachment.',file?.name);
+    state.file=null;$('fileInput').value='';$('attachment').classList.add('hidden');$('sendBtn').disabled=true;setAgentThinking(true);$('messageInput').value='';$('messageInput').style.height='auto';
     if(!state.id){add('ai','Please sign in first.');return;}
     let attachment=null;
     if(file){
@@ -301,13 +303,14 @@ async function sendMessage(text){
       try{await generateVisual(prompt,{title:vtitle,type:vtype,keywords:vkeywords});}
       catch(e){console.warn('Visual generation failed',e);}
     }else if(reply) add('ai',reply);
-    await window.nimbusRefreshQuota?.();
+    // Refresh the usage display in the background; never hold Send open for it.
+    Promise.resolve().then(()=>window.nimbusRefreshQuota?.()).catch(()=>{});
   }catch(err){console.error(err);add('ai','I’m ready to help. Please try that again in a moment.');}
-  finally{$('sendBtn').disabled=false;setAgentThinking(false);}
+  finally{nimbusChatSending=false;$('sendBtn').disabled=false;setAgentThinking(false);}
 }
 
-$('composer').addEventListener('submit',e=>{e.preventDefault();const t=$('messageInput').value.trim();if(t||state.file)sendMessage(t)});
-$('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('composer').requestSubmit()}});
+$('composer').addEventListener('submit',e=>{e.preventDefault();if(nimbusChatSending)return;const t=$('messageInput').value.trim();if(t||state.file)sendMessage(t)});
+$('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!nimbusChatSending)$('composer').requestSubmit()}});
 $('messageInput').addEventListener('input',()=>{const el=$('messageInput');el.style.height='auto';el.style.height=Math.min(el.scrollHeight,150)+'px'});
 $('attachBtn').onclick=()=>$('fileInput').click();
 $('visualBtn').onclick=async()=>{
@@ -352,7 +355,7 @@ The artwork itself must communicate the concept visually.`,
 $('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`📎 <b>${escapeHtml(f.name)}</b> · ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">x</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
 
 document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('messageInput').value=b.dataset.prompt;$('messageInput').focus()});
-$('newChat').onclick=resetChat;$('clearChat').onclick=resetChat;$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
+$('newChat').onclick=resetChat;$('clearChat').onclick=()=>{const activeId=state.currentChatId;if(activeId){state.chats=state.chats.filter(chat=>chat.id!==activeId);saveChats();}resetChat();};$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
 
 $('modelPickerBtn').addEventListener('click',e=>{
   e.preventDefault();
