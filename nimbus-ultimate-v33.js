@@ -101,15 +101,10 @@
   }catch(err){if(err?.name!=='AbortError')setStatus('Visual unavailable: '+(err.code||'NETWORK_ERROR')+(err.provider_status?' (provider HTTP '+err.provider_status+')':''),true)}finally{controller=null;busy(false)}
  });
  // Keep the existing, initialized model picker: move the DOM node, not its listeners.
- function insertTools(){const top=document.querySelector('.topbar .top-left'),picker=$('modelPicker'),composer=$('composer'),speed=$('nimbusSpeedControlFinal'),sendMain=$('sendBtn');if(!top||!picker||!composer||!sendMain)return;
-  if(!$('nuStudyToolsBtn')){
-   const wrap=make('div','nu-study-tools-wrap');const btn=make('button','','Study Tools ▾');btn.id='nuStudyToolsBtn';btn.type='button';btn.setAttribute('aria-expanded','false');const menu=make('div','');menu.id='nuStudyMenu';menu.hidden=true;
-   [['Learning Studio','studio'],['Study plan','plan'],['Quiz','quiz'],['Study a file','file']].forEach(([label,act])=>{const b=make('button','',label);b.type='button';b.addEventListener('click',()=>{menu.hidden=true;btn.setAttribute('aria-expanded','false');if(act==='studio'){show();return}hide();const input=$('messageInput');if(!input)return;if(act==='plan')input.value='Help me make a study plan.';else if(act==='quiz')input.value='Quiz me one question at a time.';else{input.value='Help me study this attached file.';$('attachBtn')?.click()}input.focus()});menu.append(b)});
-   wrap.append(btn,menu);top.insertBefore(wrap,picker);btn.addEventListener('click',e=>{e.stopPropagation();menu.hidden=!menu.hidden;btn.setAttribute('aria-expanded',String(!menu.hidden))});document.addEventListener('click',e=>{if(!wrap.contains(e.target)){menu.hidden=true;btn.setAttribute('aria-expanded','false')}});
-  }
+ function positionModelPicker(){const top=document.querySelector('.topbar .top-left'),picker=$('modelPicker'),composer=$('composer'),speed=$('nimbusSpeedControlFinal'),sendMain=$('sendBtn');if(!top||!picker||!composer||!sendMain)return;
   if(!picker.classList.contains('nu-composer-model')){composer.insertBefore(picker,speed||sendMain);picker.classList.add('nu-composer-model')}
  }
- insertTools();
+ positionModelPicker();
  // V33.1 UI-only: move the existing model menu outside all clipped composer
  // containers. Keep the actual menu DOM node and its original event handlers.
  (function keepModelChoicesVisible(){

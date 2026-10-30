@@ -3,7 +3,7 @@ const MODELS={
   legacy:{id:'legacy',label:'Nimbus 0.24',sub:'Legacy Nimbus model'}
 };
 
-const RESOURCES=[['Nimbus Learning Studio','/'],['Study and quiz tools','/'],['Nimbus dashboard','/nimbus-dashboard.html']];
+const RESOURCES=[['Nimbus Learning Studio','/'],['Nimbus dashboard','/nimbus-dashboard.html']];
 
 const USAGE_LIMIT=50;
 const usageKey=()=>`nimbus_local_day_count_v3466`;
@@ -354,7 +354,6 @@ The artwork itself must communicate the concept visually.`,
 };
 $('fileInput').onchange=()=>{const f=$('fileInput').files[0];if(!f)return;state.file=f;$('attachment').classList.remove('hidden');$('attachment').innerHTML=`📎 <b>${escapeHtml(f.name)}</b> · ${(f.size/1024).toFixed(1)} KB <button id="removeAttachment" style="float:right;border:0;background:none">x</button>`;$('removeAttachment').onclick=()=>{$('fileInput').value='';state.file=null;$('attachment').classList.add('hidden')}};
 
-document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('messageInput').value=b.dataset.prompt;$('messageInput').focus()});
 $('newChat').onclick=resetChat;$('clearChat').onclick=()=>{const activeId=state.currentChatId;if(activeId){state.chats=state.chats.filter(chat=>chat.id!==activeId);saveChats();}resetChat();};$('clearAll').onclick=()=>{state.chats=[];saveChats();resetChat()};
 
 $('modelPickerBtn').addEventListener('click',e=>{
@@ -1681,157 +1680,24 @@ $('premiumComposer').addEventListener('submit',async e=>{
 })();
 
 
-/* NIMBUS_V18_1_HOME_ACTIONS */
+/* NIMBUS_V34_8_2_CHAT_SHORTCUT: no persistent task-mode override */
 (function(){
-  function installNimbusHomeActions(){
-    if(window.__NIMBUS_V18_1_HOME_ACTIONS__)return;
-    window.__NIMBUS_V18_1_HOME_ACTIONS__=true;
-
+  // Work on school Chromebooks even if the composer is below the fold.
+  // Avoid capturing '/' while typing, editing, or using Learning Studio.
+  document.addEventListener('keydown',function(event){
+    if(event.key!=='/' || event.ctrlKey || event.altKey || event.metaKey || event.isComposing)return;
+    var target=event.target;
+    if(target && (target.isContentEditable || (target.closest && target.closest('input,textarea,select,[contenteditable], [role="textbox"]'))))return;
+    var app=document.getElementById('app');
     var input=document.getElementById('messageInput');
-    var composer=document.getElementById('composer');
-    var fileInput=document.getElementById('fileInput');
-    var newChat=document.getElementById('newChat');
-    var clearChat=document.getElementById('clearChat');
-
-    if(!input||!composer||!fileInput)return;
-
-    // Only formats the file types the current chat backend actually sends
-    // inline to the model.
-    fileInput.setAttribute('accept','.pdf,.txt,.png,.jpg,.jpeg,.webp');
-
-    state.nimbusTaskMode='';
-
-    function setInput(value){
-      input.value=value;
-      try{input.dispatchEvent(new Event('input',{bubbles:true}));}catch(_){}
-      input.focus();
-      try{input.setSelectionRange(input.value.length,input.value.length);}catch(_){}
-    }
-
-    function identifyHomeCards(){
-      document.querySelectorAll('[data-prompt]').forEach(function(button){
-        var label=String(
-          (button.querySelector('b')&&button.querySelector('b').textContent) ||
-          button.textContent ||
-          ''
-        ).replace(/\s+/g,' ').trim().toLowerCase();
-
-        if(label.includes('explain a topic'))button.dataset.nimbusAction='explain-topic';
-        else if(label.includes('build a study plan'))button.dataset.nimbusAction='study-plan';
-        else if(label.includes('start a quiz'))button.dataset.nimbusAction='start-quiz';
-        else if(label.includes('study a file'))button.dataset.nimbusAction='study-file';
-      });
-    }
-
-    identifyHomeCards();
-
-    document.addEventListener('click',function(event){
-      var button=event.target&&event.target.closest
-        ? event.target.closest('[data-nimbus-action]')
-        : null;
-
-      if(!button)return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-
-      var action=button.dataset.nimbusAction||'';
-
-      if(action==='explain-topic'){
-        state.nimbusTaskMode='explain_topic';
-        setInput('Explain and summarize this topic clearly: ');
-        return;
-      }
-
-      if(action==='study-plan'){
-        state.nimbusTaskMode='study_plan';
-        setInput('Build me a practical study plan. First ask for my subjects, exam date, available study time, weak areas, and priorities.');
-        composer.requestSubmit();
-        return;
-      }
-
-      if(action==='start-quiz'){
-        state.nimbusTaskMode='quiz';
-        setInput('Start a quiz. First ask which subject or topic and difficulty I want. Then ask one question at a time and wait for my answer.');
-        composer.requestSubmit();
-        return;
-      }
-
-      if(action==='study-file'){
-        state.nimbusTaskMode='study_file';
-        fileInput.click();
-      }
-    },true);
-
-    // The existing fileInput.onchange stores the selected File in state.file.
-    // This listener runs after selection and submits once that handler finishes.
-    fileInput.addEventListener('change',function(){
-      if(state.nimbusTaskMode!=='study_file')return;
-      if(!fileInput.files||!fileInput.files[0])return;
-
-      setInput('Study this file. Summarize the key ideas, identify important terms, explain what I should revise, and highlight likely exam-focus areas.');
-
-      setTimeout(function(){
-        composer.requestSubmit();
-      },0);
-    });
-
-    // New chat exits plan/quiz modes.
-    [newChat,clearChat].forEach(function(button){
-      if(!button)return;
-      button.addEventListener('click',function(){
-        state.nimbusTaskMode='';
-      },true);
-    });
-
-    // Add task_mode to the existing request without rewriting sendMessage,
-    // saved chats, memory, speed, or visual wrappers.
-    if(!window.__NIMBUS_V18_1_TASK_FETCH__){
-      window.__NIMBUS_V18_1_TASK_FETCH__=true;
-      var previousFetch=window.fetch.bind(window);
-
-      window.fetch=async function(inputArg,init){
-        var url=typeof inputArg==='string' ? inputArg : ((inputArg&&inputArg.url)||'');
-        var method=String((init&&init.method)||'GET').toUpperCase();
-        var mode=String(state.nimbusTaskMode||'');
-
-        if(method==='POST' && /\/api\/chat(?:\?|$)/i.test(url) && init && typeof init.body==='string'){
-          try{
-            var payload=JSON.parse(init.body);
-            var message=String(payload.message||'');
-
-            // Allow the student to leave an interactive mode naturally.
-            if(/\b(?:stop|end|exit|cancel)\s+(?:the\s+)?(?:quiz|study\s+plan|plan)\b/i.test(message)){
-              mode='';
-              state.nimbusTaskMode='';
-            }
-
-            payload.task_mode=mode;
-            init=Object.assign({},init,{body:JSON.stringify(payload)});
-          }catch(_){}
-        }
-
-        try{
-          return await previousFetch(inputArg,init);
-        }finally{
-          // File study is one request. Quiz/study-plan remain active for
-          // follow-up answers until New Chat or an explicit stop command.
-          if(method==='POST' && /\/api\/chat(?:\?|$)/i.test(url) && (mode==='study_file' || mode==='explain_topic')){
-            state.nimbusTaskMode='';
-          }
-        }
-      };
-    }
-  }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',installNimbusHomeActions,{once:true});
-  }else{
-    installNimbusHomeActions();
-  }
+    var studio=document.getElementById('nimbusLearningPanel');
+    if(!app || app.classList.contains('hidden') || !input || input.disabled)return;
+    if(studio && !studio.hidden)return;
+    if(document.querySelector('.modal-backdrop:not(.hidden)'))return;
+    event.preventDefault();
+    input.focus();
+  },true);
 })();
-
 
 /* NIMBUS_V18_1_REMOVE_LEGACY_SPEED */
 (function(){
@@ -1914,6 +1780,9 @@ $('premiumComposer').addEventListener('submit',async e=>{
       '#sidebar #accountAvatar{background:#111827!important;color:#facc15!important}' +
       '#writeHelpBtn{height:38px;padding:0 12px;border:1px solid #ddd6fe;border-radius:12px;background:#faf5ff;color:#6d28d9;font:650 11px/1.1 system-ui,-apple-system,sans-serif;white-space:nowrap;cursor:pointer;transition:background .16s ease,border-color .16s ease,transform .16s ease}' +
       '#writeHelpBtn:hover{background:#f3e8ff;border-color:#c4b5fd;transform:translateY(-1px)}' +
+      '#nimbusRetryBtn{height:38px;padding:0 12px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;color:#334155;font:650 11px/1.1 system-ui,-apple-system,sans-serif;white-space:nowrap;cursor:pointer;transition:background .16s ease,border-color .16s ease}' +
+      '#nimbusRetryBtn:hover{background:#eff6ff;border-color:#93c5fd}' +
+      '@media(max-width:760px){#nimbusRetryBtn{max-width:78px;padding:0 7px;font-size:10px}}' +
       '@media(max-width:760px){#writeHelpBtn{max-width:118px;padding:0 8px;white-space:normal;font-size:10px}}';
     document.head.appendChild(style);
 
@@ -1943,6 +1812,27 @@ $('premiumComposer').addEventListener('submit',async e=>{
           ? 'Help me write this answer: '+value
           : 'Help me write this answer: ';
 
+        try{input.dispatchEvent(new Event('input',{bubbles:true}));}catch(_){}
+        input.focus();
+        try{input.setSelectionRange(input.value.length,input.value.length);}catch(_){}
+      });
+    }
+
+    // NIMBUS_V34_8_4: One-click retry prompt next to the writing-help chip.
+    // Prefills only. Never sends automatically or changes the backend route.
+    var writeHelp=document.getElementById('writeHelpBtn');
+    if(writeHelp&&input&&!document.getElementById('nimbusRetryBtn')){
+      var retry=document.createElement('button');
+      retry.type='button';
+      retry.id='nimbusRetryBtn';
+      retry.textContent='Retry';
+      retry.title='Insert a retry message (press Enter to send)';
+      retry.setAttribute('aria-label','Retry my last question');
+      writeHelp.insertAdjacentElement('afterend',retry);
+      retry.addEventListener('click',function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        input.value='Answer my Question Please';
         try{input.dispatchEvent(new Event('input',{bubbles:true}));}catch(_){}
         input.focus();
         try{input.setSelectionRange(input.value.length,input.value.length);}catch(_){}
